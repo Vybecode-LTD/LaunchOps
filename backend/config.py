@@ -1,6 +1,5 @@
 """Configuration management for VybeCod.ing Launch Ops."""
 
-import os
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -19,9 +18,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-4-20250514"
 
-    # Supabase
-    supabase_url: str = ""
-    supabase_key: str = ""  # service role key
+    # PostgreSQL (Railway provides DATABASE_URL)
+    database_url: str = ""
 
     # Rate limits
     max_concurrent_tasks: int = 5

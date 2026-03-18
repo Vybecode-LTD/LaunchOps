@@ -18,13 +18,13 @@ async def list_queue(
         filters["product_id"] = product_id
     if status:
         filters["status"] = status
-    return select("queue", filters=filters if filters else None)
+    return await select("queue", filters=filters if filters else None)
 
 
 @router.get("/{item_id}")
 async def get_queue_item(item_id: str) -> dict:
     """Get a single queue item with full content."""
-    item = select_one("queue", item_id)
+    item = await select_one("queue", item_id)
     if not item:
         raise HTTPException(404, "Queue item not found")
     return item
@@ -33,10 +33,10 @@ async def get_queue_item(item_id: str) -> dict:
 @router.patch("/{item_id}")
 async def update_queue_item(item_id: str, data: QueueUpdate) -> dict:
     """Approve, reject, or update a queue item."""
-    item = select_one("queue", item_id)
+    item = await select_one("queue", item_id)
     if not item:
         raise HTTPException(404, "Queue item not found")
-    return update("queue", item_id, {
+    return await update("queue", item_id, {
         "status": data.status.value,
         "notes": data.notes,
     })
@@ -45,5 +45,5 @@ async def update_queue_item(item_id: str, data: QueueUpdate) -> dict:
 @router.delete("/{item_id}")
 async def delete_queue_item(item_id: str) -> dict:
     """Delete a queue item."""
-    delete("queue", item_id)
+    await delete("queue", item_id)
     return {"deleted": True}

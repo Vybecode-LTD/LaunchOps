@@ -23,12 +23,12 @@ from services.scraper import scrape_url
 router = APIRouter(prefix="/api", tags=["workflows"])
 
 
-def _get_product_and_settings(product_id: str) -> tuple[dict, dict]:
+async def _get_product_and_settings(product_id: str) -> tuple[dict, dict]:
     """Fetch product and global settings, raise 404 if product missing."""
-    product = select_one("products", product_id)
+    product = await select_one("products", product_id)
     if not product:
         raise HTTPException(404, "Product not found")
-    settings_row = select_one("settings", 1, id_col="id") or {}
+    settings_row = await select_one("settings", 1, id_col="id") or {}
     return product, settings_row
 
 
@@ -50,16 +50,24 @@ async def _run_workflow(product_id: str, workflow_id: str,
                         instructions: str, queue_id: str):
     """Execute a workflow in the background and store results."""
     try:
-        product, settings = _get_product_and_settings(product_id)
+        product = await select_one("products", product_id)
+        if not product:
+            await update("queue", queue_id, {
+                "status": "failed",
+                "content": {"error": "Product not found"},
+            })
+            return
+
+        settings_row = await select_one("settings", 1, id_col="id") or {}
         brand_ctx = build_brand_context(
             product,
-            brand=settings.get("brand"),
-            prefs=settings.get("prefs"),
+            brand=settings_row.get("brand"),
+            prefs=settings_row.get("prefs"),
         )
 
         prompt_config = WORKFLOW_PROMPTS.get(workflow_id)
         if not prompt_config:
-            update("queue", queue_id, {
+            await update("queue", queue_id, {
                 "status": "failed",
                 "content": {"error": f"Unknown workflow: {workflow_id}"},
             })
@@ -78,14 +86,14 @@ async def _run_workflow(product_id: str, workflow_id: str,
         # Generate preview from result
         preview = _generate_preview(workflow_id, result)
 
-        update("queue", queue_id, {
+        await update("queue", queue_id, {
             "status": QueueStatus.PENDING.value,
             "content": result,
             "preview": preview,
         })
 
     except Exception as e:
-        update("queue", queue_id, {
+        await update("queue", queue_id, {
             "status": "failed",
             "content": {"error": str(e)},
             "preview": f"Failed: {str(e)[:100]}",
@@ -129,7 +137,7 @@ async def launch_workflow(
     background_tasks: BackgroundTasks,
 ) -> WorkflowResponse:
     """Launch an AI workflow. Runs in background, results go to queue."""
-    product = select_one("products", data.product_id)
+    product = await select_one("products", data.product_id)
     if not product:
         raise HTTPException(404, "Product not found")
 
@@ -138,7 +146,7 @@ async def launch_workflow(
 
     # Create queue entry in "running" state
     queue_id = new_id()
-    insert("queue", {
+    await insert("queue", {
         "id": queue_id,
         "product_id": data.product_id,
         "workflow_id": data.workflow_id,
@@ -169,7 +177,7 @@ async def launch_workflow(
 @router.post("/presskit/generate")
 async def generate_press_kit(data: PressKitRequest) -> dict:
     """Scrape URL and generate a press kit via Claude."""
-    product, settings = _get_product_and_settings(data.product_id)
+    product, settings = await _get_product_and_settings(data.product_id)
     brand_ctx = build_brand_context(
         product, settings.get("brand"), settings.get("prefs")
     )
@@ -194,7 +202,7 @@ async def generate_press_kit(data: PressKitRequest) -> dict:
     result = _parse_json_response(response)
 
     # Store on product
-    update("products", data.product_id, {"press_kit": result})
+    await update("products", data.product_id, {"press_kit": result})
     return result
 
 
@@ -204,7 +212,7 @@ async def generate_press_kit(data: PressKitRequest) -> dict:
 @router.post("/seo/analyze")
 async def analyze_seo(data: SEORequest) -> dict:
     """Scrape URL metadata and generate optimized SEO tags."""
-    product, settings = _get_product_and_settings(data.product_id)
+    product, settings = await _get_product_and_settings(data.product_id)
     brand_ctx = build_brand_context(
         product, settings.get("brand"), settings.get("prefs")
     )
@@ -223,7 +231,7 @@ async def analyze_seo(data: SEORequest) -> dict:
     result = _parse_json_response(response)
 
     # Store on product
-    update("products", data.product_id, {"seo_result": result})
+    await update("products", data.product_id, {"seo_result": result})
     return result
 
 
@@ -233,7 +241,7 @@ async def analyze_seo(data: SEORequest) -> dict:
 @router.post("/repurpose")
 async def repurpose_content(data: RepurposeRequest) -> dict:
     """Repurpose content for multiple platforms."""
-    product, settings = _get_product_and_settings(data.product_id)
+    product, settings = await _get_product_and_settings(data.product_id)
     brand_ctx = build_brand_context(
         product, settings.get("brand"), settings.get("prefs")
     )
@@ -256,7 +264,7 @@ async def repurpose_content(data: RepurposeRequest) -> dict:
 @router.post("/pricing/analyze")
 async def analyze_pricing(data: PricingRequest) -> dict:
     """Generate pricing strategy recommendations."""
-    product, settings = _get_product_and_settings(data.product_id)
+    product, settings = await _get_product_and_settings(data.product_id)
     brand_ctx = build_brand_context(
         product, settings.get("brand"), settings.get("prefs")
     )

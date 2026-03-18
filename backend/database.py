@@ -1,68 +1,162 @@
-"""Supabase database client for VybeCod.ing Launch Ops."""
+"""PostgreSQL database client for VybeCod.ing Launch Ops.
 
-from supabase import create_client, Client
+Uses asyncpg for async PostgreSQL access. Drop-in replacement for the
+previous Supabase client — same 5 helper functions, same signatures.
+"""
+
+import json
+import uuid
+from datetime import date, datetime
+import asyncpg
 from config import get_settings
 
-_client: Client | None = None
+_pool: asyncpg.Pool | None = None
 
 
-def get_db() -> Client:
-    """Get or create Supabase client singleton."""
-    global _client
-    if _client is None:
+async def _init_connection(conn):
+    """Set up JSON codec on each connection so JSONB comes back as dicts."""
+    await conn.set_type_codec(
+        "jsonb", encoder=json.dumps, decoder=json.loads,
+        schema="pg_catalog", format="text",
+    )
+    await conn.set_type_codec(
+        "json", encoder=json.dumps, decoder=json.loads,
+        schema="pg_catalog", format="text",
+    )
+
+
+async def get_pool() -> asyncpg.Pool:
+    """Get or create the connection pool."""
+    global _pool
+    if _pool is None:
         settings = get_settings()
-        if not settings.supabase_url or not settings.supabase_key:
-            raise RuntimeError(
-                "SUPABASE_URL and SUPABASE_KEY must be set in environment"
-            )
-        _client = create_client(settings.supabase_url, settings.supabase_key)
-    return _client
+        if not settings.database_url:
+            raise RuntimeError("DATABASE_URL must be set in environment")
+        _pool = await asyncpg.create_pool(
+            settings.database_url, min_size=2, max_size=10,
+            init=_init_connection,
+        )
+    return _pool
+
+
+async def close_pool():
+    """Close the connection pool (call on shutdown)."""
+    global _pool
+    if _pool:
+        await _pool.close()
+        _pool = None
+
+
+# ─── JSON encoder helper ───
+
+def _prep_value(value):
+    """Prepare a value for asyncpg: coerce UUIDs/datetimes.
+
+    Note: dicts/lists pass through as-is because the JSON codec
+    (set up in _init_connection) handles JSONB encoding.
+    """
+    if isinstance(value, str):
+        # Convert UUID strings
+        if len(value) == 36:
+            try:
+                return uuid.UUID(value)
+            except ValueError:
+                pass
+        # Convert ISO datetime strings
+        if "T" in value and len(value) > 18:
+            try:
+                return datetime.fromisoformat(value)
+            except ValueError:
+                pass
+    return value
+
+
+def _row_to_dict(row: asyncpg.Record) -> dict:
+    """Convert an asyncpg Record to a JSON-safe dict."""
+    d = {}
+    for k, v in dict(row).items():
+        if isinstance(v, uuid.UUID):
+            d[k] = str(v)
+        elif isinstance(v, datetime):
+            d[k] = v.isoformat()
+        elif isinstance(v, date):
+            d[k] = v.isoformat()
+        else:
+            d[k] = v
+    return d
 
 
 # ─── Table helpers ───
-# Each function wraps common Supabase operations for cleaner router code.
+# Each function wraps common PostgreSQL operations for cleaner router code.
+# Signatures match the previous Supabase helpers so routers need no changes.
 
 
-def insert(table: str, data: dict) -> dict:
+async def insert(table: str, data: dict) -> dict:
     """Insert a row and return it."""
-    result = get_db().table(table).insert(data).execute()
-    return result.data[0] if result.data else {}
+    pool = await get_pool()
+    # Filter out None values and encode JSONB
+    cols = []
+    vals = []
+    placeholders = []
+    for i, (k, v) in enumerate(data.items(), 1):
+        cols.append(f'"{k}"')
+        vals.append(_prep_value(v))
+        placeholders.append(f"${i}")
+
+    query = f'INSERT INTO {table} ({", ".join(cols)}) VALUES ({", ".join(placeholders)}) RETURNING *'
+    row = await pool.fetchrow(query, *vals)
+    return _row_to_dict(row) if row else {}
 
 
-def select(table: str, filters: dict | None = None, order: str = "created_at",
-           descending: bool = True, limit: int = 100) -> list[dict]:
+async def select(table: str, filters: dict | None = None, order: str = "created_at",
+                 descending: bool = True, limit: int = 100) -> list[dict]:
     """Select rows with optional filters."""
-    query = get_db().table(table).select("*")
+    pool = await get_pool()
+    conditions = []
+    vals = []
     if filters:
-        for key, value in filters.items():
-            query = query.eq(key, value)
-    query = query.order(order, desc=descending).limit(limit)
-    result = query.execute()
-    return result.data or []
+        for i, (k, v) in enumerate(filters.items(), 1):
+            conditions.append(f'"{k}" = ${i}')
+            vals.append(v)
+
+    where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+    direction = "DESC" if descending else "ASC"
+    query = f'SELECT * FROM {table}{where} ORDER BY "{order}" {direction} LIMIT {limit}'
+    rows = await pool.fetch(query, *vals)
+    return [_row_to_dict(r) for r in rows]
 
 
-def select_one(table: str, id_value: str, id_col: str = "id") -> dict | None:
+async def select_one(table: str, id_value, id_col: str = "id") -> dict | None:
     """Select a single row by ID."""
-    result = get_db().table(table).select("*").eq(id_col, id_value).execute()
-    return result.data[0] if result.data else None
+    pool = await get_pool()
+    query = f'SELECT * FROM {table} WHERE "{id_col}" = $1'
+    row = await pool.fetchrow(query, id_value)
+    return _row_to_dict(row) if row else None
 
 
-def update(table: str, id_value: str, data: dict,
-           id_col: str = "id") -> dict:
+async def update(table: str, id_value, data: dict, id_col: str = "id") -> dict:
     """Update a row by ID."""
-    result = (
-        get_db().table(table).update(data).eq(id_col, id_value).execute()
-    )
-    return result.data[0] if result.data else {}
+    pool = await get_pool()
+    sets = []
+    vals = []
+    for i, (k, v) in enumerate(data.items(), 1):
+        sets.append(f'"{k}" = ${i}')
+        vals.append(_prep_value(v))
+    vals.append(id_value)
+
+    query = f'UPDATE {table} SET {", ".join(sets)} WHERE "{id_col}" = ${len(vals)} RETURNING *'
+    row = await pool.fetchrow(query, *vals)
+    return _row_to_dict(row) if row else {}
 
 
-def delete(table: str, id_value: str, id_col: str = "id") -> bool:
+async def delete(table: str, id_value, id_col: str = "id") -> bool:
     """Delete a row by ID."""
-    get_db().table(table).delete().eq(id_col, id_value).execute()
+    pool = await get_pool()
+    await pool.execute(f'DELETE FROM {table} WHERE "{id_col}" = $1', id_value)
     return True
 
 
-# ─── Schema setup SQL (run once in Supabase SQL editor) ───
+# ─── Schema setup SQL (run automatically on startup) ───
 
 SETUP_SQL = """
 -- Products
@@ -143,3 +237,9 @@ CREATE INDEX IF NOT EXISTS idx_queue_status ON queue(status);
 CREATE INDEX IF NOT EXISTS idx_calendar_date ON calendar_events(date);
 CREATE INDEX IF NOT EXISTS idx_captures_product ON captures(product_id);
 """
+
+
+async def run_setup():
+    """Run the schema setup SQL. Safe to call multiple times."""
+    pool = await get_pool()
+    await pool.execute(SETUP_SQL)

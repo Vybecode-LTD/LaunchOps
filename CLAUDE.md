@@ -15,7 +15,7 @@ It is built for **Pimpy**, who runs VybeCod.ing — a brand empowering non-techn
 | Layer | Technology |
 |-------|-----------|
 | **Backend** | Python 3.12, FastAPI, Pydantic v2 |
-| **Database** | Supabase (PostgreSQL) |
+| **Database** | PostgreSQL (Railway, via asyncpg) |
 | **AI Engine** | Anthropic Claude API (claude-sonnet-4-20250514) with web search tool |
 | **Frontend** | React 18, Vite, inline styles (no Tailwind/CSS framework) |
 | **Deployment** | Railway PRO (Docker) |
@@ -159,8 +159,7 @@ Run the SQL from `database.py` (the `SETUP_SQL` variable) in the Supabase SQL ed
 |----------|-------------|
 | `ANTHROPIC_API_KEY` | Claude API key |
 | `CLAUDE_MODEL` | Model ID (default: `claude-sonnet-4-20250514`) |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_KEY` | Supabase service role key |
+| `DATABASE_URL` | PostgreSQL connection string (Railway provides this) |
 | `SECRET_KEY` | App secret for sessions |
 | `CORS_ORIGINS` | Comma-separated allowed origins |
 | `DEBUG` | `true` / `false` |

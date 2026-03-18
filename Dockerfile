@@ -1,9 +1,9 @@
 # Stage 1: Build the React frontend
 FROM node:20-slim AS frontend-build
 WORKDIR /frontend
-COPY ../frontend/package.json ../frontend/package-lock.json* ./
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
-COPY ../frontend/ .
+COPY frontend/ .
 RUN npm run build
 
 # Stage 2: Python backend + frontend static files
@@ -11,17 +11,16 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
-COPY . .
+COPY backend/ .
 
-# Copy frontend build output into backend/static
+# Copy frontend build output into static/
 COPY --from=frontend-build /frontend/dist ./static
 
 # Expose port
 EXPOSE 8000
 
-# Run with uvicorn
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

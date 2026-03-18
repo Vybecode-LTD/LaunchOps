@@ -1,11 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import * as api from "./api";
 
 /* ═══════════════════════════════════════
    DATA & CONSTANTS
    ═══════════════════════════════════════ */
-
-let _id = 1;
-const uid = () => `_${_id++}`;
 
 const WORKFLOWS = [
   { id: "competitor", name: "Competitor Deep-Dive", icon: "🔍", color: "#00f0ff", desc: "Analyze a competitor's product, pricing & positioning", tags: ["research"] },
@@ -59,24 +57,6 @@ const LAUNCH_CHECKLIST = [
     "Week 2 content published", "Gather testimonials & reviews",
     "Launch retrospective — what worked?",
   ]},
-];
-
-const SAMPLE_PRODUCTS = [{
-  id: "vybecode-dsp", name: "VybeCode DSP", tagline: "Audio plugin development without code",
-  url: "https://vybecod.ing/dsp", status: "pre_launch", color: "#00f0ff",
-  pressKit: null, checklist: {},
-  queue: [
-    { id: uid(), workflow: "press_targets", status: "pending", preview: "Found 12 music production blogs accepting press kits...", time: "2m ago" },
-    { id: uid(), workflow: "social_posts", status: "pending", preview: "5 Twitter/X posts for pre-launch campaign...", time: "8m ago" },
-  ],
-  keywords: ["audio plugins", "no-code", "music production", "DSP", "VST"], description: "",
-}];
-
-const SAMPLE_TEMPLATES = [
-  { id: uid(), name: "Cold Outreach — Product Launch", type: "email", tags: ["outreach", "email"], content: "Hi {name},\n\nI'm reaching out because I think {publication} readers would love to know about {product} — {tagline}.\n\nWe're launching soon and I'd love to share a press kit with you. Would you be interested in taking a look?\n\nBest,\n{sender}", source: "VybeCode DSP", date: "Mar 15" },
-  { id: uid(), name: "Twitter Launch Thread", type: "social", tags: ["social", "content"], content: "🚀 Introducing {product} — {tagline}\n\n🧵 Thread on why we built this and what makes it different:\n\n1/ The problem: {pain_point}\n2/ Our approach: {solution}\n3/ Key features: {features}\n4/ Try it today: {url}", source: "VybeCode DSP", date: "Mar 14" },
-  { id: uid(), name: "Reddit Community Post", type: "social", tags: ["social", "community"], content: "Hey {subreddit} — I've been working on {product}, which {tagline}.\n\nI know self-promo can be annoying, so I genuinely want feedback from this community. Here's what it does:\n\n{features}\n\nWould love honest thoughts. Link in comments if allowed by rules.", source: "VybeCode DSP", date: "Mar 13" },
-  { id: uid(), name: "Blog Announcement Draft", type: "blog", tags: ["content", "blog"], content: "# Introducing {product}\n\n{elevator_pitch}\n\n## The Problem\n{pain_point}\n\n## Our Solution\n{solution}\n\n## Key Features\n{features}\n\n## Get Started\n{cta}", source: "VybeCode DSP", date: "Mar 12" },
 ];
 
 const copyToClipboard = (text, notify) => {
@@ -157,7 +137,14 @@ const Tags = ({ label, tags, onChange, placeholder }) => {
 const QuickCapture = ({ products, onCapture }) => {
   const [text, setText] = useState("");
   const [pid, setPid] = useState(products[0]?.id || "");
-  const go = () => { if (text.trim()) { onCapture({ id: uid(), text, productId: pid, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }); setText(""); } };
+  useEffect(() => { if (products[0]?.id && !pid) setPid(products[0].id); }, [products]);
+  const go = async () => {
+    if (!text.trim() || !pid) return;
+    try {
+      await onCapture({ text, product_id: pid });
+      setText("");
+    } catch (e) { /* parent handles error */ }
+  };
   return (
     <div style={{ display: "flex", gap: "8px", marginBottom: "24px", padding: "12px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", alignItems: "center" }}>
       <span style={{ fontSize: "15px" }}>⚡</span>
@@ -174,7 +161,7 @@ const QuickCapture = ({ products, onCapture }) => {
    DYNAMIC CONTENT CALENDAR
    ═══════════════════════════════════════ */
 
-const Calendar = ({ events, setEvents, products }) => {
+const Calendar = ({ events, products, onAdd, onRemove }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [newTask, setNewTask] = useState("");
   const [newProduct, setNewProduct] = useState(products[0]?.id || "");
@@ -185,16 +172,16 @@ const Calendar = ({ events, setEvents, products }) => {
   const days = Array.from({ length: 14 }, (_, i) => { const d = new Date(start); d.setDate(d.getDate() + i); return d; });
   const todayStr = today.toISOString().split("T")[0];
 
-  const addEvent = () => {
+  const addEvent = async () => {
     if (!newTask.trim() || !selectedDate) return;
-    const prod = products.find(p => p.id === newProduct);
-    setEvents(ev => [...ev, { id: uid(), date: selectedDate, product: prod?.name || "—", platform: newPlatform, title: newTask, color: prod?.color || "#00f0ff" }]);
+    await onAdd({ date: selectedDate, product_id: newProduct, platform: newPlatform, title: newTask });
     setNewTask("");
   };
 
-  const removeEvent = (id) => setEvents(ev => ev.filter(e => e.id !== id));
-
-  const selectedEvents = events.filter(e => e.date === selectedDate);
+  const selectedEvents = events.filter(e => {
+    const d = typeof e.date === "string" ? e.date : (e.date ? new Date(e.date).toISOString().split("T")[0] : "");
+    return d === selectedDate;
+  });
 
   return (
     <div>
@@ -205,20 +192,22 @@ const Calendar = ({ events, setEvents, products }) => {
           const ds = day.toISOString().split("T")[0];
           const isToday = ds === todayStr;
           const isSelected = ds === selectedDate;
-          const dayEvts = events.filter(e => e.date === ds);
+          const dayEvts = events.filter(e => {
+            const d = typeof e.date === "string" ? e.date : (e.date ? new Date(e.date).toISOString().split("T")[0] : "");
+            return d === ds;
+          });
           return (
             <div key={i} onClick={() => setSelectedDate(isSelected ? null : ds)}
               style={{ background: isSelected ? "rgba(0,240,255,0.08)" : isToday ? "rgba(0,240,255,0.04)" : "rgba(255,255,255,0.02)", border: `1px solid ${isSelected ? "rgba(0,240,255,0.3)" : isToday ? "rgba(0,240,255,0.12)" : "rgba(255,255,255,0.04)"}`, borderRadius: "8px", padding: "8px", minHeight: "78px", cursor: "pointer", transition: "all 0.15s ease" }}>
               <div style={{ fontSize: "11px", fontWeight: 700, color: isToday ? "#00f0ff" : "rgba(255,255,255,0.4)", fontFamily: "var(--mono)", marginBottom: "4px" }}>{day.getDate()}</div>
               {dayEvts.map(ev => (
-                <div key={ev.id} style={{ padding: "3px 5px", borderRadius: "3px", marginBottom: "3px", background: `${ev.color}15`, borderLeft: `2px solid ${ev.color}`, fontSize: "9px", color: "#e0e0e0", fontFamily: "var(--mono)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.title}</div>
+                <div key={ev.id} style={{ padding: "3px 5px", borderRadius: "3px", marginBottom: "3px", background: `${ev.color || "#00f0ff"}15`, borderLeft: `2px solid ${ev.color || "#00f0ff"}`, fontSize: "9px", color: "#e0e0e0", fontFamily: "var(--mono)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.title}</div>
               ))}
             </div>
           );
         })}
       </div>
 
-      {/* Day detail panel */}
       {selectedDate && (
         <Card style={{ animation: "fadeIn 0.2s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
@@ -226,21 +215,19 @@ const Calendar = ({ events, setEvents, products }) => {
             <button onClick={() => setSelectedDate(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: "16px" }}>×</button>
           </div>
 
-          {/* Existing events */}
           {selectedEvents.length > 0 ? selectedEvents.map(ev => (
             <div key={ev.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: ev.color, flexShrink: 0 }} />
+                <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: ev.color || "#00f0ff", flexShrink: 0 }} />
                 <div>
                   <div style={{ fontSize: "13px", color: "#e0e0e0", fontWeight: 600 }}>{ev.title}</div>
-                  <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)", marginTop: "2px" }}>{ev.product} · {ev.platform}</div>
+                  <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)", marginTop: "2px" }}>{ev.product_name || "—"} · {ev.platform}</div>
                 </div>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); removeEvent(ev.id); }} style={{ background: "none", border: "none", color: "rgba(239,68,68,0.5)", cursor: "pointer", fontSize: "14px", padding: "4px" }}>×</button>
+              <button onClick={(e) => { e.stopPropagation(); onRemove(ev.id); }} style={{ background: "none", border: "none", color: "rgba(239,68,68,0.5)", cursor: "pointer", fontSize: "14px", padding: "4px" }}>×</button>
             </div>
           )) : <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.25)", padding: "12px 0", fontFamily: "var(--mono)" }}>No content scheduled. Add something below.</div>}
 
-          {/* Add new */}
           <div style={{ marginTop: "14px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
             <input value={newTask} onChange={e => setNewTask(e.target.value)} onKeyDown={e => e.key === "Enter" && addEvent()} placeholder="Task title..."
               style={{ flex: "1 1 200px", padding: "8px 12px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", color: "#e0e0e0", fontSize: "12px", fontFamily: "var(--mono)", outline: "none" }} />
@@ -262,8 +249,8 @@ const Calendar = ({ events, setEvents, products }) => {
    COMMAND CENTER
    ═══════════════════════════════════════ */
 
-const Home = ({ products, captures, templates, calEvents, setCalEvents, setTemplates, onSelect, onCreate, onCapture, sub, setSub, notify }) => {
-  const totalPending = products.reduce((s, p) => s + (p.queue?.filter(q => q.status === "pending").length || 0), 0);
+const Home = ({ products, captures, templates, calEvents, products_loading, onAddCalEvent, onRemoveCalEvent, onSelect, onCreate, onCapture, onDeleteTemplate, sub, setSub, notify }) => {
+  const totalPending = 0; // Will be fetched per-product from queue
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
@@ -289,36 +276,39 @@ const Home = ({ products, captures, templates, calEvents, setCalEvents, setTempl
           <SL style={{ marginBottom: 0 }}>Your Products</SL>
           <Btn onClick={onCreate} outline small>+ New Product</Btn>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px", marginBottom: "28px" }}>
-          {products.map(p => {
-            const pend = p.queue?.filter(q => q.status === "pending").length || 0;
-            const total = LAUNCH_CHECKLIST.reduce((s, ph) => s + ph.items.length, 0);
-            const done = Object.values(p.checklist || {}).filter(Boolean).length;
-            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-            return (
-              <Card key={p.id} onClick={() => onSelect(p.id)} style={{ cursor: "pointer", position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, transparent, ${p.color}, transparent)`, opacity: 0.6 }} />
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                  <div style={{ fontSize: "15px", fontWeight: 700, color: "#f0f0f0", fontFamily: "'Space Mono', monospace" }}>{p.name}</div>
-                  <Badge color={p.status === "pre_launch" ? "#ffaa00" : "#22c55e"}>{p.status.replace("_", "-").toUpperCase()}</Badge>
-                </div>
-                <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "10px" }}>{p.tagline}</div>
-                <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "2px", marginBottom: "8px" }}>
-                  <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, #22c55e, ${p.color})`, borderRadius: "2px", transition: "width 0.3s" }} />
-                </div>
-                <div style={{ display: "flex", gap: "10px", fontSize: "10px", fontFamily: "var(--mono)" }}>
-                  <span style={{ color: "#22c55e" }}>{pct}%</span>
-                  {pend > 0 && <span style={{ color: "#ffaa00" }}>{pend} pending</span>}
-                  {p.pressKit && <span style={{ color: "#a855f7" }}>Press kit ✓</span>}
-                </div>
-              </Card>
-            );
-          })}
-          <Card onClick={onCreate} style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "110px", borderStyle: "dashed" }}>
-            <div style={{ fontSize: "28px", opacity: 0.3 }}>+</div>
-            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)" }}>Add Product</div>
-          </Card>
-        </div>
+
+        {products_loading ? (
+          <div style={{ textAlign: "center", padding: "40px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)", fontSize: "12px" }}>Loading products...</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px", marginBottom: "28px" }}>
+            {products.map(p => {
+              const total = LAUNCH_CHECKLIST.reduce((s, ph) => s + ph.items.length, 0);
+              const done = Object.values(p.checklist || {}).filter(Boolean).length;
+              const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+              return (
+                <Card key={p.id} onClick={() => onSelect(p.id)} style={{ cursor: "pointer", position: "relative", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, transparent, ${p.color}, transparent)`, opacity: 0.6 }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <div style={{ fontSize: "15px", fontWeight: 700, color: "#f0f0f0", fontFamily: "'Space Mono', monospace" }}>{p.name}</div>
+                    <Badge color={p.status === "pre_launch" ? "#ffaa00" : "#22c55e"}>{(p.status || "pre_launch").replace("_", "-").toUpperCase()}</Badge>
+                  </div>
+                  <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "10px" }}>{p.tagline}</div>
+                  <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "2px", marginBottom: "8px" }}>
+                    <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, #22c55e, ${p.color})`, borderRadius: "2px", transition: "width 0.3s" }} />
+                  </div>
+                  <div style={{ display: "flex", gap: "10px", fontSize: "10px", fontFamily: "var(--mono)" }}>
+                    <span style={{ color: "#22c55e" }}>{pct}%</span>
+                    {p.press_kit && <span style={{ color: "#a855f7" }}>Press kit ✓</span>}
+                  </div>
+                </Card>
+              );
+            })}
+            <Card onClick={onCreate} style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "110px", borderStyle: "dashed" }}>
+              <div style={{ fontSize: "28px", opacity: 0.3 }}>+</div>
+              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)" }}>Add Product</div>
+            </Card>
+          </div>
+        )}
 
         {captures.length > 0 && <>
           <SL>Quick Captures</SL>
@@ -327,15 +317,14 @@ const Home = ({ products, captures, templates, calEvents, setCalEvents, setTempl
               <span>⚡</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "12px", color: "#e0e0e0" }}>{c.text}</div>
-                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)", marginTop: "3px" }}>{products.find(p => p.id === c.productId)?.name} · {c.time}</div>
+                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)", marginTop: "3px" }}>{products.find(p => p.id === c.product_id)?.name}</div>
               </div>
-              <Btn outline small>Expand →</Btn>
             </Card>
           ))}
         </>}
       </>}
 
-      {sub === "calendar" && <Calendar events={calEvents} setEvents={setCalEvents} products={products} />}
+      {sub === "calendar" && <Calendar events={calEvents} products={products} onAdd={onAddCalEvent} onRemove={onRemoveCalEvent} />}
 
       {sub === "templates" && <>
         <SL>Template Library</SL>
@@ -346,8 +335,9 @@ const Home = ({ products, captures, templates, calEvents, setCalEvents, setTempl
               <span style={{ fontSize: "13px", fontWeight: 600, color: "#e0e0e0" }}>{t.name}</span>
               <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                 <Badge color="#a855f7">{t.type}</Badge>
-                <Badge color="rgba(255,255,255,0.3)">{t.source}</Badge>
+                {t.source_product && <Badge color="rgba(255,255,255,0.3)">{t.source_product}</Badge>}
                 <Btn onClick={() => copyToClipboard(t.content, notify)} outline small color="#22c55e" style={{ padding: "4px 10px", fontSize: "10px" }}>📋 Copy</Btn>
+                <Btn onClick={() => onDeleteTemplate(t.id)} outline small color="#ef4444" style={{ padding: "4px 10px", fontSize: "10px" }}>×</Btn>
               </div>
             </div>
             <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.45)", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.5, background: "rgba(0,0,0,0.2)", borderRadius: "6px", padding: "10px 12px", maxHeight: "120px", overflow: "auto" }}>{t.content}</div>
@@ -363,22 +353,63 @@ const Home = ({ products, captures, templates, calEvents, setCalEvents, setTempl
    PRODUCT DASHBOARD
    ═══════════════════════════════════════ */
 
-const ProductDash = ({ product: p, setProduct: setP, onBack, notify, templates = [] }) => {
+const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = [] }) => {
   const [tab, setTab] = useState("overview");
   const [selWf, setSelWf] = useState(null);
   const [taskInput, setTaskInput] = useState("");
   const [launching, setLaunching] = useState(false);
   const [repInput, setRepInput] = useState("");
   const [repResults, setRepResults] = useState(null);
+  const [repLoading, setRepLoading] = useState(false);
   const [pressUrl, setPressUrl] = useState(p.url || "");
-  const [genStep, setGenStep] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [genStep, setGenStep] = useState("");
   const [priceResult, setPriceResult] = useState(null);
+  const [priceLoading, setPriceLoading] = useState(false);
   const [seoUrl, setSeoUrl] = useState(p.url || "");
-  const [seoResult, setSeoResult] = useState(null);
+  const [seoResult, setSeoResult] = useState(p.seo_result || null);
+  const [seoLoading, setSeoLoading] = useState(false);
   const [seoMethod, setSeoMethod] = useState("manual");
+  const [queueItems, setQueueItems] = useState([]);
+  const [queueLoading, setQueueLoading] = useState(false);
+  const [wfTemplates, setWfTemplates] = useState([]);
+  const [editDirty, setEditDirty] = useState({});
+  const pollRef = useRef(null);
 
-  const pending = p.queue?.filter(q => q.status === "pending").length || 0;
+  // Load queue items
+  const loadQueue = useCallback(async () => {
+    try {
+      setQueueLoading(true);
+      const items = await api.queue.list({ product_id: p.id });
+      setQueueItems(items);
+    } catch (e) { notify("Failed to load queue: " + e.message, "#ef4444"); }
+    finally { setQueueLoading(false); }
+  }, [p.id]);
+
+  useEffect(() => { loadQueue(); }, [loadQueue]);
+
+  // Poll for running items
+  useEffect(() => {
+    const hasRunning = queueItems.some(q => q.status === "running");
+    if (hasRunning && !pollRef.current) {
+      pollRef.current = setInterval(loadQueue, 4000);
+    } else if (!hasRunning && pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [queueItems, loadQueue]);
+
+  // Load templates for selected workflow
+  useEffect(() => {
+    if (selWf) {
+      api.templates.forWorkflow(selWf.id).then(setWfTemplates).catch(() => setWfTemplates([]));
+    } else {
+      setWfTemplates([]);
+    }
+  }, [selWf]);
+
+  const pending = queueItems.filter(q => q.status === "pending").length;
   const totalItems = LAUNCH_CHECKLIST.reduce((s, ph) => s + ph.items.length, 0);
   const done = Object.values(p.checklist || {}).filter(Boolean).length;
   const pct = totalItems > 0 ? Math.round((done / totalItems) * 100) : 0;
@@ -395,7 +426,102 @@ const ProductDash = ({ product: p, setProduct: setP, onBack, notify, templates =
     { id: "edit", label: "Edit" },
   ];
 
-  const simulate = (steps, cb) => { setGenerating(true); let i = 0; const iv = setInterval(() => { if (i < steps.length) { setGenStep(steps[i]); i++; } else { clearInterval(iv); setGenerating(false); setGenStep(""); cb(); } }, 700); };
+  // ─── Workflow Launch (API) ───
+  const launchWorkflow = async () => {
+    if (!selWf) return;
+    setLaunching(true);
+    try {
+      await api.workflows.launch({ product_id: p.id, workflow_id: selWf.id, instructions: taskInput });
+      notify(`Launched: ${selWf.name}`, selWf.color);
+      setSelWf(null);
+      setTaskInput("");
+      loadQueue();
+    } catch (e) { notify("Launch failed: " + e.message, "#ef4444"); }
+    finally { setLaunching(false); }
+  };
+
+  // ─── Press Kit (API) ───
+  const generatePressKit = async () => {
+    if (!pressUrl) return;
+    setGenerating(true);
+    setGenStep("Scraping & analyzing...");
+    try {
+      await api.pressKit.generate({ product_id: p.id, url: pressUrl });
+      notify("Press kit ready ✓", "#22c55e");
+      await reloadProduct();
+    } catch (e) { notify("Press kit failed: " + e.message, "#ef4444"); }
+    finally { setGenerating(false); setGenStep(""); }
+  };
+
+  // ─── Repurpose (API) ───
+  const repurpose = async () => {
+    if (!repInput) return;
+    setRepLoading(true);
+    try {
+      const result = await api.repurpose.create({ product_id: p.id, content: repInput });
+      setRepResults(result.platforms || result.raw_response ? [result] : []);
+      notify("Repurposed ✓", "#a855f7");
+    } catch (e) { notify("Repurpose failed: " + e.message, "#ef4444"); }
+    finally { setRepLoading(false); }
+  };
+
+  // ─── Pricing (API) ───
+  const analyzePricing = async () => {
+    setPriceLoading(true);
+    try {
+      const result = await api.pricing.analyze({ product_id: p.id });
+      setPriceResult(result);
+      notify("Pricing analysis ready ✓", "#22c55e");
+    } catch (e) { notify("Pricing failed: " + e.message, "#ef4444"); }
+    finally { setPriceLoading(false); }
+  };
+
+  // ─── SEO (API) ───
+  const analyzeSeo = async () => {
+    if (!seoUrl) return;
+    setSeoLoading(true);
+    try {
+      const result = await api.seo.analyze({ product_id: p.id, url: seoUrl });
+      setSeoResult(result);
+      notify("SEO analysis complete ✓", "#22c55e");
+    } catch (e) { notify("SEO failed: " + e.message, "#ef4444"); }
+    finally { setSeoLoading(false); }
+  };
+
+  // ─── Queue actions (API) ───
+  const approveItem = async (id) => {
+    try {
+      await api.queue.update(id, { status: "approved" });
+      notify("Approved ✓", "#22c55e");
+      loadQueue();
+    } catch (e) { notify("Failed: " + e.message, "#ef4444"); }
+  };
+  const rejectItem = async (id) => {
+    try {
+      await api.queue.update(id, { status: "rejected" });
+      notify("Rejected", "#ef4444");
+      loadQueue();
+    } catch (e) { notify("Failed: " + e.message, "#ef4444"); }
+  };
+
+  // ─── Checklist (API) ───
+  const toggleChecklist = async (key, checked) => {
+    const newChecklist = { ...(p.checklist || {}), [key]: checked };
+    try {
+      await api.products.updateChecklist(p.id, newChecklist);
+      await reloadProduct();
+    } catch (e) { notify("Save failed: " + e.message, "#ef4444"); }
+  };
+
+  // ─── Edit product (API) ───
+  const saveEdit = async (field, value) => {
+    try {
+      await api.products.update(p.id, { [field]: value });
+      await reloadProduct();
+    } catch (e) { notify("Save failed: " + e.message, "#ef4444"); }
+  };
+
+  const pk = p.press_kit;
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
@@ -420,7 +546,7 @@ const ProductDash = ({ product: p, setProduct: setP, onBack, notify, templates =
       {/* OVERVIEW */}
       {tab === "overview" && <div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "20px" }}>
-          {[{ l: "Pending", v: pending, c: "#ffaa00" }, { l: "Progress", v: `${pct}%`, c: "#22c55e" }, { l: "Press Kit", v: p.pressKit ? "Ready" : "—", c: p.pressKit ? "#22c55e" : "rgba(255,255,255,0.25)" }].map((s, i) => (
+          {[{ l: "Pending", v: pending, c: "#ffaa00" }, { l: "Progress", v: `${pct}%`, c: "#22c55e" }, { l: "Press Kit", v: pk ? "Ready" : "—", c: pk ? "#22c55e" : "rgba(255,255,255,0.25)" }].map((s, i) => (
             <div key={i} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "14px" }}>
               <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", fontFamily: "var(--mono)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "4px" }}>{s.l}</div>
               <div style={{ fontSize: "20px", fontWeight: 700, color: s.c, fontFamily: "'Space Mono', monospace" }}>{s.v}</div>
@@ -438,7 +564,7 @@ const ProductDash = ({ product: p, setProduct: setP, onBack, notify, templates =
         </div>
       </div>}
 
-      {/* WORKFLOWS (flat) */}
+      {/* WORKFLOWS */}
       {tab === "workflows" && <div>
         <SL>AI Workflows</SL>
         <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "14px" }}>Select a workflow, add optional instructions, and launch. Results appear in your queue.</div>
@@ -458,16 +584,15 @@ const ProductDash = ({ product: p, setProduct: setP, onBack, notify, templates =
           ))}
         </div>
         {selWf && <Card style={{ marginTop: "14px" }}>
-          {/* Relevant templates for this workflow */}
-          {(() => { const matching = templates.filter(t => t.tags?.some(tag => selWf.tags?.includes(tag))); return matching.length > 0 ? (
+          {wfTemplates.length > 0 && (
             <div style={{ marginBottom: "14px" }}>
               <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "var(--mono)", marginBottom: "8px" }}>📄 Templates for this workflow</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "14px" }}>
-                {matching.map(tmpl => (
+                {wfTemplates.map(tmpl => (
                   <div key={tmpl.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.12)", borderRadius: "6px" }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "11px", fontWeight: 600, color: "#e0e0e0" }}>{tmpl.name}</div>
-                      <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)", marginTop: "2px" }}>{tmpl.source}</div>
+                      <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)", marginTop: "2px" }}>{tmpl.source_product}</div>
                     </div>
                     <div style={{ display: "flex", gap: "4px" }}>
                       <Btn onClick={() => setTaskInput(tmpl.content)} outline small color="#a855f7" style={{ padding: "4px 10px", fontSize: "9px" }}>Load</Btn>
@@ -477,9 +602,9 @@ const ProductDash = ({ product: p, setProduct: setP, onBack, notify, templates =
                 ))}
               </div>
             </div>
-          ) : null; })()}
+          )}
           <TA label="Instructions (optional)" value={taskInput} onChange={setTaskInput} placeholder="Add context or load a template above..." rows={2} />
-          <Btn onClick={() => { setLaunching(true); setTimeout(() => { setLaunching(false); setSelWf(null); setTaskInput(""); notify(`Launched: ${selWf.name}`, selWf.color); }, 1200); }} disabled={launching} color={selWf.color}>
+          <Btn onClick={launchWorkflow} disabled={launching} color={selWf.color}>
             {launching ? "⏳ Launching..." : `Launch: ${selWf.name}`}
           </Btn>
         </Card>}
@@ -487,20 +612,21 @@ const ProductDash = ({ product: p, setProduct: setP, onBack, notify, templates =
 
       {/* PRESS KIT */}
       {tab === "press_kit" && <div>
-        {!p.pressKit && !generating && <Card style={{ textAlign: "center", padding: "40px" }}>
+        {!pk && !generating && <Card style={{ textAlign: "center", padding: "40px" }}>
           <div style={{ fontSize: "40px", marginBottom: "12px", opacity: 0.6 }}>📦</div>
           <div style={{ fontSize: "14px", fontWeight: 600, color: "#e0e0e0", marginBottom: "16px" }}>Generate Press Kit from URL</div>
           <div style={{ display: "flex", gap: "8px", maxWidth: "460px", margin: "0 auto" }}>
             <input value={pressUrl} onChange={e => setPressUrl(e.target.value)} placeholder="https://..." style={{ flex: 1, padding: "10px 14px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#e0e0e0", fontSize: "13px", fontFamily: "var(--mono)", outline: "none" }} />
-            <Btn onClick={() => simulate(["Scraping page...", "Analyzing positioning...", "Extracting features...", "Generating copy...", "Compiling..."], () => { setP(pr => ({ ...pr, pressKit: { boilerplate: `${p.name} — ${p.tagline}. Built by VybeCod.ing. No code required.`, features: ["No-code interface", "Pro-grade output", "Cross-platform", "Built for creators"], audience: "Creators who want pro tools without coding.", assets: ["Logo (SVG/PNG)", "Screenshots (5)", "Headshot", "Brand PDF"] } })); notify("Press kit ready ✓", "#22c55e"); })} disabled={!pressUrl}>Generate</Btn>
+            <Btn onClick={generatePressKit} disabled={!pressUrl || generating}>Generate</Btn>
           </div>
         </Card>}
         {generating && <Card style={{ textAlign: "center", padding: "50px" }}><div style={{ fontSize: "28px", marginBottom: "14px", animation: "pulse 1.5s infinite" }}>🔄</div><div style={{ fontSize: "13px", color: "#00f0ff", fontFamily: "var(--mono)" }}>{genStep}</div></Card>}
-        {p.pressKit && !generating && <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}><Badge color="#22c55e">READY</Badge><Btn onClick={() => setP(pr => ({ ...pr, pressKit: null }))} color="#ef4444" outline small>Regenerate</Btn></div>
-          <Card><SL>Boilerplate</SL><p style={{ margin: 0, fontSize: "13px", color: "#e0e0e0", lineHeight: 1.7 }}>{p.pressKit.boilerplate}</p></Card>
-          <Card><SL>Key Features</SL>{p.pressKit.features.map((f, i) => <div key={i} style={{ padding: "5px 0", fontSize: "12px", color: "#e0e0e0" }}>• {f}</div>)}</Card>
-          <Card><SL>Media Assets</SL>{p.pressKit.assets.map((a, i) => <div key={i} style={{ padding: "5px 0", fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>☐ {a}</div>)}</Card>
+        {pk && !generating && <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}><Badge color="#22c55e">READY</Badge><Btn onClick={async () => { await saveEdit("press_kit", null); }} color="#ef4444" outline small>Regenerate</Btn></div>
+          <Card><SL>Boilerplate</SL><p style={{ margin: 0, fontSize: "13px", color: "#e0e0e0", lineHeight: 1.7 }}>{pk.boilerplate}</p></Card>
+          <Card><SL>Key Features</SL>{(pk.key_features || pk.features || []).map((f, i) => <div key={i} style={{ padding: "5px 0", fontSize: "12px", color: "#e0e0e0" }}>• {f}</div>)}</Card>
+          {pk.target_audience && <Card><SL>Target Audience</SL><p style={{ margin: 0, fontSize: "12px", color: "rgba(255,255,255,0.6)", lineHeight: 1.6 }}>{pk.target_audience}</p></Card>}
+          <Card><SL>Media Assets</SL>{(pk.media_assets || pk.assets || []).map((a, i) => <div key={i} style={{ padding: "5px 0", fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>☐ {a}</div>)}</Card>
         </div>}
       </div>}
 
@@ -509,12 +635,16 @@ const ProductDash = ({ product: p, setProduct: setP, onBack, notify, templates =
         <SL>Cross-Platform Repurposer</SL>
         {!repResults ? <Card>
           <TA label="Write your content once" value={repInput} onChange={setRepInput} placeholder="Paste any announcement, update, or idea..." rows={4} />
-          <Btn onClick={() => { if (!repInput) return; setRepResults(PLATFORMS.slice(0, 6).map(pl => ({ ...pl, content: pl.id === "twitter" ? `🚀 ${repInput.substring(0, 220)}...\n\n#nocode #musicproduction` : pl.id === "reddit" ? `Hey everyone — ${repInput}\n\nWould love feedback from this community.` : pl.id === "linkedin" ? `Excited to share:\n\n${repInput}\n\nThoughts?` : `${repInput}\n\n${pl.id === "instagram" ? "#nocode #musicproduction #vst" : ""}` }))); notify("Repurposed for 6 platforms ✓", "#a855f7"); }}>Repurpose for All Platforms</Btn>
+          <Btn onClick={repurpose} disabled={!repInput || repLoading}>{repLoading ? "⏳ Repurposing..." : "Repurpose for All Platforms"}</Btn>
         </Card> : <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <Btn onClick={() => setRepResults(null)} color="#ef4444" outline small style={{ alignSelf: "flex-end" }}>Start Over</Btn>
-          {repResults.map((r, i) => <Card key={i} style={{ padding: "14px 18px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}><span>{r.icon}</span><span style={{ fontSize: "12px", fontWeight: 700, color: r.color }}>{r.name}</span></div>
+          {(repResults[0]?.platforms || repResults).map((r, i) => <Card key={i} style={{ padding: "14px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#e0e0e0" }}>{r.platform}</span>
+              {r.character_count && <Badge color="rgba(255,255,255,0.3)">{r.character_count} chars</Badge>}
+            </div>
             <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{r.content}</div>
+            {r.hashtags && <div style={{ fontSize: "10px", color: "rgba(0,240,255,0.5)", fontFamily: "var(--mono)", marginTop: "6px" }}>{Array.isArray(r.hashtags) ? r.hashtags.join(" ") : r.hashtags}</div>}
           </Card>)}
         </div>}
       </div>}
@@ -524,18 +654,18 @@ const ProductDash = ({ product: p, setProduct: setP, onBack, notify, templates =
         <SL>Pricing Strategy Advisor</SL>
         {!priceResult ? <Card>
           <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "14px" }}>Claude analyzes competitors, market positioning, and your product to suggest pricing tiers.</div>
-          <Btn onClick={() => { setPriceResult({ tiers: [{ name: "Free", price: "$0", features: ["1 export/mo", "Basic blocks", "Community support"], rec: false }, { name: "Creator", price: "$19/mo", features: ["Unlimited exports", "Full library", "Preset sharing", "Email support"], rec: true }, { name: "Studio", price: "$49/mo", features: ["Everything in Creator", "Commercial license", "Priority support", "Custom blocks", "Team collab"], rec: false }], insights: ["Competitors charge $99-999 for similar capability", "Freemium→paid conversion: 5-8% typical in creative tools", "20% annual discount is standard for this market", "Consider launch pricing at 40% off for first 500 users"] }); notify("Pricing analysis ready ✓", "#22c55e"); }}>Analyze & Suggest Pricing</Btn>
+          <Btn onClick={analyzePricing} disabled={priceLoading}>{priceLoading ? "⏳ Analyzing..." : "Analyze & Suggest Pricing"}</Btn>
         </Card> : <div>
           <Btn onClick={() => setPriceResult(null)} color="#ef4444" outline small style={{ marginBottom: "12px" }}>Re-analyze</Btn>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "12px" }}>
-            {priceResult.tiers.map((t, i) => <Card key={i} style={{ textAlign: "center", border: t.rec ? `1px solid ${p.color}44` : undefined, background: t.rec ? `${p.color}06` : undefined, padding: "18px" }}>
-              {t.rec && <Badge color={p.color}>RECOMMENDED</Badge>}
+          {priceResult.tiers && <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(priceResult.tiers.length, 3)}, 1fr)`, gap: "10px", marginBottom: "12px" }}>
+            {priceResult.tiers.map((t, i) => <Card key={i} style={{ textAlign: "center", border: t.recommended ? `1px solid ${p.color}44` : undefined, background: t.recommended ? `${p.color}06` : undefined, padding: "18px" }}>
+              {t.recommended && <Badge color={p.color}>RECOMMENDED</Badge>}
               <div style={{ fontSize: "15px", fontWeight: 700, color: "#f0f0f0", fontFamily: "'Space Mono', monospace", margin: "10px 0 4px" }}>{t.name}</div>
               <div style={{ fontSize: "22px", fontWeight: 700, color: p.color, fontFamily: "'Space Mono', monospace", marginBottom: "10px" }}>{t.price}</div>
-              {t.features.map((f, j) => <div key={j} style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", padding: "3px 0" }}>✓ {f}</div>)}
+              {(t.features || []).map((f, j) => <div key={j} style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", padding: "3px 0" }}>✓ {f}</div>)}
             </Card>)}
-          </div>
-          <Card><SL>Market Insights</SL>{priceResult.insights.map((ins, i) => <div key={i} style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>→ {ins}</div>)}</Card>
+          </div>}
+          {priceResult.insights && <Card><SL>Market Insights</SL>{priceResult.insights.map((ins, i) => <div key={i} style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>→ {ins}</div>)}</Card>}
         </div>}
       </div>}
 
@@ -543,155 +673,63 @@ const ProductDash = ({ product: p, setProduct: setP, onBack, notify, templates =
       {tab === "seo" && <div>
         <SL>SEO Optimizer</SL>
         <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "16px" }}>Analyze your site's metadata and get optimized tags, descriptions, and structured data — ready to deploy.</div>
-        {!seoResult && !generating ? <Card>
+        {!seoResult && !seoLoading ? <Card>
           <Inp label="Product URL to analyze" value={seoUrl} onChange={setSeoUrl} placeholder="https://vybecod.ing/dsp" mono />
-          <Btn onClick={() => simulate(
-            ["Fetching page...", "Analyzing meta tags...", "Checking Open Graph...", "Evaluating keywords...", "Generating optimized metadata...", "Building structured data..."],
-            () => { setSeoResult({
-              current: {
-                title: p.name || "My Product",
-                description: "A cool product",
-                ogTitle: "",
-                ogDescription: "",
-                ogImage: "",
-                canonical: "",
-                robots: "index, follow",
-                keywords: "",
-                score: 32,
-                issues: ["Missing meta description (using default)", "No Open Graph tags found", "No Twitter Card meta tags", "Missing canonical URL", "No structured data (JSON-LD)", "Title too short — not keyword-rich", "No alt text on hero image"],
-              },
-              optimized: {
-                title: `${p.name} — ${p.tagline} | VybeCod.ing`,
-                description: `${p.name} lets ${(p.keywords || []).slice(0, 2).join(" and ")} creators build professional tools without writing code. ${p.tagline}.`,
-                ogTitle: `${p.name} — ${p.tagline}`,
-                ogDescription: `Build professional audio plugins without code. ${p.name} by VybeCod.ing.`,
-                ogImage: `${p.url || "https://vybecod.ing"}/og-image.png`,
-                canonical: p.url || "https://vybecod.ing/dsp",
-                robots: "index, follow",
-                keywords: (p.keywords || []).join(", "),
-                twitterCard: "summary_large_image",
-                jsonLd: `{\n  "@context": "https://schema.org",\n  "@type": "SoftwareApplication",\n  "name": "${p.name}",\n  "description": "${p.tagline}",\n  "url": "${p.url || "https://vybecod.ing"}",\n  "applicationCategory": "DeveloperApplication",\n  "operatingSystem": "Windows, macOS"\n}`,
-                score: 94,
-              },
-            }); notify("SEO analysis complete ✓", "#22c55e"); }
-          )} disabled={!seoUrl}>Analyze & Optimize</Btn>
-        </Card> : generating ? <Card style={{ textAlign: "center", padding: "50px" }}><div style={{ fontSize: "28px", marginBottom: "14px", animation: "pulse 1.5s infinite" }}>🔎</div><div style={{ fontSize: "13px", color: "#00f0ff", fontFamily: "var(--mono)" }}>{genStep}</div></Card> : seoResult && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <Btn onClick={analyzeSeo} disabled={!seoUrl || seoLoading}>Analyze & Optimize</Btn>
+        </Card> : seoLoading ? <Card style={{ textAlign: "center", padding: "50px" }}><div style={{ fontSize: "28px", marginBottom: "14px", animation: "pulse 1.5s infinite" }}>🔎</div><div style={{ fontSize: "13px", color: "#00f0ff", fontFamily: "var(--mono)" }}>Analyzing metadata...</div></Card> : seoResult && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {/* Score comparison */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             <Card style={{ textAlign: "center" }}>
               <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", fontFamily: "var(--mono)", marginBottom: "6px" }}>CURRENT SCORE</div>
-              <div style={{ fontSize: "36px", fontWeight: 700, color: "#ef4444", fontFamily: "'Space Mono', monospace" }}>{seoResult.current.score}</div>
+              <div style={{ fontSize: "36px", fontWeight: 700, color: "#ef4444", fontFamily: "'Space Mono', monospace" }}>{seoResult.current_score || seoResult.current?.score || "?"}</div>
               <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)" }}>/ 100</div>
             </Card>
             <Card style={{ textAlign: "center", background: "rgba(34,197,94,0.04)", borderColor: "rgba(34,197,94,0.15)" }}>
               <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", fontFamily: "var(--mono)", marginBottom: "6px" }}>OPTIMIZED SCORE</div>
-              <div style={{ fontSize: "36px", fontWeight: 700, color: "#22c55e", fontFamily: "'Space Mono', monospace" }}>{seoResult.optimized.score}</div>
+              <div style={{ fontSize: "36px", fontWeight: 700, color: "#22c55e", fontFamily: "'Space Mono', monospace" }}>{seoResult.optimized_score || seoResult.optimized?.score || "?"}</div>
               <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)" }}>/ 100</div>
             </Card>
           </div>
 
           {/* Issues found */}
-          <Card>
-            <SL>Issues Found ({seoResult.current.issues.length})</SL>
-            {seoResult.current.issues.map((issue, i) => (
+          {seoResult.issues && <Card>
+            <SL>Issues Found ({seoResult.issues.length})</SL>
+            {seoResult.issues.map((issue, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 0" }}>
                 <span style={{ color: "#ef4444", fontSize: "12px" }}>✗</span>
                 <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)" }}>{issue}</span>
               </div>
             ))}
-          </Card>
+          </Card>}
 
-          {/* Optimized metadata with copy buttons */}
-          <Card>
+          {/* Optimized metadata */}
+          {seoResult.optimized && <Card>
             <SL>Optimized Metadata</SL>
-            {[
-              { label: "Title Tag", value: seoResult.optimized.title },
-              { label: "Meta Description", value: seoResult.optimized.description },
-              { label: "OG Title", value: seoResult.optimized.ogTitle },
-              { label: "OG Description", value: seoResult.optimized.ogDescription },
-              { label: "OG Image URL", value: seoResult.optimized.ogImage },
-              { label: "Canonical URL", value: seoResult.optimized.canonical },
-              { label: "Keywords", value: seoResult.optimized.keywords },
-              { label: "Twitter Card", value: seoResult.optimized.twitterCard },
-            ].map((meta, i) => (
+            {Object.entries(seoResult.optimized).filter(([k]) => k !== "score").map(([key, value], i) => (
               <div key={i} style={{ marginBottom: "12px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.4)", fontFamily: "var(--mono)" }}>{meta.label}</span>
-                  <button onClick={() => copyToClipboard(meta.value, notify)} style={{ background: "none", border: "none", color: "rgba(0,240,255,0.5)", cursor: "pointer", fontSize: "11px", fontFamily: "var(--mono)" }}>📋 copy</button>
+                  <span style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.4)", fontFamily: "var(--mono)" }}>{key.replace(/_/g, " ").toUpperCase()}</span>
+                  <button onClick={() => copyToClipboard(typeof value === "string" ? value : JSON.stringify(value), notify)} style={{ background: "none", border: "none", color: "rgba(0,240,255,0.5)", cursor: "pointer", fontSize: "11px", fontFamily: "var(--mono)" }}>📋 copy</button>
                 </div>
-                <div style={{ fontSize: "12px", color: "#e0e0e0", padding: "8px 10px", background: "rgba(0,0,0,0.25)", borderRadius: "6px", fontFamily: "var(--mono)", lineHeight: 1.5, wordBreak: "break-all" }}>{meta.value}</div>
+                <div style={{ fontSize: "12px", color: "#e0e0e0", padding: "8px 10px", background: "rgba(0,0,0,0.25)", borderRadius: "6px", fontFamily: "var(--mono)", lineHeight: 1.5, wordBreak: "break-all", whiteSpace: "pre-wrap" }}>{typeof value === "string" ? value : JSON.stringify(value, null, 2)}</div>
               </div>
             ))}
-          </Card>
+          </Card>}
 
-          {/* JSON-LD */}
-          <Card>
+          {/* Head block */}
+          {seoResult.head_block && <Card>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-              <SL style={{ marginBottom: 0 }}>Structured Data (JSON-LD)</SL>
-              <Btn onClick={() => copyToClipboard(`<script type="application/ld+json">\n${seoResult.optimized.jsonLd}\n</script>`, notify)} outline small color="#22c55e" style={{ padding: "4px 10px", fontSize: "10px" }}>📋 Copy Full Snippet</Btn>
+              <SL style={{ marginBottom: 0 }}>Full Head Block</SL>
+              <Btn onClick={() => copyToClipboard(seoResult.head_block, notify)} color="#22c55e" small>📋 Copy</Btn>
             </div>
-            <div style={{ fontSize: "11px", color: "#22c55e", padding: "12px", background: "rgba(0,0,0,0.3)", borderRadius: "8px", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-              {'<script type="application/ld+json">'}{"\n"}{seoResult.optimized.jsonLd}{"\n"}{"</script>"}
-            </div>
-          </Card>
-
-          {/* Implementation method */}
-          <Card>
-            <SL>How to Apply</SL>
-            <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
-              <Btn onClick={() => setSeoMethod("manual")} color={seoMethod === "manual" ? p.color : "rgba(255,255,255,0.2)"} outline={seoMethod !== "manual"} small>Manual / Header Injection</Btn>
-              <Btn onClick={() => setSeoMethod("cms")} color={seoMethod === "cms" ? p.color : "rgba(255,255,255,0.2)"} outline={seoMethod !== "cms"} small>CMS OAuth (Coming Soon)</Btn>
-            </div>
-            {seoMethod === "manual" && <div>
-              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", marginBottom: "12px", lineHeight: 1.6 }}>
-                Copy the full HTML head block below and paste it into your site's {'<head>'} tag, or use your platform's custom header injection:
-              </div>
-              {(() => {
-                const headBlock = `<!-- SEO Optimized by VybeCod.ing Launch Ops -->
-<title>${seoResult.optimized.title}</title>
-<meta name="description" content="${seoResult.optimized.description}" />
-<meta name="keywords" content="${seoResult.optimized.keywords}" />
-<link rel="canonical" href="${seoResult.optimized.canonical}" />
-<meta property="og:title" content="${seoResult.optimized.ogTitle}" />
-<meta property="og:description" content="${seoResult.optimized.ogDescription}" />
-<meta property="og:image" content="${seoResult.optimized.ogImage}" />
-<meta property="og:url" content="${seoResult.optimized.canonical}" />
-<meta property="og:type" content="website" />
-<meta name="twitter:card" content="${seoResult.optimized.twitterCard}" />
-<meta name="twitter:title" content="${seoResult.optimized.ogTitle}" />
-<meta name="twitter:description" content="${seoResult.optimized.ogDescription}" />
-<meta name="twitter:image" content="${seoResult.optimized.ogImage}" />
-<script type="application/ld+json">
-${seoResult.optimized.jsonLd}
-</script>`;
-                return <div>
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "6px" }}>
-                    <Btn onClick={() => copyToClipboard(headBlock, notify)} color="#22c55e" small>📋 Copy Full Head Block</Btn>
-                  </div>
-                  <div style={{ fontSize: "10px", color: "#00f0ff", padding: "14px", background: "rgba(0,0,0,0.3)", borderRadius: "8px", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.7, maxHeight: "250px", overflow: "auto" }}>{headBlock}</div>
-                </div>;
-              })()}
-              <div style={{ marginTop: "14px", fontSize: "11px", color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>
-                <div style={{ fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: "6px" }}>Platform-specific guides:</div>
-                <div>• <span style={{ color: "#e0e0e0" }}>WordPress</span> — Paste in Appearance → Theme Editor → header.php or use Yoast/RankMath</div>
-                <div>• <span style={{ color: "#e0e0e0" }}>Webflow</span> — Project Settings → Custom Code → Head Code</div>
-                <div>• <span style={{ color: "#e0e0e0" }}>Next.js</span> — Use {'<Head>'} component in pages/_app.js or layout.tsx metadata</div>
-                <div>• <span style={{ color: "#e0e0e0" }}>HTML</span> — Paste directly inside {'<head>'} tag</div>
-                <div>• <span style={{ color: "#e0e0e0" }}>Squarespace</span> — Settings → Advanced → Code Injection → Header</div>
-              </div>
-            </div>}
-            {seoMethod === "cms" && <div style={{ textAlign: "center", padding: "30px" }}>
-              <div style={{ fontSize: "28px", marginBottom: "10px", opacity: 0.5 }}>🔗</div>
-              <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)" }}>CMS OAuth auto-update coming in v2</div>
-              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.25)", marginTop: "6px" }}>Will support WordPress, Webflow, Shopify, and Ghost</div>
-            </div>}
-          </Card>
+            <div style={{ fontSize: "10px", color: "#00f0ff", padding: "14px", background: "rgba(0,0,0,0.3)", borderRadius: "8px", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.7, maxHeight: "250px", overflow: "auto" }}>{seoResult.head_block}</div>
+          </Card>}
 
           <Btn onClick={() => setSeoResult(null)} color="#ef4444" outline small style={{ alignSelf: "flex-end" }}>Re-analyze</Btn>
         </div>}
       </div>}
 
-      {/* LAUNCH CHECKLIST (merged) */}
+      {/* LAUNCH CHECKLIST */}
       {tab === "checklist" && <div>
         <SL>Launch Checklist</SL>
         <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "16px" }}>{done}/{totalItems} complete · {pct}% ready</div>
@@ -707,7 +745,7 @@ ${seoResult.optimized.jsonLd}
               {phase.items.map((item, i) => {
                 const key = `${phase.phase}_${i}`;
                 return <label key={key} style={{ display: "flex", alignItems: "flex-start", gap: "8px", padding: "6px 0", cursor: "pointer" }}>
-                  <input type="checkbox" checked={!!p.checklist?.[key]} onChange={e => setP(pr => ({ ...pr, checklist: { ...pr.checklist, [key]: e.target.checked } }))} style={{ accentColor: phase.color, width: "15px", height: "15px", marginTop: "1px", flexShrink: 0 }} />
+                  <input type="checkbox" checked={!!p.checklist?.[key]} onChange={e => toggleChecklist(key, e.target.checked)} style={{ accentColor: phase.color, width: "15px", height: "15px", marginTop: "1px", flexShrink: 0 }} />
                   <span style={{ fontSize: "12px", color: p.checklist?.[key] ? "rgba(255,255,255,0.3)" : "#e0e0e0", textDecoration: p.checklist?.[key] ? "line-through" : "none", lineHeight: 1.5 }}>{item}</span>
                 </label>;
               })}
@@ -719,22 +757,24 @@ ${seoResult.optimized.jsonLd}
       {/* QUEUE */}
       {tab === "queue" && <div>
         <SL>Approval Queue</SL>
-        {p.queue?.length > 0 ? p.queue.map(q => {
-          const wf = WORKFLOWS.find(w => w.id === q.workflow);
+        {queueLoading && queueItems.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "30px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)", fontSize: "12px" }}>Loading...</div>
+        ) : queueItems.length > 0 ? queueItems.map(q => {
+          const wf = WORKFLOWS.find(w => w.id === q.workflow_id);
           return <Card key={q.id} style={{ marginBottom: "8px", padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
                 <span>{wf?.icon || "📋"}</span>
-                <span style={{ fontSize: "12px", fontWeight: 600, color: "#e0e0e0" }}>{q.workflow}</span>
-                <Badge color={q.status === "pending" ? "#ffaa00" : q.status === "approved" ? "#22c55e" : "#ef4444"}>{q.status.toUpperCase()}</Badge>
-                <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)" }}>{q.time}</span>
+                <span style={{ fontSize: "12px", fontWeight: 600, color: "#e0e0e0" }}>{q.workflow_id}</span>
+                <Badge color={q.status === "pending" ? "#ffaa00" : q.status === "approved" ? "#22c55e" : q.status === "running" ? "#00f0ff" : "#ef4444"}>{q.status.toUpperCase()}</Badge>
               </div>
               <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{q.preview}</div>
             </div>
             {q.status === "pending" && <div style={{ display: "flex", gap: "6px" }}>
-              <Btn onClick={() => { setP(pr => ({ ...pr, queue: pr.queue.map(qi => qi.id === q.id ? { ...qi, status: "approved" } : qi) })); notify("Approved ✓", "#22c55e"); }} color="#22c55e" outline small>✓</Btn>
-              <Btn onClick={() => { setP(pr => ({ ...pr, queue: pr.queue.map(qi => qi.id === q.id ? { ...qi, status: "rejected" } : qi) })); notify("Rejected", "#ef4444"); }} color="#ef4444" outline small>✗</Btn>
+              <Btn onClick={() => approveItem(q.id)} color="#22c55e" outline small>✓</Btn>
+              <Btn onClick={() => rejectItem(q.id)} color="#ef4444" outline small>✗</Btn>
             </div>}
+            {q.status === "running" && <div style={{ fontSize: "10px", color: "#00f0ff", fontFamily: "var(--mono)", animation: "pulse 1.5s infinite" }}>Running...</div>}
           </Card>;
         }) : <div style={{ textAlign: "center", padding: "50px", color: "rgba(255,255,255,0.25)", fontFamily: "var(--mono)", fontSize: "12px" }}>Queue empty. Launch a workflow to populate it.</div>}
       </div>}
@@ -742,12 +782,21 @@ ${seoResult.optimized.jsonLd}
       {/* EDIT */}
       {tab === "edit" && <Card>
         <SL>Product Details</SL>
-        <Inp label="Name" value={p.name} onChange={v => setP(pr => ({ ...pr, name: v }))} />
-        <Inp label="Tagline" value={p.tagline} onChange={v => setP(pr => ({ ...pr, tagline: v }))} />
-        <Inp label="URL" value={p.url || ""} onChange={v => setP(pr => ({ ...pr, url: v }))} mono />
-        <TA label="Description (context for Claude)" value={p.description || ""} onChange={v => setP(pr => ({ ...pr, description: v }))} placeholder="What does this product do?" />
-        <Tags label="Keywords" tags={p.keywords || []} onChange={v => setP(pr => ({ ...pr, keywords: v }))} placeholder="keyword..." />
-        <Sel label="Color" value={p.color} onChange={v => setP(pr => ({ ...pr, color: v }))} options={[{ value: "#00f0ff", label: "Cyan" }, { value: "#a855f7", label: "Purple" }, { value: "#ff6b35", label: "Orange" }, { value: "#22c55e", label: "Green" }, { value: "#3b82f6", label: "Blue" }, { value: "#ec4899", label: "Pink" }]} />
+        <Inp label="Name" value={editDirty.name ?? p.name} onChange={v => setEditDirty(d => ({ ...d, name: v }))} />
+        <Inp label="Tagline" value={editDirty.tagline ?? p.tagline} onChange={v => setEditDirty(d => ({ ...d, tagline: v }))} />
+        <Inp label="URL" value={editDirty.url ?? (p.url || "")} onChange={v => setEditDirty(d => ({ ...d, url: v }))} mono />
+        <TA label="Description (context for Claude)" value={editDirty.description ?? (p.description || "")} onChange={v => setEditDirty(d => ({ ...d, description: v }))} placeholder="What does this product do?" />
+        <Tags label="Keywords" tags={editDirty.keywords ?? (p.keywords || [])} onChange={v => setEditDirty(d => ({ ...d, keywords: v }))} placeholder="keyword..." />
+        <Sel label="Color" value={editDirty.color ?? p.color} onChange={v => setEditDirty(d => ({ ...d, color: v }))} options={[{ value: "#00f0ff", label: "Cyan" }, { value: "#a855f7", label: "Purple" }, { value: "#ff6b35", label: "Orange" }, { value: "#22c55e", label: "Green" }, { value: "#3b82f6", label: "Blue" }, { value: "#ec4899", label: "Pink" }]} />
+        <Btn onClick={async () => {
+          if (Object.keys(editDirty).length === 0) return;
+          try {
+            await api.products.update(p.id, editDirty);
+            setEditDirty({});
+            await reloadProduct();
+            notify("Saved ✓", "#22c55e");
+          } catch (e) { notify("Save failed: " + e.message, "#ef4444"); }
+        }} disabled={Object.keys(editDirty).length === 0}>Save Changes</Btn>
       </Card>}
     </div>
   );
@@ -757,24 +806,33 @@ ${seoResult.optimized.jsonLd}
    SETTINGS
    ═══════════════════════════════════════ */
 
-const Settings = ({ settings: st, setSettings: setSt, onBack }) => {
+const Settings = ({ settings: st, onSave, onBack }) => {
   const [tab, setTab] = useState("platforms");
-  const [saved, setSaved] = useState(false);
+  const [local, setLocal] = useState(st);
+  const [saving, setSaving] = useState(false);
 
-  const d = { platforms: PLATFORMS.reduce((a, p) => ({ ...a, [p.id]: { connected: false, handle: "", mode: "manual" } }), {}), brand: { name: "VybeCod.ing", tagline: "", tone: "creative", keywords: ["no-code", "creative tools"], avoid: ["corporate jargon"], elevator: "" }, prefs: { depth: "thorough", length: "medium", emoji: true, hashtags: "moderate", sources: true, taskNotif: true, approvalNotif: true, weeklyNotif: true, errorNotif: true }, api: { anthropic: "", sbUrl: "", sbKey: "" } };
-  const s = { ...d, ...st, platforms: { ...d.platforms, ...st?.platforms }, prefs: { ...d.prefs, ...st?.prefs }, api: { ...d.api, ...st?.api } };
-  const up = (k, f, v) => setSt(prev => ({ ...prev, [k]: { ...(prev?.[k] || d[k]), [f]: v } }));
-  const upp = (id, f, v) => setSt(prev => ({ ...prev, platforms: { ...(prev?.platforms || d.platforms), [id]: { ...(prev?.platforms || d.platforms)[id], [f]: v } } }));
+  useEffect(() => { setLocal(st); }, [st]);
+
+  const d = { platforms: PLATFORMS.reduce((a, p) => ({ ...a, [p.id]: { connected: false, handle: "", mode: "manual" } }), {}), brand: { name: "VybeCod.ing", tagline: "", tone: "creative", keywords: ["no-code", "creative tools"], avoid: ["corporate jargon"], elevator: "" }, prefs: { depth: "thorough", length: "medium", emoji: true, hashtags: "moderate", sources: true } };
+  const s = { ...d, ...local, platforms: { ...d.platforms, ...local?.platforms }, prefs: { ...d.prefs, ...local?.prefs } };
+  const up = (k, f, v) => setLocal(prev => ({ ...prev, [k]: { ...(prev?.[k] || d[k]), [f]: v } }));
+  const upp = (id, f, v) => setLocal(prev => ({ ...prev, platforms: { ...(prev?.platforms || d.platforms), [id]: { ...(prev?.platforms || d.platforms)[id], [f]: v } } }));
+
+  const doSave = async () => {
+    setSaving(true);
+    await onSave(local);
+    setSaving(false);
+  };
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}><button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: "13px", fontFamily: "var(--mono)", padding: 0 }}>← Back</button><h2 style={{ margin: 0, fontSize: "20px", fontWeight: 700, fontFamily: "'Space Mono', monospace", color: "#f0f0f0" }}>Settings</h2></div>
-        <Btn onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }} color={saved ? "#22c55e" : "#00f0ff"}>{saved ? "✓ Saved" : "Save"}</Btn>
+        <Btn onClick={doSave} color={saving ? "#22c55e" : "#00f0ff"}>{saving ? "✓ Saving..." : "Save"}</Btn>
       </div>
 
       <div style={{ display: "flex", gap: "4px", marginBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "10px", overflowX: "auto" }}>
-        {[["platforms", "📱 Platforms"], ["brand", "🎨 Brand"], ["prefs", "⚙ Preferences"], ["api", "🔑 API Keys"]].map(([id, label]) => <button key={id} onClick={() => setTab(id)} style={{ padding: "7px 14px", borderRadius: "6px", border: "none", whiteSpace: "nowrap", background: tab === id ? "rgba(0,240,255,0.1)" : "transparent", color: tab === id ? "#00f0ff" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>{label}</button>)}
+        {[["platforms", "📱 Platforms"], ["brand", "🎨 Brand"], ["prefs", "⚙ Preferences"]].map(([id, label]) => <button key={id} onClick={() => setTab(id)} style={{ padding: "7px 14px", borderRadius: "6px", border: "none", whiteSpace: "nowrap", background: tab === id ? "rgba(0,240,255,0.1)" : "transparent", color: tab === id ? "#00f0ff" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>{label}</button>)}
       </div>
 
       {tab === "platforms" && <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -797,26 +855,12 @@ const Settings = ({ settings: st, setSettings: setSt, onBack }) => {
         <Tags label="Avoid" tags={s.brand.avoid} onChange={v => up("brand", "avoid", v)} placeholder="phrase..." />
       </Card>}
 
-      {tab === "prefs" && <div>
-        <Card>
-          <SL>Agent Behavior</SL>
-          <Sel label="Research Depth" value={s.prefs.depth} onChange={v => up("prefs", "depth", v)} options={[{ value: "quick", label: "Quick (1-3 sources)" }, { value: "thorough", label: "Thorough (5-8)" }, { value: "deep", label: "Deep (10+)" }]} />
-          <Sel label="Content Length" value={s.prefs.length} onChange={v => up("prefs", "length", v)} options={[{ value: "short", label: "Short" }, { value: "medium", label: "Medium" }, { value: "long", label: "Long" }]} />
-          <Sel label="Hashtags" value={s.prefs.hashtags} onChange={v => up("prefs", "hashtags", v)} options={[{ value: "none", label: "None" }, { value: "minimal", label: "1-3" }, { value: "moderate", label: "5-8" }, { value: "heavy", label: "10-15" }]} />
-          {[{ k: "emoji", l: "Emoji in Posts" }, { k: "sources", l: "Cite Sources" }].map(i => <div key={i.k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0" }}><span style={{ fontSize: "13px", color: "#e0e0e0" }}>{i.l}</span><Toggle on={s.prefs[i.k]} onChange={v => up("prefs", i.k, v)} /></div>)}
-        </Card>
-        <Card style={{ marginTop: "10px" }}>
-          <SL>Notifications</SL>
-          {[{ k: "taskNotif", l: "Task Complete", c: "#00f0ff" }, { k: "approvalNotif", l: "Approval Reminders", c: "#ffaa00" }, { k: "weeklyNotif", l: "Weekly Digest", c: "#a855f7" }, { k: "errorNotif", l: "Error Alerts", c: "#ef4444" }].map(n => <div key={n.k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0" }}><span style={{ fontSize: "13px", color: "#e0e0e0" }}>{n.l}</span><Toggle on={s.prefs[n.k]} onChange={v => up("prefs", n.k, v)} color={n.c} /></div>)}
-        </Card>
-      </div>}
-
-      {tab === "api" && <Card>
-        <SL>API Keys</SL>
-        <div style={{ padding: "8px 12px", borderRadius: "6px", marginBottom: "14px", background: "rgba(255,170,0,0.08)", border: "1px solid rgba(255,170,0,0.15)", fontSize: "10px", color: "#ffaa00", fontFamily: "var(--mono)" }}>⚠ Stored locally, sent only to your backend</div>
-        <Inp label="Anthropic Key" value={s.api.anthropic} onChange={v => up("api", "anthropic", v)} placeholder="sk-ant-..." type="password" mono />
-        <Inp label="Supabase URL" value={s.api.sbUrl} onChange={v => up("api", "sbUrl", v)} placeholder="https://xxx.supabase.co" mono />
-        <Inp label="Supabase Key" value={s.api.sbKey} onChange={v => up("api", "sbKey", v)} placeholder="eyJ..." type="password" mono />
+      {tab === "prefs" && <Card>
+        <SL>Agent Behavior</SL>
+        <Sel label="Research Depth" value={s.prefs.depth} onChange={v => up("prefs", "depth", v)} options={[{ value: "quick", label: "Quick (1-3 sources)" }, { value: "thorough", label: "Thorough (5-8)" }, { value: "deep", label: "Deep (10+)" }]} />
+        <Sel label="Content Length" value={s.prefs.length} onChange={v => up("prefs", "length", v)} options={[{ value: "short", label: "Short" }, { value: "medium", label: "Medium" }, { value: "long", label: "Long" }]} />
+        <Sel label="Hashtags" value={s.prefs.hashtags} onChange={v => up("prefs", "hashtags", v)} options={[{ value: "none", label: "None" }, { value: "minimal", label: "1-3" }, { value: "moderate", label: "5-8" }, { value: "heavy", label: "10-15" }]} />
+        {[{ k: "emoji", l: "Emoji in Posts" }, { k: "sources", l: "Cite Sources" }].map(i => <div key={i.k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0" }}><span style={{ fontSize: "13px", color: "#e0e0e0" }}>{i.l}</span><Toggle on={s.prefs[i.k]} onChange={v => up("prefs", i.k, v)} /></div>)}
       </Card>}
     </div>
   );
@@ -828,6 +872,7 @@ const Settings = ({ settings: st, setSettings: setSt, onBack }) => {
 
 const CreateModal = ({ onClose, onCreate }) => {
   const [n, setN] = useState(""); const [t, setT] = useState(""); const [u, setU] = useState(""); const [c, setC] = useState("#00f0ff");
+  const [creating, setCreating] = useState(false);
   return <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }} onClick={onClose}>
     <div onClick={e => e.stopPropagation()} style={{ background: "#12121a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "32px", width: "100%", maxWidth: "440px", animation: "slideIn 0.3s ease" }}>
       <h3 style={{ margin: "0 0 20px", fontSize: "18px", fontWeight: 700, fontFamily: "'Space Mono', monospace", color: "#f0f0f0" }}>New Product</h3>
@@ -836,7 +881,12 @@ const CreateModal = ({ onClose, onCreate }) => {
       <Inp label="URL (optional)" value={u} onChange={setU} placeholder="https://..." mono />
       <Sel label="Color" value={c} onChange={setC} options={[{ value: "#00f0ff", label: "Cyan" }, { value: "#a855f7", label: "Purple" }, { value: "#ff6b35", label: "Orange" }, { value: "#22c55e", label: "Green" }, { value: "#3b82f6", label: "Blue" }, { value: "#ec4899", label: "Pink" }]} />
       <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-        <Btn onClick={() => n && onCreate({ id: uid(), name: n, tagline: t, url: u, color: c, status: "pre_launch", pressKit: null, checklist: {}, queue: [], keywords: [], description: "" })} disabled={!n} style={{ flex: 1 }}>Create</Btn>
+        <Btn onClick={async () => {
+          if (!n) return;
+          setCreating(true);
+          await onCreate({ name: n, tagline: t, url: u, color: c });
+          setCreating(false);
+        }} disabled={!n || creating} style={{ flex: 1 }}>{creating ? "Creating..." : "Create"}</Btn>
         <Btn onClick={onClose} color="#ef4444" outline>Cancel</Btn>
       </div>
     </div>
@@ -850,23 +900,102 @@ const CreateModal = ({ onClose, onCreate }) => {
 export default function App() {
   const [view, setView] = useState("home");
   const [sub, setSub] = useState("products");
-  const [products, setProducts] = useState(SAMPLE_PRODUCTS);
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
   const [selId, setSelId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [notif, setNotif] = useState(null);
   const [settings, setSettings] = useState({});
   const [captures, setCaptures] = useState([]);
-  const [templates, setTemplates] = useState(SAMPLE_TEMPLATES);
-  const [calEvents, setCalEvents] = useState([
-    { id: uid(), date: "2026-03-18", product: "VybeCode DSP", platform: "twitter", title: "Teaser post #1", color: "#00f0ff" },
-    { id: uid(), date: "2026-03-20", product: "VybeCode DSP", platform: "website", title: "Behind the scenes blog", color: "#00f0ff" },
-    { id: uid(), date: "2026-03-22", product: "VybeCode DSP", platform: "instagram", title: "Feature showcase reel", color: "#00f0ff" },
-    { id: uid(), date: "2026-03-25", product: "VybeCode DSP", platform: "email", title: "Launch countdown email", color: "#00f0ff" },
-  ]);
+  const [templates, setTemplates] = useState([]);
+  const [calEvents, setCalEvents] = useState([]);
 
   const notify = (msg, color) => { setNotif({ msg, color }); setTimeout(() => setNotif(null), 3000); };
   const selProduct = products.find(p => p.id === selId);
-  const setSelProduct = fn => setProducts(ps => ps.map(p => p.id === selId ? (typeof fn === "function" ? fn(p) : fn) : p));
+
+  // ─── Load all data on mount ───
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [prods, tmpls, events, caps, sett] = await Promise.all([
+          api.products.list(),
+          api.templates.list(),
+          api.calendar.list(),
+          api.captures.list(),
+          api.settings.get(),
+        ]);
+        setProducts(prods);
+        setTemplates(tmpls);
+        setCalEvents(events);
+        setCaptures(caps);
+        setSettings(sett);
+      } catch (e) {
+        notify("Failed to load data: " + e.message, "#ef4444");
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  // ─── Product CRUD ───
+  const createProduct = async (data) => {
+    try {
+      const product = await api.products.create(data);
+      setProducts(ps => [...ps, product]);
+      setShowCreate(false);
+      notify(`${data.name} created ✓`, "#22c55e");
+    } catch (e) { notify("Create failed: " + e.message, "#ef4444"); }
+  };
+
+  const reloadProduct = async () => {
+    if (!selId) return;
+    try {
+      const updated = await api.products.get(selId);
+      setProducts(ps => ps.map(p => p.id === selId ? updated : p));
+    } catch (e) { /* silently fail reload */ }
+  };
+
+  // ─── Captures ───
+  const addCapture = async (data) => {
+    try {
+      const capture = await api.captures.create(data);
+      setCaptures(cs => [capture, ...cs]);
+      notify("Captured ⚡", "#a855f7");
+    } catch (e) { notify("Capture failed: " + e.message, "#ef4444"); }
+  };
+
+  // ─── Calendar ───
+  const addCalEvent = async (data) => {
+    try {
+      const event = await api.calendar.create(data);
+      setCalEvents(ev => [...ev, event]);
+      notify("Event added ✓", "#22c55e");
+    } catch (e) { notify("Failed: " + e.message, "#ef4444"); }
+  };
+  const removeCalEvent = async (id) => {
+    try {
+      await api.calendar.delete(id);
+      setCalEvents(ev => ev.filter(e => e.id !== id));
+    } catch (e) { notify("Failed: " + e.message, "#ef4444"); }
+  };
+
+  // ─── Templates ───
+  const deleteTemplate = async (id) => {
+    try {
+      await api.templates.delete(id);
+      setTemplates(ts => ts.filter(t => t.id !== id));
+    } catch (e) { notify("Failed: " + e.message, "#ef4444"); }
+  };
+
+  // ─── Settings ───
+  const saveSettings = async (data) => {
+    try {
+      await api.settings.update(data);
+      setSettings(data);
+      notify("Settings saved ✓", "#22c55e");
+    } catch (e) { notify("Save failed: " + e.message, "#ef4444"); }
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "#08080d", color: "#e0e0e0", fontFamily: "'Inter', -apple-system, sans-serif" }}>
@@ -883,7 +1012,7 @@ export default function App() {
       `}</style>
 
       {notif && <div style={{ position: "fixed", top: "20px", right: "20px", zIndex: 1001, background: "rgba(15,15,25,0.95)", border: `1px solid ${notif.color}44`, borderRadius: "10px", padding: "14px 24px", animation: "slideDown 0.3s ease", backdropFilter: "blur(12px)" }}><span style={{ fontSize: "13px", fontWeight: 600, color: notif.color, fontFamily: "var(--mono)" }}>{notif.msg}</span></div>}
-      {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreate={p => { setProducts(ps => [...ps, p]); setShowCreate(false); notify(`${p.name} created ✓`, "#22c55e"); }} />}
+      {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreate={createProduct} />}
 
       {/* Header */}
       <div style={{ padding: "18px 32px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.01)", flexWrap: "wrap", gap: "10px" }}>
@@ -897,9 +1026,9 @@ export default function App() {
       </div>
 
       <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "28px 24px" }}>
-        {view === "home" && !selId && <Home products={products} captures={captures} templates={templates} calEvents={calEvents} setCalEvents={setCalEvents} setTemplates={setTemplates} onSelect={id => { setSelId(id); setView("product"); }} onCreate={() => setShowCreate(true)} onCapture={c => { setCaptures(cs => [c, ...cs]); notify("Captured ⚡", "#a855f7"); }} sub={sub} setSub={setSub} notify={notify} />}
-        {selId && selProduct && <ProductDash product={selProduct} setProduct={setSelProduct} onBack={() => { setSelId(null); setView("home"); }} notify={notify} templates={templates} />}
-        {view === "settings" && !selId && <Settings settings={settings} setSettings={setSettings} onBack={() => setView("home")} />}
+        {view === "home" && !selId && <Home products={products} captures={captures} templates={templates} calEvents={calEvents} products_loading={productsLoading} onAddCalEvent={addCalEvent} onRemoveCalEvent={removeCalEvent} onSelect={id => { setSelId(id); setView("product"); }} onCreate={() => setShowCreate(true)} onCapture={addCapture} onDeleteTemplate={deleteTemplate} sub={sub} setSub={setSub} notify={notify} />}
+        {selId && selProduct && <ProductDash product={selProduct} reloadProduct={reloadProduct} onBack={() => { setSelId(null); setView("home"); }} notify={notify} templates={templates} />}
+        {view === "settings" && !selId && <Settings settings={settings} onSave={saveSettings} onBack={() => setView("home")} />}
       </div>
     </div>
   );
