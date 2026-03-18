@@ -212,23 +212,34 @@ async def generate_press_kit(data: PressKitRequest) -> dict:
 @router.post("/seo/analyze")
 async def analyze_seo(data: SEORequest) -> dict:
     """Scrape URL metadata and generate optimized SEO tags."""
+    import logging
+    logger = logging.getLogger(__name__)
+
     product, settings = await _get_product_and_settings(data.product_id)
     brand_ctx = build_brand_context(
         product, settings.get("brand"), settings.get("prefs")
     )
 
+    logger.info(f"SEO: scraping {data.url}")
     scraped = await scrape_url(data.url)
     if scraped.get("status") != "ok":
+        logger.error(f"SEO: scrape failed: {scraped.get('error')}")
         raise HTTPException(400, f"Could not scrape URL: {scraped.get('error')}")
 
+    logger.info(f"SEO: scrape OK, title={scraped['metadata'].get('title', '(none)')}")
     current_meta = json.dumps(scraped["metadata"], indent=2)
 
     system = SEO_ANALYSIS_PROMPT.replace(
         "{brand_context}", brand_ctx
     ).replace("{current_metadata}", current_meta)
 
+    logger.info("SEO: calling Claude...")
     response = await call_claude(system, "Analyze and generate optimized metadata.")
+    logger.info(f"SEO: Claude responded, length={len(response)}")
     result = _parse_json_response(response)
+
+    if "raw_response" in result:
+        logger.warning(f"SEO: JSON parse failed, raw response: {response[:500]}")
 
     # Store on product
     await update("products", data.product_id, {"seo_result": result})
