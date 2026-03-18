@@ -726,6 +726,44 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
             <div style={{ fontSize: "10px", color: "#00f0ff", padding: "14px", background: "rgba(0,0,0,0.3)", borderRadius: "8px", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.7, maxHeight: "250px", overflow: "auto" }}>{seoResult.head_block}</div>
           </Card>}
 
+          {/* Export to Claude Code */}
+          <Card style={{ background: "rgba(168,85,247,0.04)", borderColor: "rgba(168,85,247,0.15)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <SL style={{ marginBottom: 0, color: "#a855f7" }}>Export to Claude Code</SL>
+              <Btn onClick={() => {
+                const opt = seoResult.optimized || {};
+                const issues = seoResult.issues || [];
+                const prompt = [
+                  `Update the SEO metadata for ${seoUrl}. Here are the specific changes to make:`,
+                  ``,
+                  `## Issues to Fix`,
+                  ...issues.map((issue, i) => `${i + 1}. ${issue}`),
+                  ``,
+                  `## Optimized Metadata`,
+                  opt.title ? `- **Title tag**: \`${opt.title}\`` : null,
+                  opt.description ? `- **Meta description**: \`${opt.description}\`` : null,
+                  opt.og_title ? `- **OG Title**: \`${opt.og_title}\`` : null,
+                  opt.og_description ? `- **OG Description**: \`${opt.og_description}\`` : null,
+                  opt.og_image ? `- **OG Image**: \`${opt.og_image}\`` : null,
+                  opt.canonical ? `- **Canonical URL**: \`${opt.canonical}\`` : null,
+                  opt.keywords ? `- **Keywords**: \`${opt.keywords}\`` : null,
+                  opt.twitter_card ? `- **Twitter Card**: \`${typeof opt.twitter_card === "string" ? opt.twitter_card : JSON.stringify(opt.twitter_card)}\`` : null,
+                  opt.robots ? `- **Robots**: \`${opt.robots}\`` : null,
+                  ``,
+                  opt.json_ld ? `## JSON-LD Structured Data\nAdd this to the page's \`<head>\`:\n\`\`\`html\n<script type="application/ld+json">\n${typeof opt.json_ld === "string" ? opt.json_ld : JSON.stringify(opt.json_ld, null, 2)}\n</script>\n\`\`\`` : null,
+                  ``,
+                  seoResult.head_block ? `## Full Head Block\nReplace the existing meta tags in \`<head>\` with:\n\`\`\`html\n${seoResult.head_block}\n\`\`\`` : null,
+                  ``,
+                  `Find the HTML file(s) for this page and apply all the changes above. Preserve any existing tags not covered by these changes.`,
+                ].filter(Boolean).join("\n");
+                copyToClipboard(prompt, notify);
+              }} color="#a855f7" small>Copy Prompt</Btn>
+            </div>
+            <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>
+              Generates a ready-to-paste prompt with all SEO changes. Open Claude Code in your project directory and paste it — Claude will find the right files and apply every change automatically.
+            </div>
+          </Card>
+
           <Btn onClick={() => setSeoResult(null)} color="#ef4444" outline small style={{ alignSelf: "flex-end" }}>Re-analyze</Btn>
         </div>}
       </div>}
