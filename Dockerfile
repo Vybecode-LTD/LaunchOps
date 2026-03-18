@@ -20,7 +20,8 @@ COPY backend/ .
 # Copy frontend build output into static/
 COPY --from=frontend-build /frontend/dist ./static
 
-# Expose port
-EXPOSE 8000
+# Railway sets PORT dynamically — default to 8080
+ENV PORT=8080
+EXPOSE ${PORT}
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD uvicorn main:app --host 0.0.0.0 --port $PORT
