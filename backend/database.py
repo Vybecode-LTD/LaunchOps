@@ -5,6 +5,7 @@ previous Supabase client — same 5 helper functions, same signatures.
 """
 
 import json
+import ssl
 import uuid
 from datetime import date, datetime
 import asyncpg
@@ -32,9 +33,22 @@ async def get_pool() -> asyncpg.Pool:
         settings = get_settings()
         if not settings.database_url:
             raise RuntimeError("DATABASE_URL must be set in environment")
+        # Railway private networking uses WireGuard — no SSL needed.
+        # For public URLs (local dev), use SSL with no cert verification.
+        dsn = settings.database_url
+        is_internal = ".railway.internal" in dsn
+        if is_internal:
+            ssl_arg = False
+        else:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            ssl_arg = ctx
+
         _pool = await asyncpg.create_pool(
-            settings.database_url, min_size=2, max_size=10,
+            dsn, min_size=2, max_size=10,
             init=_init_connection,
+            ssl=ssl_arg,
         )
     return _pool
 
