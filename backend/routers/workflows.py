@@ -33,17 +33,40 @@ async def _get_product_and_settings(product_id: str) -> tuple[dict, dict]:
 
 
 def _parse_json_response(text: str) -> dict:
-    """Parse Claude's JSON response, handling markdown fences."""
+    """Parse Claude's JSON response, handling markdown fences and truncation."""
+    import re
     cleaned = text.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("\n", 1)[-1]
-    if cleaned.endswith("```"):
-        cleaned = cleaned.rsplit("```", 1)[0]
-    cleaned = cleaned.strip()
+
+    # Strip markdown code fences (```json ... ``` or ``` ... ```)
+    fence_match = re.search(r'```(?:json)?\s*\n?(.*?)```', cleaned, re.DOTALL)
+    if fence_match:
+        cleaned = fence_match.group(1).strip()
+    elif cleaned.startswith("```"):
+        # Opening fence but no closing fence (truncated response)
+        cleaned = cleaned.split("\n", 1)[-1].strip()
+        # Remove trailing ``` if present
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3].strip()
+
+    # First try: parse as-is
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
-        return {"raw_response": text}
+        pass
+
+    # Second try: response may be truncated JSON — try to repair
+    # Find the outermost { and attempt to close it
+    brace_start = cleaned.find("{")
+    if brace_start >= 0:
+        json_str = cleaned[brace_start:]
+        # Try progressively closing open structures
+        for suffix in ['"}]}', '"]]}', '"}', '"]', ']}', '}']:
+            try:
+                return json.loads(json_str + suffix)
+            except json.JSONDecodeError:
+                continue
+
+    return {"raw_response": text}
 
 
 async def _run_workflow(product_id: str, workflow_id: str,
