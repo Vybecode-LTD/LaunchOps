@@ -374,6 +374,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
   const [queueLoading, setQueueLoading] = useState(false);
   const [wfTemplates, setWfTemplates] = useState([]);
   const [editDirty, setEditDirty] = useState({});
+  const [expandedQueue, setExpandedQueue] = useState(null);
   const pollRef = useRef(null);
 
   // Load queue items
@@ -761,20 +762,38 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
           <div style={{ textAlign: "center", padding: "30px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)", fontSize: "12px" }}>Loading...</div>
         ) : queueItems.length > 0 ? queueItems.map(q => {
           const wf = WORKFLOWS.find(w => w.id === q.workflow_id);
-          return <Card key={q.id} style={{ marginBottom: "8px", padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
-                <span>{wf?.icon || "📋"}</span>
-                <span style={{ fontSize: "12px", fontWeight: 600, color: "#e0e0e0" }}>{q.workflow_id}</span>
-                <Badge color={q.status === "pending" ? "#ffaa00" : q.status === "approved" ? "#22c55e" : q.status === "running" ? "#00f0ff" : "#ef4444"}>{q.status.toUpperCase()}</Badge>
+          const isExpanded = expandedQueue === q.id;
+          const content = q.content || {};
+          const contentStr = typeof content === "string" ? content : JSON.stringify(content, null, 2);
+          const hasContent = contentStr && contentStr !== "{}" && contentStr !== "null";
+          return <Card key={q.id} style={{ marginBottom: "8px", padding: "14px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", cursor: hasContent ? "pointer" : "default" }} onClick={() => hasContent && setExpandedQueue(isExpanded ? null : q.id)}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
+                  <span>{wf?.icon || "📋"}</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#e0e0e0" }}>{wf?.name || q.workflow_id}</span>
+                  <Badge color={q.status === "pending" ? "#ffaa00" : q.status === "approved" ? "#22c55e" : q.status === "running" ? "#00f0ff" : "#ef4444"}>{q.status.toUpperCase()}</Badge>
+                  {hasContent && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)" }}>{isExpanded ? "▼" : "▶"} view</span>}
+                </div>
+                <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{q.preview}</div>
               </div>
-              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{q.preview}</div>
+              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                {q.status === "pending" && <>
+                  <Btn onClick={(e) => { e.stopPropagation(); approveItem(q.id); }} color="#22c55e" outline small>✓</Btn>
+                  <Btn onClick={(e) => { e.stopPropagation(); rejectItem(q.id); }} color="#ef4444" outline small>✗</Btn>
+                </>}
+                {q.status === "running" && <div style={{ fontSize: "10px", color: "#00f0ff", fontFamily: "var(--mono)", animation: "pulse 1.5s infinite" }}>Running...</div>}
+                {hasContent && <Btn onClick={(e) => { e.stopPropagation(); copyToClipboard(contentStr, notify); }} outline small color="#a855f7" style={{ padding: "4px 10px", fontSize: "9px" }}>📋</Btn>}
+              </div>
             </div>
-            {q.status === "pending" && <div style={{ display: "flex", gap: "6px" }}>
-              <Btn onClick={() => approveItem(q.id)} color="#22c55e" outline small>✓</Btn>
-              <Btn onClick={() => rejectItem(q.id)} color="#ef4444" outline small>✗</Btn>
+            {isExpanded && hasContent && <div style={{ marginTop: "12px", padding: "14px", background: "rgba(0,0,0,0.25)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)", maxHeight: "400px", overflow: "auto" }}>
+              {typeof content === "object" && !Array.isArray(content) ? Object.entries(content).map(([key, val]) => (
+                <div key={key} style={{ marginBottom: "12px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: p.color, fontFamily: "var(--mono)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "4px" }}>{key.replace(/_/g, " ")}</div>
+                  <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{typeof val === "string" ? val : Array.isArray(val) ? val.map((item, i) => <div key={i} style={{ padding: "3px 0" }}>• {typeof item === "string" ? item : JSON.stringify(item)}</div>) : JSON.stringify(val, null, 2)}</div>
+                </div>
+              )) : <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{contentStr}</div>}
             </div>}
-            {q.status === "running" && <div style={{ fontSize: "10px", color: "#00f0ff", fontFamily: "var(--mono)", animation: "pulse 1.5s infinite" }}>Running...</div>}
           </Card>;
         }) : <div style={{ textAlign: "center", padding: "50px", color: "rgba(255,255,255,0.25)", fontFamily: "var(--mono)", fontSize: "12px" }}>Queue empty. Launch a workflow to populate it.</div>}
       </div>}
