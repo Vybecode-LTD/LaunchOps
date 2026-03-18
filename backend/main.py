@@ -6,6 +6,8 @@ generation, SEO optimization, content repurposing, and more.
 """
 
 import os
+import asyncio
+import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -14,6 +16,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from config import get_settings
 from database import run_setup, close_pool
+
+logger = logging.getLogger(__name__)
 
 # Import routers
 from routers.products import router as products_router
@@ -33,7 +37,11 @@ STATIC_DIR = Path(__file__).parent / "static"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: create tables. Shutdown: close DB pool."""
-    await run_setup()
+    try:
+        await asyncio.wait_for(run_setup(), timeout=30)
+        logger.info("Database setup complete")
+    except Exception as e:
+        logger.error(f"Database setup failed: {e} — app will start anyway")
     yield
     await close_pool()
 
