@@ -63,6 +63,102 @@ const copyToClipboard = (text, notify) => {
   navigator.clipboard.writeText(text).then(() => notify("Copied to clipboard ✓", "#22c55e")).catch(() => notify("Copy failed", "#ef4444"));
 };
 
+/** Lightweight markdown→React renderer (no dependencies) */
+const renderMarkdown = (text) => {
+  if (!text || typeof text !== "string") return text;
+  const lines = text.split("\n");
+  const elements = [];
+  let inList = false;
+  let listItems = [];
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      elements.push(<ul key={`ul-${elements.length}`} style={{ margin: "6px 0", paddingLeft: "18px" }}>{listItems}</ul>);
+      listItems = [];
+      inList = false;
+    }
+  };
+
+  const renderInline = (str) => {
+    // Bold, italic, inline code, links
+    return str
+      .replace(/\*\*(.+?)\*\*/g, "⟪b⟫$1⟪/b⟫")
+      .replace(/\*(.+?)\*/g, "⟪i⟫$1⟪/i⟫")
+      .replace(/`(.+?)`/g, "⟪code⟫$1⟪/code⟫")
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "⟪a⟫$1⟪href⟫$2⟪/a⟫")
+      .split(/(⟪\/?[a-z]+⟫)/g)
+      .reduce((acc, part, i, arr) => {
+        if (part === "⟪b⟫") { const end = arr.indexOf("⟪/b⟫", i); if (end > i) { acc.push(<strong key={i}>{arr.slice(i+1, end).join("")}</strong>); arr.splice(i+1, end-i); } }
+        else if (part === "⟪i⟫") { const end = arr.indexOf("⟪/i⟫", i); if (end > i) { acc.push(<em key={i}>{arr.slice(i+1, end).join("")}</em>); arr.splice(i+1, end-i); } }
+        else if (part === "⟪code⟫") { const end = arr.indexOf("⟪/code⟫", i); if (end > i) { acc.push(<code key={i} style={{ background: "rgba(255,255,255,0.08)", padding: "1px 5px", borderRadius: "3px", fontSize: "11px" }}>{arr.slice(i+1, end).join("")}</code>); arr.splice(i+1, end-i); } }
+        else if (part === "⟪a⟫") { const hrefIdx = arr.indexOf("⟪href⟫", i); const end = arr.indexOf("⟪/a⟫", i); if (hrefIdx > i && end > hrefIdx) { acc.push(<a key={i} href={arr[hrefIdx+1]} target="_blank" rel="noopener" style={{ color: "#00f0ff", textDecoration: "underline" }}>{arr.slice(i+1, hrefIdx).join("")}</a>); arr.splice(i+1, end-i); } }
+        else if (!part.startsWith("⟪")) { acc.push(part); }
+        return acc;
+      }, []);
+  };
+
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+    if (!trimmed) { flushList(); elements.push(<div key={i} style={{ height: "8px" }} />); return; }
+
+    // Headings
+    const hMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+    if (hMatch) {
+      flushList();
+      const level = hMatch[1].length;
+      const sizes = { 1: "16px", 2: "14px", 3: "13px", 4: "12px" };
+      elements.push(<div key={i} style={{ fontSize: sizes[level], fontWeight: 700, color: "#e0e0e0", marginTop: "12px", marginBottom: "4px" }}>{renderInline(hMatch[2])}</div>);
+      return;
+    }
+
+    // List items (- or * or numbered)
+    const liMatch = trimmed.match(/^[-*•]\s+(.+)$/) || trimmed.match(/^\d+\.\s+(.+)$/);
+    if (liMatch) {
+      inList = true;
+      listItems.push(<li key={i} style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", lineHeight: 1.7, marginBottom: "2px" }}>{renderInline(liMatch[1])}</li>);
+      return;
+    }
+
+    // Horizontal rule
+    if (/^---+$/.test(trimmed)) { flushList(); elements.push(<hr key={i} style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)", margin: "10px 0" }} />); return; }
+
+    // Regular paragraph
+    flushList();
+    elements.push(<div key={i} style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", lineHeight: 1.7 }}>{renderInline(trimmed)}</div>);
+  });
+
+  flushList();
+  return elements;
+};
+
+/** Build a Claude Code prompt from a queue item's content */
+const buildClaudeCodePrompt = (queueItem, workflowName, productName) => {
+  const content = queueItem.content || {};
+  let prompt = `## ${workflowName} Results for ${productName}\n\n`;
+  prompt += `Use the following AI-generated content to take action. Review each section and implement the recommended steps:\n\n`;
+
+  if (typeof content === "string") {
+    prompt += content;
+  } else if (typeof content === "object") {
+    for (const [key, val] of Object.entries(content)) {
+      const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      prompt += `### ${label}\n`;
+      if (typeof val === "string") {
+        prompt += val + "\n\n";
+      } else if (Array.isArray(val)) {
+        val.forEach((item, i) => {
+          prompt += typeof item === "string" ? `${i + 1}. ${item}\n` : `${i + 1}. ${JSON.stringify(item)}\n`;
+        });
+        prompt += "\n";
+      } else {
+        prompt += JSON.stringify(val, null, 2) + "\n\n";
+      }
+    }
+  }
+
+  return prompt;
+};
+
 /* ═══════════════════════════════════════
    UI PRIMITIVES
    ═══════════════════════════════════════ */
@@ -824,13 +920,21 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
                 {hasContent && <Btn onClick={(e) => { e.stopPropagation(); copyToClipboard(contentStr, notify); }} outline small color="#a855f7" style={{ padding: "4px 10px", fontSize: "9px" }}>📋</Btn>}
               </div>
             </div>
-            {isExpanded && hasContent && <div style={{ marginTop: "12px", padding: "14px", background: "rgba(0,0,0,0.25)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)", maxHeight: "400px", overflow: "auto" }}>
-              {typeof content === "object" && !Array.isArray(content) ? Object.entries(content).map(([key, val]) => (
-                <div key={key} style={{ marginBottom: "12px" }}>
-                  <div style={{ fontSize: "10px", fontWeight: 700, color: p.color, fontFamily: "var(--mono)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "4px" }}>{key.replace(/_/g, " ")}</div>
-                  <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{typeof val === "string" ? val : Array.isArray(val) ? val.map((item, i) => <div key={i} style={{ padding: "3px 0" }}>• {typeof item === "string" ? item : JSON.stringify(item)}</div>) : JSON.stringify(val, null, 2)}</div>
-                </div>
-              )) : <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{contentStr}</div>}
+            {isExpanded && hasContent && <div style={{ marginTop: "12px" }}>
+              <div style={{ padding: "14px", background: "rgba(0,0,0,0.25)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)", maxHeight: "400px", overflow: "auto" }}>
+                {typeof content === "object" && !Array.isArray(content) ? Object.entries(content).map(([key, val]) => (
+                  <div key={key} style={{ marginBottom: "14px" }}>
+                    <div style={{ fontSize: "10px", fontWeight: 700, color: p.color, fontFamily: "var(--mono)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>{key.replace(/_/g, " ")}</div>
+                    <div style={{ lineHeight: 1.6 }}>{typeof val === "string" ? renderMarkdown(val) : Array.isArray(val) ? val.map((item, i) => <div key={i} style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", padding: "3px 0", lineHeight: 1.6 }}>{typeof item === "string" ? renderMarkdown(`• ${item}`) : <span style={{ fontFamily: "var(--mono)", fontSize: "11px" }}>{JSON.stringify(item, null, 2)}</span>}</div>) : <div style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "rgba(255,255,255,0.5)", whiteSpace: "pre-wrap" }}>{JSON.stringify(val, null, 2)}</div>}</div>
+                  </div>
+                )) : <div style={{ lineHeight: 1.6 }}>{renderMarkdown(contentStr)}</div>}
+              </div>
+              {/* Export to Claude Code */}
+              <div style={{ display: "flex", gap: "6px", marginTop: "8px", justifyContent: "flex-end" }}>
+                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(buildClaudeCodePrompt(q, wf?.name || q.workflow_id, p.name), notify); }} style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.25)", borderRadius: "6px", color: "#a855f7", fontSize: "10px", fontFamily: "var(--mono)", padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ fontSize: "12px" }}>🤖</span> Export to Claude Code
+                </button>
+              </div>
             </div>}
           </Card>;
         }) : <div style={{ textAlign: "center", padding: "50px", color: "rgba(255,255,255,0.25)", fontFamily: "var(--mono)", fontSize: "12px" }}>Queue empty. Launch a workflow to populate it.</div>}
