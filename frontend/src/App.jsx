@@ -941,14 +941,46 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
       </div>}
 
       {/* EDIT */}
-      {tab === "edit" && <Card>
-        <SL>Product Details</SL>
-        <Inp label="Name" value={editDirty.name ?? p.name} onChange={v => setEditDirty(d => ({ ...d, name: v }))} />
-        <Inp label="Tagline" value={editDirty.tagline ?? p.tagline} onChange={v => setEditDirty(d => ({ ...d, tagline: v }))} />
-        <Inp label="URL" value={editDirty.url ?? (p.url || "")} onChange={v => setEditDirty(d => ({ ...d, url: v }))} mono />
-        <TA label="Description (context for Claude)" value={editDirty.description ?? (p.description || "")} onChange={v => setEditDirty(d => ({ ...d, description: v }))} placeholder="What does this product do?" />
-        <Tags label="Keywords" tags={editDirty.keywords ?? (p.keywords || [])} onChange={v => setEditDirty(d => ({ ...d, keywords: v }))} placeholder="keyword..." />
-        <Sel label="Color" value={editDirty.color ?? p.color} onChange={v => setEditDirty(d => ({ ...d, color: v }))} options={[{ value: "#00f0ff", label: "Cyan" }, { value: "#a855f7", label: "Purple" }, { value: "#ff6b35", label: "Orange" }, { value: "#22c55e", label: "Green" }, { value: "#3b82f6", label: "Blue" }, { value: "#ec4899", label: "Pink" }]} />
+      {tab === "edit" && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <Card>
+          <SL>Product Details</SL>
+          <Inp label="Name" value={editDirty.name ?? p.name} onChange={v => setEditDirty(d => ({ ...d, name: v }))} />
+          <Inp label="Tagline" value={editDirty.tagline ?? p.tagline} onChange={v => setEditDirty(d => ({ ...d, tagline: v }))} />
+          <Inp label="URL" value={editDirty.url ?? (p.url || "")} onChange={v => setEditDirty(d => ({ ...d, url: v }))} mono />
+          <TA label="Description (context for Claude)" value={editDirty.description ?? (p.description || "")} onChange={v => setEditDirty(d => ({ ...d, description: v }))} placeholder="What does this product do?" />
+          <Tags label="Keywords" tags={editDirty.keywords ?? (p.keywords || [])} onChange={v => setEditDirty(d => ({ ...d, keywords: v }))} placeholder="keyword..." />
+          <Sel label="Color" value={editDirty.color ?? p.color} onChange={v => setEditDirty(d => ({ ...d, color: v }))} options={[{ value: "#00f0ff", label: "Cyan" }, { value: "#a855f7", label: "Purple" }, { value: "#ff6b35", label: "Orange" }, { value: "#22c55e", label: "Green" }, { value: "#3b82f6", label: "Blue" }, { value: "#ec4899", label: "Pink" }]} />
+        </Card>
+
+        {/* Email Server Settings */}
+        <Card style={{ borderColor: "rgba(255,107,53,0.15)" }}>
+          <SL style={{ color: "#ff6b35" }}>Email Server</SL>
+          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "14px" }}>Configure SMTP for outreach emails sent under this product's brand.</div>
+          {(() => {
+            const es = editDirty.email_settings ?? p.email_settings ?? {};
+            const upEmail = (field, val) => setEditDirty(d => ({ ...d, email_settings: { ...(d.email_settings ?? p.email_settings ?? {}), [field]: val } }));
+            return <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+                <Inp label="SMTP Host" value={es.smtp_host || ""} onChange={v => upEmail("smtp_host", v)} placeholder="smtp.gmail.com" mono />
+                <Inp label="SMTP Port" value={es.smtp_port ?? 587} onChange={v => upEmail("smtp_port", parseInt(v) || 587)} type="number" mono />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+                <Inp label="Username" value={es.smtp_user || ""} onChange={v => upEmail("smtp_user", v)} placeholder="you@example.com" mono />
+                <Inp label="Password" value={es.smtp_password || ""} onChange={v => upEmail("smtp_password", v)} placeholder="app password" type="password" mono />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+                <Inp label="From Name" value={es.from_name || ""} onChange={v => upEmail("from_name", v)} placeholder="VybeCode Team" />
+                <Inp label="From Email" value={es.from_email || ""} onChange={v => upEmail("from_email", v)} placeholder="hello@vybecod.ing" mono />
+              </div>
+              <Inp label="Reply-To (optional)" value={es.reply_to || ""} onChange={v => upEmail("reply_to", v)} placeholder="support@vybecod.ing" mono />
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "4px" }}>
+                <Toggle on={es.use_tls !== false} onChange={v => upEmail("use_tls", v)} color="#ff6b35" />
+                <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", fontFamily: "var(--mono)" }}>Use TLS</span>
+              </div>
+            </>;
+          })()}
+        </Card>
+
         <Btn onClick={async () => {
           if (Object.keys(editDirty).length === 0) return;
           try {
@@ -958,7 +990,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
             notify("Saved ✓", "#22c55e");
           } catch (e) { notify("Save failed: " + e.message, "#ef4444"); }
         }} disabled={Object.keys(editDirty).length === 0}>Save Changes</Btn>
-      </Card>}
+      </div>}
     </div>
   );
 };

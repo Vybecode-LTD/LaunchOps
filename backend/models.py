@@ -42,6 +42,17 @@ class TaskStatus(str, Enum):
 # ─── Products ───
 
 
+class EmailSettings(BaseModel):
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    from_name: str = ""
+    from_email: str = ""
+    reply_to: str = ""
+    use_tls: bool = True
+
+
 class ProductCreate(BaseModel):
     name: str
     tagline: str = ""
@@ -59,6 +70,7 @@ class ProductUpdate(BaseModel):
     status: Optional[ProductStatus] = None
     description: Optional[str] = None
     keywords: Optional[list[str]] = None
+    email_settings: Optional[dict] = None
 
 
 class Product(BaseModel):
@@ -73,6 +85,7 @@ class Product(BaseModel):
     press_kit: Optional[dict] = None
     checklist: dict = {}
     seo_result: Optional[dict] = None
+    email_settings: dict = {}
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

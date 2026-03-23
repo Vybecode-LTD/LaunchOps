@@ -186,6 +186,7 @@ CREATE TABLE IF NOT EXISTS products (
     press_kit JSONB,
     checklist JSONB DEFAULT '{}',
     seo_result JSONB,
+    email_settings JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -244,6 +245,9 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- Insert default settings row
 INSERT INTO settings (id) VALUES (1) ON CONFLICT DO NOTHING;
+
+-- Migrations (safe to re-run)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS email_settings JSONB DEFAULT '{}';
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_queue_product ON queue(product_id);
