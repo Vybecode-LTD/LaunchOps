@@ -62,6 +62,19 @@ const copyToClipboard = (text, notify) => {
   navigator.clipboard.writeText(text).then(() => notify("Copied to clipboard ✓", "#22c55e")).catch(() => notify("Copy failed", "#ef4444"));
 };
 
+/** Get compose URL for a social platform, or null if not supported */
+const getComposeUrl = (platform, text, url) => {
+  const encoded = encodeURIComponent(text);
+  const encodedUrl = url ? encodeURIComponent(url) : "";
+  switch ((platform || "").toLowerCase().replace(/[^a-z]/g, "")) {
+    case "twitter": case "twitterx": case "x": return `https://twitter.com/intent/tweet?text=${encoded}`;
+    case "linkedin": return `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl || encoded}`;
+    case "reddit": return `https://www.reddit.com/submit?title=${encoded}${encodedUrl ? `&url=${encodedUrl}` : ""}`;
+    case "facebook": return `https://www.facebook.com/sharer/sharer.php?quote=${encoded}`;
+    default: return null; // TikTok, Instagram, Threads, YouTube — no compose URL
+  }
+};
+
 /** Lightweight markdown→React renderer (no dependencies) */
 const renderMarkdown = (text) => {
   if (!text || typeof text !== "string") return text;
@@ -580,12 +593,14 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
     finally { setPrLoading(false); }
   };
 
-  // ─── Repurpose (API) ───
+  // ─── Repurpose (API) — only enabled platforms ───
   const repurpose = async () => {
     if (!repInput) return;
     setRepLoading(true);
     try {
-      const result = await api.repurpose.create({ product_id: p.id, content: repInput });
+      const enabledPlatforms = Object.entries(settings?.platforms || {}).filter(([, cfg]) => cfg.connected).map(([id]) => id);
+      const platforms = enabledPlatforms.length > 0 ? enabledPlatforms : ["twitter", "instagram", "linkedin"];
+      const result = await api.repurpose.create({ product_id: p.id, content: repInput, platforms });
       setRepResults(result.platforms || result.raw_response ? [result] : []);
       notify("Repurposed ✓", "#a855f7");
     } catch (e) { notify("Repurpose failed: " + e.message, "#ef4444"); }
@@ -830,17 +845,27 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
         <SL>Cross-Platform Repurposer</SL>
         {!repResults ? <Card>
           <TA label="Write your content once" value={repInput} onChange={setRepInput} placeholder="Paste any announcement, update, or idea..." rows={4} />
-          <Btn onClick={repurpose} disabled={!repInput || repLoading}>{repLoading ? "⏳ Repurposing..." : "Repurpose for All Platforms"}</Btn>
+          <Btn onClick={repurpose} disabled={!repInput || repLoading}>{repLoading ? "⏳ Repurposing..." : "Repurpose for Enabled Platforms"}</Btn>
         </Card> : <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <Btn onClick={() => setRepResults(null)} color="#ef4444" outline small style={{ alignSelf: "flex-end" }}>Start Over</Btn>
-          {(repResults[0]?.platforms || repResults).map((r, i) => <Card key={i} style={{ padding: "14px 18px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "#e0e0e0" }}>{r.platform}</span>
-              {r.character_count && <Badge color="rgba(255,255,255,0.3)">{r.character_count} chars</Badge>}
-            </div>
-            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{r.content}</div>
-            {r.hashtags && <div style={{ fontSize: "10px", color: "rgba(0,240,255,0.5)", fontFamily: "var(--mono)", marginTop: "6px" }}>{Array.isArray(r.hashtags) ? r.hashtags.join(" ") : r.hashtags}</div>}
-          </Card>)}
+          {(repResults[0]?.platforms || repResults).map((r, i) => {
+            const fullText = r.content + (r.hashtags ? "\n" + (Array.isArray(r.hashtags) ? r.hashtags.join(" ") : r.hashtags) : "");
+            const composeUrl = getComposeUrl(r.platform, fullText, p.url);
+            const platInfo = PLATFORMS.find(pl => pl.id === (r.platform || "").toLowerCase().replace(/[^a-z]/g, ""));
+            return <Card key={i} style={{ padding: "14px 18px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: platInfo?.color || "#e0e0e0" }}>{platInfo?.icon || "📱"} {r.platform}</span>
+                {r.character_count && <Badge color="rgba(255,255,255,0.3)">{r.character_count} chars</Badge>}
+              </div>
+              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{r.content}</div>
+              {r.hashtags && <div style={{ fontSize: "10px", color: "rgba(0,240,255,0.5)", fontFamily: "var(--mono)", marginTop: "6px" }}>{Array.isArray(r.hashtags) ? r.hashtags.join(" ") : r.hashtags}</div>}
+              <div style={{ display: "flex", gap: "6px", marginTop: "10px" }}>
+                <button onClick={() => copyToClipboard(fullText, notify)} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", color: "rgba(255,255,255,0.5)", fontSize: "10px", fontFamily: "var(--mono)", padding: "4px 10px", cursor: "pointer" }}>📋 Copy</button>
+                {composeUrl && <a href={composeUrl} target="_blank" rel="noopener noreferrer" style={{ background: `${platInfo?.color || "#fff"}18`, border: `1px solid ${platInfo?.color || "#fff"}33`, borderRadius: "6px", color: platInfo?.color || "#fff", fontSize: "10px", fontFamily: "var(--mono)", padding: "4px 10px", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}>Open in {r.platform} ↗</a>}
+                {!composeUrl && <button onClick={() => { copyToClipboard(fullText, notify); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", color: "rgba(255,255,255,0.5)", fontSize: "10px", fontFamily: "var(--mono)", padding: "4px 10px", cursor: "pointer" }}>📋 Copy & post manually</button>}
+              </div>
+            </Card>;
+          })}
         </div>}
       </div>}
 
