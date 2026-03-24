@@ -73,6 +73,11 @@ export const pressKit = {
   generate: (data) => request("/api/presskit/generate", { method: "POST", body: data }),
 };
 
+// ─── Press Release ───
+export const pressRelease = {
+  generate: (data) => request("/api/press-release/generate", { method: "POST", body: data }),
+};
+
 // ─── SEO ───
 export const seo = {
   analyze: (data) => request("/api/seo/analyze", { method: "POST", body: data }),

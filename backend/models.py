@@ -158,6 +158,19 @@ class PressKitRequest(BaseModel):
     url: str
 
 
+class PressReleaseRequest(BaseModel):
+    product_id: str
+    url: str
+    media_contact_name: str = ""
+    media_contact_email: str = ""
+    media_contact_phone: str = ""
+    technical_contact_name: str = ""
+    technical_contact_email: str = ""
+    sales_contact_name: str = ""
+    sales_contact_email: str = ""
+    additional_notes: str = ""
+
+
 class PressKit(BaseModel):
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     source_url: str

@@ -319,6 +319,36 @@ Respond in structured JSON with keys:
 - suggested_angles: array of story angles for press"""
 
 
+PRESS_RELEASE_PROMPT = """You are an experienced PR writer crafting a professional press release.
+Using the scraped content from the product's website and the contact information provided,
+write a complete, publication-ready press release.
+
+{brand_context}
+
+# Scraped Website Content
+{scraped_content}
+
+# Contact Information
+{contact_info}
+
+Write a professional press release following standard format:
+1. Headline (attention-grabbing, factual)
+2. Subheadline (supporting detail)
+3. Dateline (city, date)
+4. Lead paragraph (who, what, when, where, why)
+5. Body paragraphs (details, features, quotes, market context)
+6. Boilerplate (about the company)
+7. Contact information block
+
+Respond in structured JSON with keys:
+- headline: string
+- subheadline: string
+- body: complete press release text in markdown (including dateline, all paragraphs, boilerplate, and contact block)
+- summary: 1-2 sentence summary for distribution emails
+- suggested_distribution: array of distribution channel suggestions
+- seo_keywords: array of 5-8 keywords for online distribution"""
+
+
 SEO_ANALYSIS_PROMPT = """You are an SEO specialist analyzing a website's metadata and
 generating optimized alternatives.
 

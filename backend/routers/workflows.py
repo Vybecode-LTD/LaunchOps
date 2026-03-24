@@ -8,15 +8,15 @@ approval queue.
 import json
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from models import (
-    WorkflowRequest, WorkflowResponse, PressKitRequest, SEORequest,
-    RepurposeRequest, PricingRequest, QueueItem, new_id, TaskStatus,
-    QueueStatus,
+    WorkflowRequest, WorkflowResponse, PressKitRequest, PressReleaseRequest,
+    SEORequest, RepurposeRequest, PricingRequest, QueueItem, new_id,
+    TaskStatus, QueueStatus,
 )
 from database import insert, select_one, update
 from services.claude import (
     call_claude, build_brand_context, WORKFLOW_PROMPTS,
-    PRESS_KIT_PROMPT, SEO_ANALYSIS_PROMPT, REPURPOSE_PROMPT,
-    PRICING_PROMPT,
+    PRESS_KIT_PROMPT, PRESS_RELEASE_PROMPT, SEO_ANALYSIS_PROMPT,
+    REPURPOSE_PROMPT, PRICING_PROMPT,
 )
 from services.scraper import scrape_url
 
@@ -100,6 +100,16 @@ async def _run_workflow(product_id: str, workflow_id: str,
         tools = prompt_config.get("tools", [])
 
         user_msg = f"Execute this workflow for {product.get('name', 'the product')}."
+
+        # For social_posts, inject enabled platforms from settings
+        if workflow_id == "social_posts":
+            platforms_cfg = settings_row.get("platforms", {})
+            enabled = [pid for pid, cfg in platforms_cfg.items() if cfg.get("connected")]
+            if enabled:
+                user_msg += f"\n\nGenerate posts ONLY for these enabled platforms: {', '.join(enabled)}. Do not generate for other platforms."
+            else:
+                user_msg += "\n\nGenerate posts for Twitter, LinkedIn, and Instagram (no platforms configured yet)."
+
         if instructions:
             user_msg += f"\n\nAdditional instructions: {instructions}"
 
@@ -226,6 +236,62 @@ async def generate_press_kit(data: PressKitRequest) -> dict:
 
     # Store on product
     await update("products", data.product_id, {"press_kit": result})
+    return result
+
+
+# ─── Press Release Generation ───
+
+
+@router.post("/press-release/generate")
+async def generate_press_release(data: PressReleaseRequest) -> dict:
+    """Scrape URL and generate a press release via Claude."""
+    product, settings = await _get_product_and_settings(data.product_id)
+    brand_ctx = build_brand_context(
+        product, settings.get("brand"), settings.get("prefs")
+    )
+
+    scraped = await scrape_url(data.url)
+    if scraped.get("status") != "ok":
+        raise HTTPException(400, f"Could not scrape URL: {scraped.get('error')}")
+
+    scraped_content = (
+        f"Page title: {scraped['metadata'].get('title', '')}\n"
+        f"Description: {scraped['metadata'].get('description', '')}\n"
+        f"Headings: {', '.join(scraped.get('headings', []))}\n"
+        f"Body text: {scraped.get('body_text', '')[:3000]}"
+    )
+
+    contact_lines = []
+    if data.media_contact_name:
+        contact_lines.append(f"Media Contact: {data.media_contact_name}")
+        if data.media_contact_email:
+            contact_lines.append(f"  Email: {data.media_contact_email}")
+        if data.media_contact_phone:
+            contact_lines.append(f"  Phone: {data.media_contact_phone}")
+    if data.technical_contact_name:
+        contact_lines.append(f"Technical Contact: {data.technical_contact_name}")
+        if data.technical_contact_email:
+            contact_lines.append(f"  Email: {data.technical_contact_email}")
+    if data.sales_contact_name:
+        contact_lines.append(f"Sales Contact: {data.sales_contact_name}")
+        if data.sales_contact_email:
+            contact_lines.append(f"  Email: {data.sales_contact_email}")
+    contact_info = "\n".join(contact_lines) if contact_lines else "No contact information provided — use placeholder names."
+
+    if data.additional_notes:
+        contact_info += f"\n\nAdditional Notes: {data.additional_notes}"
+
+    system = PRESS_RELEASE_PROMPT.replace(
+        "{brand_context}", brand_ctx
+    ).replace("{scraped_content}", scraped_content).replace(
+        "{contact_info}", contact_info
+    )
+
+    response = await call_claude(system, "Write the press release now.", max_tokens=4096)
+    result = _parse_json_response(response)
+
+    # Store on product
+    await update("products", data.product_id, {"press_release": result})
     return result
 
 

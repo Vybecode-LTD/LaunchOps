@@ -461,6 +461,10 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
   const [pressUrl, setPressUrl] = useState(p.url || "");
   const [generating, setGenerating] = useState(false);
   const [genStep, setGenStep] = useState("");
+  const [prUrl, setPrUrl] = useState(p.url || "");
+  const [prResult, setPrResult] = useState(p.press_release || null);
+  const [prLoading, setPrLoading] = useState(false);
+  const [prContacts, setPrContacts] = useState({ media_contact_name: "", media_contact_email: "", media_contact_phone: "", technical_contact_name: "", technical_contact_email: "", sales_contact_name: "", sales_contact_email: "", additional_notes: "" });
   const [priceResult, setPriceResult] = useState(null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [seoUrl, setSeoUrl] = useState(p.url || "");
@@ -549,6 +553,18 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
       await reloadProduct();
     } catch (e) { notify("Press kit failed: " + e.message, "#ef4444"); }
     finally { setGenerating(false); setGenStep(""); }
+  };
+
+  // ─── Press Release (API) ───
+  const generatePressRelease = async () => {
+    if (!prUrl) return;
+    setPrLoading(true);
+    try {
+      const result = await api.pressRelease.generate({ product_id: p.id, url: prUrl, ...prContacts });
+      setPrResult(result);
+      notify("Press release ready ✓", "#22c55e");
+    } catch (e) { notify("Press release failed: " + e.message, "#ef4444"); }
+    finally { setPrLoading(false); }
   };
 
   // ─── Repurpose (API) ───
@@ -653,7 +669,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
         </div>
         <SL>Quick Actions</SL>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
-          {[["📦", "Press Kit", "press_kit"], ["🔄", "Repurpose", "repurpose"], ["💰", "Pricing", "pricing"], ["🔎", "SEO", "seo"], ["✨", "Workflows", "workflows"], ["🛫", "Checklist", "checklist"], ["📋", "Queue", "queue"], ["✏️", "Edit", "edit"]].map(([icon, label, t], i) => (
+          {[["📦", "Press Kit", "press_kit"], ["📰", "Press Release", "press_release"], ["🔄", "Repurpose", "repurpose"], ["💰", "Pricing", "pricing"], ["🔎", "SEO", "seo"], ["✨", "Workflows", "workflows"], ["🛫", "Checklist", "checklist"], ["📋", "Queue", "queue"], ["✏️", "Edit", "edit"]].map(([icon, label, t], i) => (
             <Card key={i} onClick={() => setTab(t)} style={{ cursor: "pointer", padding: "14px", textAlign: "center" }}>
               <div style={{ fontSize: "18px", marginBottom: "4px" }}>{icon}</div>
               <div style={{ fontSize: "11px", fontWeight: 600, color: "#e0e0e0" }}>{label}</div>
@@ -725,6 +741,73 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
           <Card><SL>Key Features</SL>{(pk.key_features || pk.features || []).map((f, i) => <div key={i} style={{ padding: "5px 0", fontSize: "12px", color: "#e0e0e0" }}>• {f}</div>)}</Card>
           {pk.target_audience && <Card><SL>Target Audience</SL><p style={{ margin: 0, fontSize: "12px", color: "rgba(255,255,255,0.6)", lineHeight: 1.6 }}>{pk.target_audience}</p></Card>}
           <Card><SL>Media Assets</SL>{(pk.media_assets || pk.assets || []).map((a, i) => <div key={i} style={{ padding: "5px 0", fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>☐ {a}</div>)}</Card>
+        </div>}
+      </div>}
+
+      {/* PRESS RELEASE */}
+      {tab === "press_release" && <div>
+        <SL>Press Release Builder</SL>
+        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "16px" }}>Generate a publication-ready press release from your website. URL scrape required.</div>
+        {!prResult && !prLoading ? <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <Card>
+            <Inp label="Website URL (required)" value={prUrl} onChange={setPrUrl} placeholder="https://vybecod.ing" mono />
+          </Card>
+          <Card>
+            <SL>Media Contact</SL>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+              <Inp label="Name" value={prContacts.media_contact_name} onChange={v => setPrContacts(c => ({ ...c, media_contact_name: v }))} placeholder="Jane Smith" />
+              <Inp label="Email" value={prContacts.media_contact_email} onChange={v => setPrContacts(c => ({ ...c, media_contact_email: v }))} placeholder="press@company.com" mono />
+            </div>
+            <Inp label="Phone" value={prContacts.media_contact_phone} onChange={v => setPrContacts(c => ({ ...c, media_contact_phone: v }))} placeholder="+1 (555) 123-4567" mono />
+          </Card>
+          <Card>
+            <SL>Technical Contact</SL>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+              <Inp label="Name" value={prContacts.technical_contact_name} onChange={v => setPrContacts(c => ({ ...c, technical_contact_name: v }))} placeholder="John Doe" />
+              <Inp label="Email" value={prContacts.technical_contact_email} onChange={v => setPrContacts(c => ({ ...c, technical_contact_email: v }))} placeholder="tech@company.com" mono />
+            </div>
+          </Card>
+          <Card>
+            <SL>Sales Contact</SL>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+              <Inp label="Name" value={prContacts.sales_contact_name} onChange={v => setPrContacts(c => ({ ...c, sales_contact_name: v }))} placeholder="Sales Team" />
+              <Inp label="Email" value={prContacts.sales_contact_email} onChange={v => setPrContacts(c => ({ ...c, sales_contact_email: v }))} placeholder="sales@company.com" mono />
+            </div>
+          </Card>
+          <Card>
+            <TA label="Additional Notes (optional)" value={prContacts.additional_notes} onChange={v => setPrContacts(c => ({ ...c, additional_notes: v }))} placeholder="Any specific angle, news hook, or details to include..." rows={3} />
+          </Card>
+          <Btn onClick={generatePressRelease} disabled={!prUrl || prLoading}>Generate Press Release</Btn>
+        </div>
+        : prLoading ? <Card style={{ textAlign: "center", padding: "50px" }}><div style={{ fontSize: "28px", marginBottom: "14px", animation: "pulse 1.5s infinite" }}>📰</div><div style={{ fontSize: "13px", color: "#00f0ff", fontFamily: "var(--mono)" }}>Scraping site & writing press release...</div></Card>
+        : prResult && <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Badge color="#22c55e">READY</Badge>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <Btn onClick={() => copyToClipboard(prResult.body || JSON.stringify(prResult, null, 2), notify)} color="#a855f7" outline small>Copy Full Text</Btn>
+              <Btn onClick={() => setPrResult(null)} color="#ef4444" outline small>Regenerate</Btn>
+            </div>
+          </div>
+          {prResult.headline && <Card>
+            <div style={{ fontSize: "20px", fontWeight: 700, color: "#e0e0e0", lineHeight: 1.4, marginBottom: "6px" }}>{prResult.headline}</div>
+            {prResult.subheadline && <div style={{ fontSize: "14px", color: "rgba(255,255,255,0.5)", fontStyle: "italic" }}>{prResult.subheadline}</div>}
+          </Card>}
+          {prResult.body && <Card>
+            <SL>Full Press Release</SL>
+            <div style={{ fontSize: "14px", color: "rgba(255,255,255,0.75)", lineHeight: 1.8 }}>{renderMarkdown(prResult.body)}</div>
+          </Card>}
+          {prResult.summary && <Card>
+            <SL>Distribution Summary</SL>
+            <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.6)", lineHeight: 1.6 }}>{prResult.summary}</div>
+          </Card>}
+          {prResult.suggested_distribution && <Card>
+            <SL>Suggested Distribution Channels</SL>
+            {prResult.suggested_distribution.map((ch, i) => <div key={i} style={{ padding: "4px 0", fontSize: "13px", color: "rgba(255,255,255,0.6)" }}>• {ch}</div>)}
+          </Card>}
+          {prResult.seo_keywords && <Card>
+            <SL>SEO Keywords</SL>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>{prResult.seo_keywords.map((kw, i) => <Badge key={i} color="#00f0ff">{kw}</Badge>)}</div>
+          </Card>}
         </div>}
       </div>}
 
@@ -955,12 +1038,12 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
                   </div>
                 )) : <div style={{ lineHeight: 1.7, fontSize: "14px" }}>{renderMarkdown(contentStr)}</div>}
               </div>
-              {/* Export to Claude Code */}
-              <div style={{ display: "flex", gap: "6px", marginTop: "8px", justifyContent: "flex-end" }}>
+              {/* Export to Claude Code — only for actionable workflows */}
+              {["competitor", "trend", "cold_outreach", "partnerships", "blog", "announcement"].includes(q.workflow_id) && <div style={{ display: "flex", gap: "6px", marginTop: "8px", justifyContent: "flex-end" }}>
                 <button onClick={(e) => { e.stopPropagation(); copyToClipboard(buildClaudeCodePrompt(q, wf?.name || q.workflow_id, p.name), notify); }} style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.25)", borderRadius: "6px", color: "#a855f7", fontSize: "10px", fontFamily: "var(--mono)", padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
                   <span style={{ fontSize: "12px" }}>🤖</span> Export to Claude Code
                 </button>
-              </div>
+              </div>}
             </div>}
           </Card>;
         }) : <div style={{ textAlign: "center", padding: "50px", color: "rgba(255,255,255,0.25)", fontFamily: "var(--mono)", fontSize: "12px" }}>Queue empty. Launch a workflow to populate it.</div>}
