@@ -240,6 +240,7 @@ CREATE TABLE IF NOT EXISTS settings (
     platforms JSONB DEFAULT '{}',
     brand JSONB DEFAULT '{}',
     prefs JSONB DEFAULT '{}',
+    registration_enabled BOOLEAN DEFAULT true,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -252,12 +253,17 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     name TEXT DEFAULT '',
+    role TEXT DEFAULT 'user',
+    enabled BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Migrations (safe to re-run)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS email_settings JSONB DEFAULT '{}';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT true;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS registration_enabled BOOLEAN DEFAULT true;
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

@@ -42,6 +42,16 @@ export const auth = {
   me: () => request("/api/auth/me"),
 };
 
+// ─── Admin ───
+export const admin = {
+  listUsers: () => request("/api/auth/admin/users"),
+  createUser: (data) => request("/api/auth/admin/users", { method: "POST", body: data }),
+  updateUser: (id, data) => request(`/api/auth/admin/users/${id}`, { method: "PATCH", body: data }),
+  deleteUser: (id) => request(`/api/auth/admin/users/${id}`, { method: "DELETE" }),
+  getRegistration: () => request("/api/auth/admin/registration"),
+  setRegistration: (data) => request("/api/auth/admin/registration", { method: "PUT", body: data }),
+};
+
 // ─── Products ───
 export const products = {
   list: () => request("/api/products"),

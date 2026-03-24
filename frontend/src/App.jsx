@@ -999,15 +999,33 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
    SETTINGS
    ═══════════════════════════════════════ */
 
-const Settings = ({ settings: st, onSave, onBack }) => {
+const Settings = ({ settings: st, onSave, onBack, user }) => {
   const [tab, setTab] = useState("platforms");
   const [local, setLocal] = useState(st);
   const [saving, setSaving] = useState(false);
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [regEnabled, setRegEnabled] = useState(true);
+  const [newUser, setNewUser] = useState({ email: "", password: "", name: "" });
+  const [adminError, setAdminError] = useState("");
+
+  const isAdmin = user?.role === "admin";
 
   useEffect(() => { setLocal(st); }, [st]);
 
+  // Load admin data when admin tab is selected
+  useEffect(() => {
+    if (tab === "admin" && isAdmin) {
+      setAdminLoading(true);
+      Promise.all([api.admin.listUsers(), api.admin.getRegistration()])
+        .then(([users, reg]) => { setAdminUsers(users); setRegEnabled(reg.registration_enabled); })
+        .catch(() => {})
+        .finally(() => setAdminLoading(false));
+    }
+  }, [tab, isAdmin]);
+
   const d = { platforms: PLATFORMS.reduce((a, p) => ({ ...a, [p.id]: { connected: false, handle: "", mode: "manual" } }), {}), brand: { name: "VybeCod.ing", tagline: "", tone: "creative", keywords: ["no-code", "creative tools"], avoid: ["corporate jargon"], elevator: "" }, prefs: { depth: "thorough", length: "medium", emoji: true, hashtags: "moderate", sources: true } };
-  const s = { ...d, ...local, platforms: { ...d.platforms, ...local?.platforms }, prefs: { ...d.prefs, ...local?.prefs } };
+  const s = { ...d, ...local, platforms: { ...d.platforms, ...local?.platforms }, brand: { ...d.brand, ...local?.brand }, prefs: { ...d.prefs, ...local?.prefs } };
   const up = (k, f, v) => setLocal(prev => ({ ...prev, [k]: { ...(prev?.[k] || d[k]), [f]: v } }));
   const upp = (id, f, v) => setLocal(prev => ({ ...prev, platforms: { ...(prev?.platforms || d.platforms), [id]: { ...(prev?.platforms || d.platforms)[id], [f]: v } } }));
 
@@ -1025,7 +1043,7 @@ const Settings = ({ settings: st, onSave, onBack }) => {
       </div>
 
       <div style={{ display: "flex", gap: "4px", marginBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "10px", overflowX: "auto" }}>
-        {[["platforms", "📱 Platforms"], ["brand", "🎨 Brand"], ["prefs", "⚙ Preferences"]].map(([id, label]) => <button key={id} onClick={() => setTab(id)} style={{ padding: "7px 14px", borderRadius: "6px", border: "none", whiteSpace: "nowrap", background: tab === id ? "rgba(0,240,255,0.1)" : "transparent", color: tab === id ? "#00f0ff" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>{label}</button>)}
+        {[["platforms", "📱 Platforms"], ["brand", "🎨 Brand"], ["prefs", "⚙ Preferences"], ...(isAdmin ? [["admin", "🔒 Admin"]] : [])].map(([id, label]) => <button key={id} onClick={() => setTab(id)} style={{ padding: "7px 14px", borderRadius: "6px", border: "none", whiteSpace: "nowrap", background: tab === id ? "rgba(0,240,255,0.1)" : "transparent", color: tab === id ? "#00f0ff" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>{label}</button>)}
       </div>
 
       {tab === "platforms" && <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1055,6 +1073,81 @@ const Settings = ({ settings: st, onSave, onBack }) => {
         <Sel label="Hashtags" value={s.prefs.hashtags} onChange={v => up("prefs", "hashtags", v)} options={[{ value: "none", label: "None" }, { value: "minimal", label: "1-3" }, { value: "moderate", label: "5-8" }, { value: "heavy", label: "10-15" }]} />
         {[{ k: "emoji", l: "Emoji in Posts" }, { k: "sources", l: "Cite Sources" }].map(i => <div key={i.k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0" }}><span style={{ fontSize: "13px", color: "#e0e0e0" }}>{i.l}</span><Toggle on={s.prefs[i.k]} onChange={v => up("prefs", i.k, v)} /></div>)}
       </Card>}
+
+      {/* ADMIN PANEL */}
+      {tab === "admin" && isAdmin && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        {/* Registration toggle */}
+        <Card>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <SL style={{ marginBottom: "4px" }}>Public Registration</SL>
+              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)" }}>When off, only admins can create accounts.</div>
+            </div>
+            <Toggle on={regEnabled} onChange={async (v) => {
+              try {
+                await api.admin.setRegistration({ registration_enabled: v });
+                setRegEnabled(v);
+              } catch (e) { setAdminError(e.message); }
+            }} color={regEnabled ? "#22c55e" : "#ef4444"} />
+          </div>
+        </Card>
+
+        {/* Create user */}
+        <Card>
+          <SL>Create User</SL>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", alignItems: "end" }}>
+            <Inp label="Email" value={newUser.email} onChange={v => setNewUser(u => ({ ...u, email: v }))} placeholder="email@example.com" mono />
+            <Inp label="Name" value={newUser.name} onChange={v => setNewUser(u => ({ ...u, name: v }))} placeholder="Name" />
+            <Inp label="Password" value={newUser.password} onChange={v => setNewUser(u => ({ ...u, password: v }))} placeholder="min 6 chars" type="password" />
+          </div>
+          {adminError && <div style={{ fontSize: "11px", color: "#ef4444", marginBottom: "8px" }}>{adminError}</div>}
+          <Btn onClick={async () => {
+            setAdminError("");
+            try {
+              const created = await api.admin.createUser(newUser);
+              setAdminUsers(us => [...us, { ...created, created_at: new Date().toISOString() }]);
+              setNewUser({ email: "", password: "", name: "" });
+            } catch (e) { setAdminError(e.message); }
+          }} disabled={!newUser.email || !newUser.password || newUser.password.length < 6} small>Create User</Btn>
+        </Card>
+
+        {/* User list */}
+        <Card>
+          <SL>Users ({adminUsers.length})</SL>
+          {adminLoading ? <div style={{ textAlign: "center", padding: "20px", color: "rgba(255,255,255,0.3)", fontSize: "12px" }}>Loading...</div> :
+            adminUsers.map(u => (
+              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: u.enabled ? "#e0e0e0" : "rgba(255,255,255,0.3)", textDecoration: u.enabled ? "none" : "line-through" }}>{u.name || u.email}</div>
+                  <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)" }}>{u.email}</div>
+                </div>
+                <Badge color={u.role === "admin" ? "#00f0ff" : "rgba(255,255,255,0.2)"}>{u.role}</Badge>
+                <button onClick={async () => {
+                  const newRole = u.role === "admin" ? "user" : "admin";
+                  try {
+                    await api.admin.updateUser(u.id, { role: newRole });
+                    setAdminUsers(us => us.map(x => x.id === u.id ? { ...x, role: newRole } : x));
+                  } catch (e) { setAdminError(e.message); }
+                }} style={{ padding: "4px 8px", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.4)", fontSize: "9px", cursor: "pointer", fontFamily: "var(--mono)" }}>
+                  {u.role === "admin" ? "Demote" : "Promote"}
+                </button>
+                <Toggle on={u.enabled} onChange={async (v) => {
+                  try {
+                    await api.admin.updateUser(u.id, { enabled: v });
+                    setAdminUsers(us => us.map(x => x.id === u.id ? { ...x, enabled: v } : x));
+                  } catch (e) { setAdminError(e.message); }
+                }} color={u.enabled ? "#22c55e" : "#ef4444"} />
+                {u.id !== user?.id && <button onClick={async () => {
+                  if (!confirm(`Delete ${u.email}?`)) return;
+                  try {
+                    await api.admin.deleteUser(u.id);
+                    setAdminUsers(us => us.filter(x => x.id !== u.id));
+                  } catch (e) { setAdminError(e.message); }
+                }} style={{ padding: "4px 8px", borderRadius: "4px", border: "1px solid rgba(239,68,68,0.2)", background: "transparent", color: "#ef4444", fontSize: "9px", cursor: "pointer", fontFamily: "var(--mono)" }}>Delete</button>}
+              </div>
+            ))}
+        </Card>
+      </div>}
     </div>
   );
 };
@@ -1342,7 +1435,7 @@ function AuthenticatedApp({ user, onLogout }) {
       <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "28px 24px" }}>
         {view === "home" && !selId && <Home products={products} captures={captures} templates={templates} calEvents={calEvents} products_loading={productsLoading} onAddCalEvent={addCalEvent} onRemoveCalEvent={removeCalEvent} onSelect={id => { setSelId(id); setView("product"); }} onCreate={() => setShowCreate(true)} onCapture={addCapture} onDeleteTemplate={deleteTemplate} sub={sub} setSub={setSub} notify={notify} />}
         {selId && selProduct && <ProductDash product={selProduct} reloadProduct={reloadProduct} onBack={() => { setSelId(null); setView("home"); }} notify={notify} templates={templates} />}
-        {view === "settings" && !selId && <Settings settings={settings} onSave={saveSettings} onBack={() => setView("home")} />}
+        {view === "settings" && !selId && <Settings settings={settings} onSave={saveSettings} onBack={() => setView("home")} user={user} />}
       </div>
     </div>
   );

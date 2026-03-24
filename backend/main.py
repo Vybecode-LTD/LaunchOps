@@ -74,9 +74,10 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def auth_middleware(request: Request, call_next):
         path = request.url.path
-        # Skip auth for: auth routes, health, docs, static files
+        # Skip auth for: login/register, health, docs, static files
+        PUBLIC_PATHS = ("/api/auth/register", "/api/auth/login", "/api/auth/me")
         if (
-            path.startswith("/api/auth")
+            path in PUBLIC_PATHS
             or path == "/health"
             or path in ("/docs", "/redoc", "/openapi.json")
             or not path.startswith("/api/")
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
                 "id": str(users["id"]),
                 "email": users["email"],
                 "name": users.get("name", ""),
+                "role": users.get("role", "user"),
                 "created_at": str(users.get("created_at", "")),
             }
         except Exception:
