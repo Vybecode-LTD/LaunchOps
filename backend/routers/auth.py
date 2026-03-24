@@ -81,8 +81,10 @@ async def get_profile(request: Request) -> dict:
         raise HTTPException(401, "Not authenticated")
 
     try:
+        import uuid as _uuid
         payload = decode_token(auth_header[7:])
-        user = await select_one("users", payload["sub"])
+        user_id = _uuid.UUID(payload["sub"]) if isinstance(payload["sub"], str) else payload["sub"]
+        user = await select_one("users", user_id)
         if not user:
             raise HTTPException(401, "User not found")
         return {

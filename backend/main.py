@@ -8,6 +8,7 @@ generation, SEO optimization, content repurposing, and more.
 import os
 import asyncio
 import logging
+import uuid as _uuid
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -93,7 +94,8 @@ def create_app() -> FastAPI:
         try:
             payload = decode_token(token)
             # Attach user info to request state
-            users = await select_one("users", payload["sub"])
+            user_id = _uuid.UUID(payload["sub"]) if isinstance(payload["sub"], str) else payload["sub"]
+            users = await select_one("users", user_id)
             if not users:
                 return JSONResponse(status_code=401, content={"detail": "User not found"})
             request.state.user = {
