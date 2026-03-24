@@ -40,6 +40,10 @@ STATIC_DIR = Path(__file__).parent / "static"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: create tables. Shutdown: close DB pool."""
+    cfg = get_settings()
+    jwt_len = len(cfg.jwt_secret)
+    logger.info(f"Startup: JWT_SECRET length={jwt_len}, first4={cfg.jwt_secret[:4]}...")
+    logger.info(f"Startup: DATABASE_URL set={bool(cfg.database_url)}")
     try:
         await asyncio.wait_for(run_setup(), timeout=30)
         logger.info("Database setup complete")
