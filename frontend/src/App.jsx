@@ -925,7 +925,25 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
                 {typeof content === "object" && !Array.isArray(content) ? Object.entries(content).map(([key, val]) => (
                   <div key={key} style={{ marginBottom: "14px" }}>
                     <div style={{ fontSize: "10px", fontWeight: 700, color: p.color, fontFamily: "var(--mono)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>{key.replace(/_/g, " ")}</div>
-                    <div style={{ lineHeight: 1.6 }}>{typeof val === "string" ? renderMarkdown(val) : Array.isArray(val) ? val.map((item, i) => <div key={i} style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", padding: "3px 0", lineHeight: 1.6 }}>{typeof item === "string" ? renderMarkdown(`• ${item}`) : <span style={{ fontFamily: "var(--mono)", fontSize: "11px" }}>{JSON.stringify(item, null, 2)}</span>}</div>) : <div style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "rgba(255,255,255,0.5)", whiteSpace: "pre-wrap" }}>{JSON.stringify(val, null, 2)}</div>}</div>
+                    <div style={{ lineHeight: 1.6 }}>{typeof val === "string" ? renderMarkdown(val) : Array.isArray(val) ? val.map((item, i) => <div key={i} style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", padding: "3px 0", lineHeight: 1.6 }}>{typeof item === "string" ? renderMarkdown(`• ${item}`) : typeof item === "object" && item !== null ? (
+                      <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", marginBottom: "8px" }}>
+                        {Object.entries(item).map(([ik, iv]) => (
+                          <div key={ik} style={{ marginBottom: "6px" }}>
+                            <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)", textTransform: "uppercase" }}>{ik.replace(/_/g, " ")}</span>
+                            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>{typeof iv === "string" ? renderMarkdown(iv) : String(iv)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <span style={{ fontFamily: "var(--mono)", fontSize: "11px" }}>{String(item)}</span>}</div>) : typeof val === "object" && val !== null ? (
+                      <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px" }}>
+                        {Object.entries(val).map(([vk, vv]) => (
+                          <div key={vk} style={{ marginBottom: "6px" }}>
+                            <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)", textTransform: "uppercase" }}>{vk.replace(/_/g, " ")}</span>
+                            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>{typeof vv === "string" ? renderMarkdown(vv) : String(vv)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <div style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "rgba(255,255,255,0.5)", whiteSpace: "pre-wrap" }}>{JSON.stringify(val, null, 2)}</div>}</div>
                   </div>
                 )) : <div style={{ lineHeight: 1.6 }}>{renderMarkdown(contentStr)}</div>}
               </div>
