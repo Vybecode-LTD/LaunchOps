@@ -76,26 +76,49 @@ async def login(data: LoginRequest) -> dict:
 @router.get("/me")
 async def get_profile(request: Request) -> dict:
     """Get the current user's profile. Requires valid JWT."""
+    import logging
+    import uuid as _uuid
+    logger = logging.getLogger(__name__)
+
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(401, "Not authenticated")
 
+    token = auth_header[7:]
     try:
-        import uuid as _uuid
-        payload = decode_token(auth_header[7:])
-        user_id = _uuid.UUID(payload["sub"]) if isinstance(payload["sub"], str) else payload["sub"]
-        user = await select_one("users", user_id)
-        if not user:
-            raise HTTPException(401, "User not found")
-        return {
-            "id": str(user["id"]),
-            "email": user["email"],
-            "name": user.get("name", ""),
-            "role": user.get("role", "user"),
-            "created_at": str(user.get("created_at", "")),
-        }
-    except Exception:
+        payload = decode_token(token)
+    except Exception as e:
+        logger.error(f"/me: token decode failed: {e}")
         raise HTTPException(401, "Invalid or expired token")
+
+    user_id_str = payload.get("sub", "")
+    logger.info(f"/me: decoded token for user_id={user_id_str}")
+
+    try:
+        user_id = _uuid.UUID(user_id_str)
+    except (ValueError, AttributeError) as e:
+        logger.error(f"/me: UUID conversion failed: {e}")
+        raise HTTPException(401, "Invalid token payload")
+
+    user = await select_one("users", user_id)
+    if not user:
+        # Fallback: try string-based lookup
+        logger.warning(f"/me: select_one with UUID returned None, trying string lookup")
+        users_by_email = await select("users", {"email": payload.get("email", "")})
+        user = users_by_email[0] if users_by_email else None
+
+    if not user:
+        logger.error(f"/me: user not found for id={user_id_str}")
+        raise HTTPException(401, "User not found")
+
+    logger.info(f"/me: found user email={user.get('email')} role={user.get('role')} keys={list(user.keys())}")
+    return {
+        "id": str(user["id"]),
+        "email": user["email"],
+        "name": user.get("name", ""),
+        "role": user.get("role", "user"),
+        "created_at": str(user.get("created_at", "")),
+    }
 
 
 # ─── Admin routes (protected by middleware, require admin role) ───
