@@ -922,31 +922,38 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
               </div>
             </div>
             {isExpanded && hasContent && <div style={{ marginTop: "12px" }}>
-              <div style={{ padding: "14px", background: "rgba(0,0,0,0.25)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)", maxHeight: "400px", overflow: "auto" }}>
-                {typeof content === "object" && !Array.isArray(content) ? Object.entries(content).map(([key, val]) => (
-                  <div key={key} style={{ marginBottom: "14px" }}>
-                    <div style={{ fontSize: "10px", fontWeight: 700, color: p.color, fontFamily: "var(--mono)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>{key.replace(/_/g, " ")}</div>
-                    <div style={{ lineHeight: 1.6 }}>{typeof val === "string" ? renderMarkdown(val) : Array.isArray(val) ? val.map((item, i) => <div key={i} style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", padding: "3px 0", lineHeight: 1.6 }}>{typeof item === "string" ? renderMarkdown(`• ${item}`) : typeof item === "object" && item !== null ? (
-                      <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", marginBottom: "8px" }}>
-                        {Object.entries(item).map(([ik, iv]) => (
-                          <div key={ik} style={{ marginBottom: "6px" }}>
-                            <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)", textTransform: "uppercase" }}>{ik.replace(/_/g, " ")}</span>
-                            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>{typeof iv === "string" ? renderMarkdown(iv) : String(iv)}</div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : <span style={{ fontFamily: "var(--mono)", fontSize: "11px" }}>{String(item)}</span>}</div>) : typeof val === "object" && val !== null ? (
-                      <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px" }}>
+              <div style={{ padding: "18px", background: "rgba(0,0,0,0.2)", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.06)", maxHeight: "500px", overflow: "auto" }}>
+                {typeof content === "object" && !Array.isArray(content) ? Object.entries(content).filter(([, v]) => v != null && v !== "" && !(Array.isArray(v) && v.length === 0)).map(([key, val], secIdx) => (
+                  <div key={key} style={{ marginBottom: "20px", paddingBottom: secIdx < Object.keys(content).length - 1 ? "16px" : 0, borderBottom: secIdx < Object.keys(content).length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: p.color, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ width: "3px", height: "14px", background: p.color, borderRadius: "2px", display: "inline-block" }} />
+                      {key.replace(/_/g, " ")}
+                      {Array.isArray(val) && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>({val.length})</span>}
+                    </div>
+                    <div style={{ lineHeight: 1.7, paddingLeft: "11px" }}>{typeof val === "string" ? <div style={{ fontSize: "14px", color: "rgba(255,255,255,0.75)" }}>{renderMarkdown(val)}</div> : Array.isArray(val) ? val.map((item, i) => (
+                      <div key={i} style={{ marginBottom: "10px" }}>{typeof item === "string" ? <div style={{ fontSize: "14px", color: "rgba(255,255,255,0.7)", padding: "4px 0", display: "flex", gap: "8px" }}><span style={{ color: p.color, flexShrink: 0 }}>•</span><span>{renderMarkdown(item)}</span></div> : typeof item === "object" && item !== null ? (
+                        <div style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px" }}>
+                          {item.name && <div style={{ fontSize: "14px", fontWeight: 600, color: "#e0e0e0", marginBottom: "10px" }}>{renderMarkdown(item.name)}</div>}
+                          {Object.entries(item).filter(([ik]) => ik !== "name").map(([ik, iv]) => (
+                            <div key={ik} style={{ marginBottom: "8px" }}>
+                              <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "3px" }}>{ik.replace(/_/g, " ")}</div>
+                              <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.65)", lineHeight: 1.6 }}>{typeof iv === "string" ? renderMarkdown(iv) : Array.isArray(iv) ? iv.join(", ") : String(iv)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <span style={{ fontSize: "13px" }}>{String(item)}</span>}</div>
+                    )) : typeof val === "object" && val !== null ? (
+                      <div style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px" }}>
                         {Object.entries(val).map(([vk, vv]) => (
-                          <div key={vk} style={{ marginBottom: "6px" }}>
-                            <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)", textTransform: "uppercase" }}>{vk.replace(/_/g, " ")}</span>
-                            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>{typeof vv === "string" ? renderMarkdown(vv) : String(vv)}</div>
+                          <div key={vk} style={{ marginBottom: "8px" }}>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "3px" }}>{vk.replace(/_/g, " ")}</div>
+                            <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.65)", lineHeight: 1.6 }}>{typeof vv === "string" ? renderMarkdown(vv) : String(vv)}</div>
                           </div>
                         ))}
                       </div>
-                    ) : <div style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "rgba(255,255,255,0.5)", whiteSpace: "pre-wrap" }}>{JSON.stringify(val, null, 2)}</div>}</div>
+                    ) : <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", whiteSpace: "pre-wrap" }}>{JSON.stringify(val, null, 2)}</div>}</div>
                   </div>
-                )) : <div style={{ lineHeight: 1.6 }}>{renderMarkdown(contentStr)}</div>}
+                )) : <div style={{ lineHeight: 1.7, fontSize: "14px" }}>{renderMarkdown(contentStr)}</div>}
               </div>
               {/* Export to Claude Code */}
               <div style={{ display: "flex", gap: "6px", marginTop: "8px", justifyContent: "flex-end" }}>
