@@ -262,6 +262,23 @@ CREATE TABLE IF NOT EXISTS users (
 -- Migrations (safe to re-run)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS email_settings JSONB DEFAULT '{}';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS press_release JSONB;
+
+-- Email queue
+CREATE TABLE IF NOT EXISTS email_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID REFERENCES products(id) ON DELETE CASCADE,
+    source_queue_id UUID REFERENCES queue(id) ON DELETE SET NULL,
+    recipient_name TEXT DEFAULT '',
+    recipient_email TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    error TEXT DEFAULT '',
+    sent_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_email_queue_product ON email_queue(product_id);
+CREATE INDEX IF NOT EXISTS idx_email_queue_status ON email_queue(status);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT true;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS registration_enabled BOOLEAN DEFAULT true;

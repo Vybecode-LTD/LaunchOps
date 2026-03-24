@@ -130,6 +130,16 @@ export const captures = {
   delete: (id) => request(`/api/captures/${id}`, { method: "DELETE" }),
 };
 
+// ─── Email Queue ───
+export const emailQueue = {
+  list: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/api/email-queue${qs ? `?${qs}` : ""}`);
+  },
+  send: (id) => request(`/api/email-queue/${id}/send`, { method: "POST" }),
+  delete: (id) => request(`/api/email-queue/${id}`, { method: "DELETE" }),
+};
+
 // ─── Settings ───
 export const settings = {
   get: () => request("/api/settings"),

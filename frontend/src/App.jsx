@@ -472,6 +472,8 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
   const [seoLoading, setSeoLoading] = useState(false);
   const [seoMethod, setSeoMethod] = useState("manual");
   const [queueItems, setQueueItems] = useState([]);
+  const [emailItems, setEmailItems] = useState([]);
+  const [emailLoading, setEmailLoading] = useState(false);
   const [queueLoading, setQueueLoading] = useState(false);
   const [wfTemplates, setWfTemplates] = useState([]);
   const [editDirty, setEditDirty] = useState({});
@@ -489,6 +491,17 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
   }, [p.id]);
 
   useEffect(() => { loadQueue(); }, [loadQueue]);
+
+  // Load email queue
+  const loadEmails = useCallback(async () => {
+    try {
+      setEmailLoading(true);
+      const items = await api.emailQueue.list({ product_id: p.id });
+      setEmailItems(items);
+    } catch (e) { /* email queue may not exist yet */ }
+    finally { setEmailLoading(false); }
+  }, [p.id]);
+  useEffect(() => { if (tab === "emails") loadEmails(); }, [tab, loadEmails]);
 
   // Poll for running items
   useEffect(() => {
@@ -608,6 +621,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
       await api.queue.update(id, { status: "approved" });
       notify("Approved ✓", "#22c55e");
       loadQueue();
+      loadEmails();
     } catch (e) { notify("Failed: " + e.message, "#ef4444"); }
   };
   const rejectItem = async (id) => {
@@ -669,7 +683,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
         </div>
         <SL>Quick Actions</SL>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
-          {[["📦", "Press Kit", "press_kit"], ["📰", "Press Release", "press_release"], ["🔄", "Repurpose", "repurpose"], ["💰", "Pricing", "pricing"], ["🔎", "SEO", "seo"], ["✨", "Workflows", "workflows"], ["🛫", "Checklist", "checklist"], ["📋", "Queue", "queue"], ["✏️", "Edit", "edit"]].map(([icon, label, t], i) => (
+          {[["📦", "Press Kit", "press_kit"], ["📰", "Press Release", "press_release"], ["🔄", "Repurpose", "repurpose"], ["💰", "Pricing", "pricing"], ["🔎", "SEO", "seo"], ["✨", "Workflows", "workflows"], ["🛫", "Checklist", "checklist"], ["📋", "Queue", "queue"], ["📧", "Emails", "emails"], ["✏️", "Edit", "edit"]].map(([icon, label, t], i) => (
             <Card key={i} onClick={() => setTab(t)} style={{ cursor: "pointer", padding: "14px", textAlign: "center" }}>
               <div style={{ fontSize: "18px", marginBottom: "4px" }}>{icon}</div>
               <div style={{ fontSize: "11px", fontWeight: 600, color: "#e0e0e0" }}>{label}</div>
@@ -1047,6 +1061,53 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
             </div>}
           </Card>;
         }) : <div style={{ textAlign: "center", padding: "50px", color: "rgba(255,255,255,0.25)", fontFamily: "var(--mono)", fontSize: "12px" }}>Queue empty. Launch a workflow to populate it.</div>}
+      </div>}
+
+      {/* EMAIL ACTIONS */}
+      {tab === "emails" && <div>
+        <SL>Email Actions</SL>
+        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "16px" }}>Contacts extracted from approved workflows. Emails auto-send when SMTP is configured, or send manually below.</div>
+        {emailLoading ? <div style={{ textAlign: "center", padding: "30px", color: "rgba(255,255,255,0.3)", fontSize: "12px" }}>Loading...</div>
+        : emailItems.length > 0 ? <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+            <Badge color="#22c55e">Sent: {emailItems.filter(e => e.status === "sent").length}</Badge>
+            <Badge color="#ffaa00">Pending: {emailItems.filter(e => e.status === "pending").length}</Badge>
+            <Badge color="#ef4444">Failed: {emailItems.filter(e => e.status === "failed").length}</Badge>
+          </div>
+          {emailItems.map(em => (
+            <Card key={em.id} style={{ padding: "12px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#e0e0e0" }}>{em.recipient_name || em.recipient_email}</span>
+                    <Badge color={em.status === "sent" ? "#22c55e" : em.status === "pending" ? "#ffaa00" : "#ef4444"}>{em.status.toUpperCase()}</Badge>
+                  </div>
+                  <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", fontFamily: "var(--mono)" }}>{em.recipient_email}</div>
+                  <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", marginTop: "4px" }}>Subject: {em.subject}</div>
+                  {em.error && <div style={{ fontSize: "11px", color: "#ef4444", marginTop: "4px" }}>{em.error}</div>}
+                </div>
+                <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                  {em.status !== "sent" && <Btn onClick={async () => {
+                    try {
+                      await api.emailQueue.send(em.id);
+                      notify("Sent ✓", "#22c55e");
+                      loadEmails();
+                    } catch (e) { notify("Send failed: " + e.message, "#ef4444"); }
+                  }} color="#22c55e" small outline>Send</Btn>}
+                  <Btn onClick={async () => {
+                    try {
+                      await api.emailQueue.delete(em.id);
+                      setEmailItems(items => items.filter(x => x.id !== em.id));
+                    } catch (e) { notify("Delete failed: " + e.message, "#ef4444"); }
+                  }} color="#ef4444" small outline>✗</Btn>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+        : <div style={{ textAlign: "center", padding: "50px", color: "rgba(255,255,255,0.25)", fontFamily: "var(--mono)", fontSize: "12px" }}>
+          No emails yet. Approve workflow items (cold outreach, partnerships, announcements) to extract contacts automatically.
+        </div>}
       </div>}
 
       {/* EDIT */}

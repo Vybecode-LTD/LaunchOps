@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Import routers
 from routers.products import router as products_router
 from routers.workflows import router as workflows_router
-from routers.queue import router as queue_router
+from routers.queue import router as queue_router, email_router
 from routers.auth import router as auth_router
 from routers.extras import (
     templates_router,
@@ -119,6 +119,7 @@ def create_app() -> FastAPI:
     app.include_router(products_router)
     app.include_router(workflows_router)
     app.include_router(queue_router)
+    app.include_router(email_router)
     app.include_router(templates_router)
     app.include_router(calendar_router)
     app.include_router(captures_router)
