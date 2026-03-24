@@ -12,6 +12,32 @@ def new_id() -> str:
     return str(uuid4())
 
 
+# ─── Auth ───
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    name: str = ""
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user: dict
+
+
+class UserProfile(BaseModel):
+    id: str
+    email: str
+    name: str
+    created_at: datetime
+
+
 # ─── Enums ───
 
 

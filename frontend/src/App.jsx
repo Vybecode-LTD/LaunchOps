@@ -1087,10 +1087,130 @@ const CreateModal = ({ onClose, onCreate }) => {
 };
 
 /* ═══════════════════════════════════════
+   LOGIN PAGE
+   ═══════════════════════════════════════ */
+
+const LoginPage = ({ onAuth }) => {
+  const [mode, setMode] = useState("login"); // "login" or "register"
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const result = mode === "login"
+        ? await api.auth.login({ email, password })
+        : await api.auth.register({ email, password, name });
+      localStorage.setItem("launchops_token", result.token);
+      onAuth(result.user);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#08080d", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+      <div style={{ width: "100%", maxWidth: "380px", padding: "0 20px" }}>
+        <div style={{ textAlign: "center", marginBottom: "36px" }}>
+          <div style={{ fontSize: "24px", fontWeight: 700, fontFamily: "'Space Mono', monospace", color: "#f0f0f0" }}>
+            VybeCod<span style={{ color: "#00f0ff" }}>.</span>ing
+          </div>
+          <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)", letterSpacing: "0.12em", textTransform: "uppercase", marginTop: "4px" }}>Launch Operations</div>
+        </div>
+
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "12px", padding: "28px" }}>
+          <div style={{ display: "flex", gap: "0", marginBottom: "24px", background: "rgba(0,0,0,0.3)", borderRadius: "8px", padding: "3px" }}>
+            {["login", "register"].map(m => (
+              <button key={m} onClick={() => { setMode(m); setError(""); }}
+                style={{ flex: 1, padding: "8px", border: "none", borderRadius: "6px", background: mode === m ? "rgba(0,240,255,0.12)" : "transparent", color: mode === m ? "#00f0ff" : "rgba(255,255,255,0.4)", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)", textTransform: "uppercase" }}>
+                {m}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            {mode === "register" && (
+              <div style={{ marginBottom: "14px" }}>
+                <label style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.5)", fontFamily: "var(--mono)", display: "block", marginBottom: "6px" }}>Name</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name"
+                  style={{ width: "100%", padding: "10px 14px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#e0e0e0", fontSize: "13px", outline: "none", boxSizing: "border-box" }} />
+              </div>
+            )}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.5)", fontFamily: "var(--mono)", display: "block", marginBottom: "6px" }}>Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required
+                style={{ width: "100%", padding: "10px 14px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#e0e0e0", fontSize: "13px", outline: "none", boxSizing: "border-box", fontFamily: "var(--mono)" }} />
+            </div>
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.5)", fontFamily: "var(--mono)", display: "block", marginBottom: "6px" }}>Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={6}
+                style={{ width: "100%", padding: "10px 14px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#e0e0e0", fontSize: "13px", outline: "none", boxSizing: "border-box" }} />
+            </div>
+
+            {error && <div style={{ fontSize: "12px", color: "#ef4444", marginBottom: "14px", padding: "8px 12px", background: "rgba(239,68,68,0.08)", borderRadius: "6px", border: "1px solid rgba(239,68,68,0.15)" }}>{error}</div>}
+
+            <button type="submit" disabled={loading}
+              style={{ width: "100%", padding: "12px", border: "none", borderRadius: "8px", background: loading ? "rgba(0,240,255,0.3)" : "#00f0ff", color: "#0a0a0f", fontSize: "13px", fontWeight: 700, cursor: loading ? "default" : "pointer", fontFamily: "var(--mono)" }}>
+              {loading ? "..." : mode === "login" ? "Sign In" : "Create Account"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+/* ═══════════════════════════════════════
    APP
    ═══════════════════════════════════════ */
 
 export default function App() {
+  // ─── Auth state ───
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Check for existing token on mount
+  useEffect(() => {
+    const token = localStorage.getItem("launchops_token");
+    if (token) {
+      api.auth.me()
+        .then(profile => setUser(profile))
+        .catch(() => localStorage.removeItem("launchops_token"))
+        .finally(() => setAuthLoading(false));
+    } else {
+      setAuthLoading(false);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("launchops_token");
+    setUser(null);
+  };
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#08080d" }}>
+      <div style={{ color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)", fontSize: "12px" }}>Loading...</div>
+    </div>;
+  }
+
+  // Show login if not authenticated
+  if (!user) return <LoginPage onAuth={setUser} />;
+
+  // Authenticated — render main app
+  return <AuthenticatedApp user={user} onLogout={handleLogout} />;
+}
+
+
+function AuthenticatedApp({ user, onLogout }) {
   const [view, setView] = useState("home");
   const [sub, setSub] = useState("products");
   const [products, setProducts] = useState([]);
@@ -1215,6 +1335,7 @@ export default function App() {
         </div>
         <div style={{ display: "flex", gap: "4px" }}>
           {[["home", "Command Center"], ["settings", "⚙ Settings"]].map(([id, label]) => <button key={id} onClick={() => { setView(id); setSelId(null); }} style={{ padding: "7px 16px", borderRadius: "6px", border: "none", background: view === id && !selId ? "rgba(255,255,255,0.08)" : "transparent", color: view === id && !selId ? "#f0f0f0" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>{label}</button>)}
+          <button onClick={onLogout} style={{ padding: "7px 16px", borderRadius: "6px", border: "1px solid rgba(239,68,68,0.2)", background: "transparent", color: "rgba(239,68,68,0.6)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>Logout</button>
         </div>
       </div>
 

@@ -10,20 +10,37 @@ const API_BASE = import.meta.env.VITE_API_BASE || "";
 
 async function request(path, options = {}) {
   const url = `${API_BASE}${path}`;
-  const config = {
-    headers: { "Content-Type": "application/json", ...options.headers },
-    ...options,
-  };
+  const headers = { "Content-Type": "application/json", ...options.headers };
+
+  // Inject auth token if available
+  const token = localStorage.getItem("launchops_token");
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const config = { headers, ...options };
   if (config.body && typeof config.body === "object") {
     config.body = JSON.stringify(config.body);
   }
   const res = await fetch(url, config);
   if (!res.ok) {
+    // On 401, clear token (expired/invalid)
+    if (res.status === 401 && !path.startsWith("/api/auth")) {
+      localStorage.removeItem("launchops_token");
+      window.location.reload();
+    }
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || `API Error ${res.status}`);
   }
   return res.json();
 }
+
+// ─── Auth ───
+export const auth = {
+  register: (data) => request("/api/auth/register", { method: "POST", body: data }),
+  login: (data) => request("/api/auth/login", { method: "POST", body: data }),
+  me: () => request("/api/auth/me"),
+};
 
 // ─── Products ───
 export const products = {

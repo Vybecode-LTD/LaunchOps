@@ -246,10 +246,21 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Insert default settings row
 INSERT INTO settings (id) VALUES (1) ON CONFLICT DO NOTHING;
 
+-- Users
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    name TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Migrations (safe to re-run)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS email_settings JSONB DEFAULT '{}';
 
 -- Indexes
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_queue_product ON queue(product_id);
 CREATE INDEX IF NOT EXISTS idx_queue_status ON queue(status);
 CREATE INDEX IF NOT EXISTS idx_calendar_date ON calendar_events(date);

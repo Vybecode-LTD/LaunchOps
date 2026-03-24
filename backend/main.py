@@ -13,9 +13,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from config import get_settings
-from database import run_setup, close_pool
+from database import run_setup, close_pool, select_one
+from services.auth import decode_token
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 from routers.products import router as products_router
 from routers.workflows import router as workflows_router
 from routers.queue import router as queue_router
+from routers.auth import router as auth_router
 from routers.extras import (
     templates_router,
     calendar_router,
@@ -68,7 +70,44 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Auth middleware — protect /api/* except /api/auth/*
+    @app.middleware("http")
+    async def auth_middleware(request: Request, call_next):
+        path = request.url.path
+        # Skip auth for: auth routes, health, docs, static files
+        if (
+            path.startswith("/api/auth")
+            or path == "/health"
+            or path in ("/docs", "/redoc", "/openapi.json")
+            or not path.startswith("/api/")
+        ):
+            return await call_next(request)
+
+        # Extract Bearer token
+        auth_header = request.headers.get("authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
+
+        token = auth_header[7:]
+        try:
+            payload = decode_token(token)
+            # Attach user info to request state
+            users = await select_one("users", payload["sub"])
+            if not users:
+                return JSONResponse(status_code=401, content={"detail": "User not found"})
+            request.state.user = {
+                "id": str(users["id"]),
+                "email": users["email"],
+                "name": users.get("name", ""),
+                "created_at": str(users.get("created_at", "")),
+            }
+        except Exception:
+            return JSONResponse(status_code=401, content={"detail": "Invalid or expired token"})
+
+        return await call_next(request)
+
     # Register API routers
+    app.include_router(auth_router)
     app.include_router(products_router)
     app.include_router(workflows_router)
     app.include_router(queue_router)

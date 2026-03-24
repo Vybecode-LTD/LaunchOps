@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # PostgreSQL (Railway provides DATABASE_URL)
     database_url: str = ""
 
+    # Auth
+    jwt_secret: str = "change-me-in-production"
+    jwt_expiration_hours: int = 72
+
     # Rate limits
     max_concurrent_tasks: int = 5
     max_emails_per_day: int = 20

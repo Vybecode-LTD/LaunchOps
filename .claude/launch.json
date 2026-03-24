@@ -10,9 +10,10 @@
     },
     {
       "name": "frontend",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js", "run", "dev"],
       "port": 5173,
+      "autoPort": true,
       "cwd": "D:/Development/LaunchOps/frontend"
     }
   ]
