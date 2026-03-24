@@ -42,8 +42,8 @@ async def lifespan(app: FastAPI):
     """Startup: create tables. Shutdown: close DB pool."""
     cfg = get_settings()
     jwt_len = len(cfg.jwt_secret)
-    logger.info(f"Startup: JWT_SECRET length={jwt_len}, first4={cfg.jwt_secret[:4]}...")
-    logger.info(f"Startup: DATABASE_URL set={bool(cfg.database_url)}")
+    logger.warning(f"STARTUP: JWT_SECRET length={jwt_len} first4={cfg.jwt_secret[:4]}")
+    logger.warning(f"STARTUP: DB={bool(cfg.database_url)} BUILD=2026-03-24-v2")
     try:
         await asyncio.wait_for(run_setup(), timeout=30)
         logger.info("Database setup complete")
