@@ -33,7 +33,6 @@ async def templates_for_workflow(workflow_id: str) -> list[dict]:
     """Get templates relevant to a specific workflow based on tag matching."""
     workflow_tags = {
         "cold_outreach": ["outreach", "email"],
-        "press_targets": ["outreach", "email"],
         "partnerships": ["outreach", "email"],
         "social_posts": ["social", "content"],
         "ad_copy": ["social", "content", "ads"],

@@ -172,18 +172,6 @@ relevance, direction}}), key_players, opportunities, threats.""",
         "tools": [{"type": "web_search_20250305", "name": "web_search"}],
     },
 
-    "press_targets": {
-        "system": """You are a PR specialist finding media targets for a product launch.
-Discover blogs, publications, podcasts, YouTube channels, and influencers that
-would be interested in covering this product. Focus on outlets that cover the
-product's specific niche.
-
-{brand_context}
-
-Respond in structured JSON with keys: targets (array of {{name, url, type,
-audience_size, relevance, contact_approach, notes}}).""",
-        "tools": [{"type": "web_search_20250305", "name": "web_search"}],
-    },
 
     "cold_outreach": {
         "system": """You are an expert outreach copywriter. Draft personalized cold

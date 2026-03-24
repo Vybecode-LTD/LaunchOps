@@ -8,7 +8,6 @@ import * as api from "./api";
 const WORKFLOWS = [
   { id: "competitor", name: "Competitor Deep-Dive", icon: "🔍", color: "#00f0ff", desc: "Analyze a competitor's product, pricing & positioning", tags: ["research"] },
   { id: "trend", name: "Trend Report", icon: "🔍", color: "#00f0ff", desc: "What's happening in your product's space", tags: ["research"] },
-  { id: "press_targets", name: "Press Kit Targets", icon: "📡", color: "#ff6b35", desc: "Discover blogs, publications & influencers", tags: ["outreach", "email"] },
   { id: "cold_outreach", name: "Cold Outreach Drafts", icon: "📡", color: "#ff6b35", desc: "Personalized outreach emails", tags: ["outreach", "email"] },
   { id: "partnerships", name: "Partnership Scan", icon: "📡", color: "#ff6b35", desc: "Find collaboration opportunities", tags: ["outreach", "email"] },
   { id: "social_posts", name: "Social Media Posts", icon: "✨", color: "#a855f7", desc: "Platform-specific social content", tags: ["social", "content"] },
@@ -80,12 +79,14 @@ const renderMarkdown = (text) => {
   };
 
   const renderInline = (str) => {
-    // Bold, italic, inline code, links
+    // Bold, italic, inline code, links, auto-link URLs and emails
     return str
       .replace(/\*\*(.+?)\*\*/g, "⟪b⟫$1⟪/b⟫")
       .replace(/\*(.+?)\*/g, "⟪i⟫$1⟪/i⟫")
       .replace(/`(.+?)`/g, "⟪code⟫$1⟪/code⟫")
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "⟪a⟫$1⟪href⟫$2⟪/a⟫")
+      .replace(/(?<!\()(https?:\/\/[^\s<>)]+)/g, "⟪a⟫$1⟪href⟫$1⟪/a⟫")
+      .replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, "⟪a⟫$1⟪href⟫mailto:$1⟪/a⟫")
       .split(/(⟪\/?[a-z]+⟫)/g)
       .reduce((acc, part, i, arr) => {
         if (part === "⟪b⟫") { const end = arr.indexOf("⟪/b⟫", i); if (end > i) { acc.push(<strong key={i}>{arr.slice(i+1, end).join("")}</strong>); arr.splice(i+1, end-i); } }
@@ -1422,10 +1423,10 @@ function AuthenticatedApp({ user, onLogout }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#08080d", color: "#e0e0e0", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#08080d", color: "#e0e0e0", fontFamily: "Arial, Helvetica, sans-serif", fontSize: "15px" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
-        :root { --mono: 'JetBrains Mono', monospace; --sans: 'Inter', -apple-system, sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+        :root { --mono: Arial, Helvetica, sans-serif; --sans: Arial, Helvetica, sans-serif; }
         @keyframes fadeIn { from{opacity:0}to{opacity:1} }
         @keyframes slideIn { from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)} }
         @keyframes slideDown { from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)} }
