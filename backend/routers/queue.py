@@ -1,8 +1,8 @@
-"""Approval queue routes with email action extraction."""
+"""Approval queue routes with email action extraction — multi-tenant."""
 
 import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from models import QueueUpdate
 from database import select, select_one, update, delete, insert
 from services.email import extract_contacts_from_content, send_email
@@ -14,39 +14,41 @@ router = APIRouter(prefix="/api/queue", tags=["queue"])
 EMAIL_WORKFLOWS = {"cold_outreach", "partnerships", "press_targets", "announcement"}
 
 
+def _uid(request: Request) -> str:
+    return request.state.user["id"]
+
+
 @router.get("")
 async def list_queue(
+    request: Request,
     product_id: str | None = None,
     status: str | None = None,
 ) -> list[dict]:
-    """List queue items, optionally filtered."""
-    filters = {}
+    """List queue items for the current user."""
+    filters = {"user_id": _uid(request)}
     if product_id:
         filters["product_id"] = product_id
     if status:
         filters["status"] = status
-    return await select("queue", filters=filters if filters else None)
+    return await select("queue", filters=filters)
 
 
 @router.get("/{item_id}")
-async def get_queue_item(item_id: str) -> dict:
-    """Get a single queue item with full content."""
+async def get_queue_item(item_id: str, request: Request) -> dict:
+    """Get a single queue item (owned by current user)."""
     item = await select_one("queue", item_id)
-    if not item:
+    if not item or item.get("user_id") != _uid(request):
         raise HTTPException(404, "Queue item not found")
     return item
 
 
 @router.patch("/{item_id}")
 async def update_queue_item(
-    item_id: str, data: QueueUpdate, background_tasks: BackgroundTasks,
+    item_id: str, data: QueueUpdate, background_tasks: BackgroundTasks, request: Request,
 ) -> dict:
-    """Approve, reject, or update a queue item.
-
-    On approval, extracts contacts and creates email queue entries.
-    """
+    """Approve, reject, or update a queue item."""
     item = await select_one("queue", item_id)
-    if not item:
+    if not item or item.get("user_id") != _uid(request):
         raise HTTPException(404, "Queue item not found")
 
     result = await update("queue", item_id, {
@@ -60,6 +62,7 @@ async def update_queue_item(
             _extract_and_queue_emails,
             item_id=item_id,
             product_id=item.get("product_id", ""),
+            user_id=_uid(request),
             content=item.get("content", {}),
             workflow_id=item.get("workflow_id", ""),
         )
@@ -67,7 +70,7 @@ async def update_queue_item(
     return result
 
 
-async def _extract_and_queue_emails(item_id: str, product_id: str,
+async def _extract_and_queue_emails(item_id: str, product_id: str, user_id: str,
                                      content: dict, workflow_id: str):
     """Extract contacts from approved content and add to email queue."""
     try:
@@ -76,7 +79,6 @@ async def _extract_and_queue_emails(item_id: str, product_id: str,
             logger.info(f"No contacts extracted from queue item {item_id}")
             return
 
-        # Get product for SMTP settings
         product = await select_one("products", product_id)
         if not product:
             return
@@ -85,12 +87,10 @@ async def _extract_and_queue_emails(item_id: str, product_id: str,
         product_name = product.get("name", "")
 
         for contact in contacts:
-            # Generate a subject and body based on workflow type
             subject = f"Regarding {product_name}"
             body = f"Hi {contact['name'] or 'there'},\n\n"
 
             if workflow_id == "cold_outreach":
-                # Look for the email content in the workflow results
                 emails = content.get("emails", [])
                 matching = [e for e in emails if isinstance(e, dict) and contact["email"] in str(e)]
                 if matching:
@@ -103,6 +103,7 @@ async def _extract_and_queue_emails(item_id: str, product_id: str,
 
             await insert("email_queue", {
                 "product_id": product_id,
+                "user_id": user_id,
                 "source_queue_id": item_id,
                 "recipient_name": contact["name"],
                 "recipient_email": contact["email"],
@@ -113,7 +114,6 @@ async def _extract_and_queue_emails(item_id: str, product_id: str,
 
         logger.info(f"Queued {len(contacts)} emails from queue item {item_id}")
 
-        # Auto-send if SMTP is configured
         if smtp_settings.get("smtp_host"):
             pending = await select("email_queue", {"source_queue_id": item_id, "status": "pending"})
             for email_item in pending:
@@ -143,8 +143,11 @@ async def _extract_and_queue_emails(item_id: str, product_id: str,
 
 
 @router.delete("/{item_id}")
-async def delete_queue_item(item_id: str) -> dict:
-    """Delete a queue item."""
+async def delete_queue_item(item_id: str, request: Request) -> dict:
+    """Delete a queue item (owned by current user)."""
+    item = await select_one("queue", item_id)
+    if not item or item.get("user_id") != _uid(request):
+        raise HTTPException(404, "Queue item not found")
     await delete("queue", item_id)
     return {"deleted": True}
 
@@ -155,21 +158,21 @@ email_router = APIRouter(prefix="/api/email-queue", tags=["email"])
 
 
 @email_router.get("")
-async def list_email_queue(product_id: str | None = None, status: str | None = None) -> list[dict]:
-    """List email queue items."""
-    filters = {}
+async def list_email_queue(request: Request, product_id: str | None = None, status: str | None = None) -> list[dict]:
+    """List email queue items for the current user."""
+    filters = {"user_id": _uid(request)}
     if product_id:
         filters["product_id"] = product_id
     if status:
         filters["status"] = status
-    return await select("email_queue", filters=filters if filters else None)
+    return await select("email_queue", filters=filters)
 
 
 @email_router.post("/{email_id}/send")
-async def send_queued_email(email_id: str) -> dict:
+async def send_queued_email(email_id: str, request: Request) -> dict:
     """Manually send a pending email."""
     email_item = await select_one("email_queue", email_id)
-    if not email_item:
+    if not email_item or email_item.get("user_id") != _uid(request):
         raise HTTPException(404, "Email not found")
     if email_item["status"] == "sent":
         raise HTTPException(400, "Email already sent")
@@ -205,7 +208,10 @@ async def send_queued_email(email_id: str) -> dict:
 
 
 @email_router.delete("/{email_id}")
-async def delete_email(email_id: str) -> dict:
+async def delete_email(email_id: str, request: Request) -> dict:
     """Delete an email from the queue."""
+    email_item = await select_one("email_queue", email_id)
+    if not email_item or email_item.get("user_id") != _uid(request):
+        raise HTTPException(404, "Email not found")
     await delete("email_queue", email_id)
     return {"deleted": True}

@@ -263,6 +263,22 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE products ADD COLUMN IF NOT EXISTS email_settings JSONB DEFAULT '{}';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS press_release JSONB;
 
+-- Multi-tenant: add user_id to all content tables
+ALTER TABLE products ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE queue ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE captures ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE templates ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+
+-- Per-user settings
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE settings DROP CONSTRAINT IF EXISTS settings_pkey;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'settings_user_unique') THEN
+    ALTER TABLE settings ADD CONSTRAINT settings_user_unique UNIQUE (user_id);
+  END IF;
+END $$;
+
 -- Email queue
 CREATE TABLE IF NOT EXISTS email_queue (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -283,12 +299,20 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT true;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS registration_enabled BOOLEAN DEFAULT true;
 
+ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_queue_product ON queue(product_id);
 CREATE INDEX IF NOT EXISTS idx_queue_status ON queue(status);
 CREATE INDEX IF NOT EXISTS idx_calendar_date ON calendar_events(date);
 CREATE INDEX IF NOT EXISTS idx_captures_product ON captures(product_id);
+CREATE INDEX IF NOT EXISTS idx_products_user ON products(user_id);
+CREATE INDEX IF NOT EXISTS idx_queue_user ON queue(user_id);
+CREATE INDEX IF NOT EXISTS idx_captures_user ON captures(user_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_user ON calendar_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_templates_user ON templates(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_queue_user ON email_queue(user_id);
 """
 
 

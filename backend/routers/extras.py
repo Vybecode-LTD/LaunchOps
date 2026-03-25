@@ -1,12 +1,17 @@
-"""Routes for templates, calendar, captures, and settings."""
+"""Routes for templates, calendar, captures, and settings — multi-tenant."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from models import (
     TemplateCreate, Template, CalendarEventCreate, CalendarEvent,
     CaptureCreate, Capture, GlobalSettings, new_id,
 )
 from database import insert, select, select_one, update, delete
 from datetime import datetime
+
+
+def _uid(request: Request) -> str:
+    return request.state.user["id"]
+
 
 # ═══════════════════════════════════════
 # TEMPLATES
@@ -16,9 +21,9 @@ templates_router = APIRouter(prefix="/api/templates", tags=["templates"])
 
 
 @templates_router.get("")
-async def list_templates(tags: str | None = None) -> list[dict]:
-    """List templates, optionally filtered by tag."""
-    all_templates = await select("templates")
+async def list_templates(request: Request, tags: str | None = None) -> list[dict]:
+    """List templates for the current user."""
+    all_templates = await select("templates", filters={"user_id": _uid(request)})
     if tags:
         tag_list = [t.strip() for t in tags.split(",")]
         return [
@@ -29,7 +34,7 @@ async def list_templates(tags: str | None = None) -> list[dict]:
 
 
 @templates_router.get("/for-workflow/{workflow_id}")
-async def templates_for_workflow(workflow_id: str) -> list[dict]:
+async def templates_for_workflow(workflow_id: str, request: Request) -> list[dict]:
     """Get templates relevant to a specific workflow based on tag matching."""
     workflow_tags = {
         "cold_outreach": ["outreach", "email"],
@@ -49,7 +54,7 @@ async def templates_for_workflow(workflow_id: str) -> list[dict]:
     if not relevant_tags:
         return []
 
-    all_templates = await select("templates")
+    all_templates = await select("templates", filters={"user_id": _uid(request)})
     return [
         t for t in all_templates
         if any(tag in (t.get("tags") or []) for tag in relevant_tags)
@@ -57,8 +62,8 @@ async def templates_for_workflow(workflow_id: str) -> list[dict]:
 
 
 @templates_router.post("", status_code=201)
-async def create_template(data: TemplateCreate) -> dict:
-    """Save a new template."""
+async def create_template(data: TemplateCreate, request: Request) -> dict:
+    """Save a new template for the current user."""
     template = Template(
         id=new_id(),
         name=data.name,
@@ -67,12 +72,17 @@ async def create_template(data: TemplateCreate) -> dict:
         content=data.content,
         source_product=data.source_product,
     )
-    return await insert("templates", template.model_dump(mode="json"))
+    row = template.model_dump(mode="json")
+    row["user_id"] = _uid(request)
+    return await insert("templates", row)
 
 
 @templates_router.delete("/{template_id}")
-async def delete_template(template_id: str) -> dict:
-    """Delete a template."""
+async def delete_template(template_id: str, request: Request) -> dict:
+    """Delete a template (owned by current user)."""
+    tmpl = await select_one("templates", template_id)
+    if not tmpl or tmpl.get("user_id") != _uid(request):
+        raise HTTPException(404, "Template not found")
     await delete("templates", template_id)
     return {"deleted": True}
 
@@ -86,18 +96,18 @@ calendar_router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
 @calendar_router.get("")
 async def list_events(
+    request: Request,
     product_id: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
 ) -> list[dict]:
-    """List calendar events with optional filters."""
-    filters = {}
+    """List calendar events for the current user."""
+    filters = {"user_id": _uid(request)}
     if product_id:
         filters["product_id"] = product_id
-    events = await select("calendar_events", filters=filters if filters else None,
+    events = await select("calendar_events", filters=filters,
                           order="date", descending=False)
 
-    # Apply date range filter in Python
     if date_from:
         events = [e for e in events if str(e.get("date", "")) >= date_from]
     if date_to:
@@ -106,8 +116,8 @@ async def list_events(
 
 
 @calendar_router.post("", status_code=201)
-async def create_event(data: CalendarEventCreate) -> dict:
-    """Create a calendar event."""
+async def create_event(data: CalendarEventCreate, request: Request) -> dict:
+    """Create a calendar event for the current user."""
     product = await select_one("products", data.product_id)
     event = CalendarEvent(
         id=new_id(),
@@ -118,12 +128,17 @@ async def create_event(data: CalendarEventCreate) -> dict:
         title=data.title,
         color=product.get("color", "#00f0ff") if product else "#00f0ff",
     )
-    return await insert("calendar_events", event.model_dump(mode="json"))
+    row = event.model_dump(mode="json")
+    row["user_id"] = _uid(request)
+    return await insert("calendar_events", row)
 
 
 @calendar_router.delete("/{event_id}")
-async def delete_event(event_id: str) -> dict:
-    """Delete a calendar event."""
+async def delete_event(event_id: str, request: Request) -> dict:
+    """Delete a calendar event (owned by current user)."""
+    evt = await select_one("calendar_events", event_id)
+    if not evt or evt.get("user_id") != _uid(request):
+        raise HTTPException(404, "Event not found")
     await delete("calendar_events", event_id)
     return {"deleted": True}
 
@@ -136,43 +151,52 @@ captures_router = APIRouter(prefix="/api/captures", tags=["captures"])
 
 
 @captures_router.get("")
-async def list_captures(product_id: str | None = None) -> list[dict]:
-    """List captures, optionally filtered by product."""
-    filters = {"product_id": product_id} if product_id else None
+async def list_captures(request: Request, product_id: str | None = None) -> list[dict]:
+    """List captures for the current user."""
+    filters = {"user_id": _uid(request)}
+    if product_id:
+        filters["product_id"] = product_id
     return await select("captures", filters=filters)
 
 
 @captures_router.post("", status_code=201)
-async def create_capture(data: CaptureCreate) -> dict:
-    """Create a quick capture."""
+async def create_capture(data: CaptureCreate, request: Request) -> dict:
+    """Create a quick capture for the current user."""
     capture = Capture(
         id=new_id(),
         text=data.text,
         product_id=data.product_id,
     )
-    return await insert("captures", capture.model_dump(mode="json"))
+    row = capture.model_dump(mode="json")
+    row["user_id"] = _uid(request)
+    return await insert("captures", row)
 
 
 @captures_router.delete("/{capture_id}")
-async def delete_capture(capture_id: str) -> dict:
-    """Delete a capture."""
+async def delete_capture(capture_id: str, request: Request) -> dict:
+    """Delete a capture (owned by current user)."""
+    cap = await select_one("captures", capture_id)
+    if not cap or cap.get("user_id") != _uid(request):
+        raise HTTPException(404, "Capture not found")
     await delete("captures", capture_id)
     return {"deleted": True}
 
 
 # ═══════════════════════════════════════
-# GLOBAL SETTINGS
+# PER-USER SETTINGS
 # ═══════════════════════════════════════
 
 settings_router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
 @settings_router.get("")
-async def get_settings() -> dict:
-    """Get global settings."""
-    row = await select_one("settings", 1, id_col="id")
-    if not row:
+async def get_settings(request: Request) -> dict:
+    """Get settings for the current user."""
+    uid = _uid(request)
+    rows = await select("settings", filters={"user_id": uid}, limit=1)
+    if not rows:
         return GlobalSettings().model_dump()
+    row = rows[0]
     return {
         "platforms": row.get("platforms", {}),
         "brand": row.get("brand", {}),
@@ -181,11 +205,20 @@ async def get_settings() -> dict:
 
 
 @settings_router.put("")
-async def update_settings(data: GlobalSettings) -> dict:
-    """Update global settings."""
-    return await update("settings", 1, {
+async def update_settings(data: GlobalSettings, request: Request) -> dict:
+    """Update settings for the current user (creates if not exists)."""
+    uid = _uid(request)
+    rows = await select("settings", filters={"user_id": uid}, limit=1)
+
+    payload = {
         "platforms": data.platforms,
         "brand": data.brand.model_dump(),
         "prefs": data.prefs.model_dump(),
         "updated_at": datetime.utcnow().isoformat(),
-    }, id_col="id")
+    }
+
+    if rows:
+        return await update("settings", rows[0]["id"], payload, id_col="id")
+    else:
+        payload["user_id"] = uid
+        return await insert("settings", payload)

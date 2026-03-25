@@ -6,13 +6,13 @@ approval queue.
 """
 
 import json
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from models import (
     WorkflowRequest, WorkflowResponse, PressKitRequest, PressReleaseRequest,
     SEORequest, RepurposeRequest, PricingRequest, QueueItem, new_id,
     TaskStatus, QueueStatus,
 )
-from database import insert, select_one, update
+from database import insert, select, select_one, update
 from services.claude import (
     call_claude, build_brand_context, WORKFLOW_PROMPTS,
     PRESS_KIT_PROMPT, PRESS_RELEASE_PROMPT, SEO_ANALYSIS_PROMPT,
@@ -23,12 +23,20 @@ from services.scraper import scrape_url
 router = APIRouter(prefix="/api", tags=["workflows"])
 
 
-async def _get_product_and_settings(product_id: str) -> tuple[dict, dict]:
-    """Fetch product and global settings, raise 404 if product missing."""
+def _uid(request: Request) -> str:
+    return request.state.user["id"]
+
+
+async def _get_product_and_settings(product_id: str, user_id: str) -> tuple[dict, dict]:
+    """Fetch product and per-user settings, raise 404/403 if invalid."""
     product = await select_one("products", product_id)
     if not product:
         raise HTTPException(404, "Product not found")
-    settings_row = await select_one("settings", 1, id_col="id") or {}
+    if product.get("user_id") and product["user_id"] != user_id:
+        raise HTTPException(403, "Not authorized")
+    # Fetch per-user settings
+    rows = await select("settings", filters={"user_id": user_id}, limit=1)
+    settings_row = rows[0] if rows else {}
     return product, settings_row
 
 
@@ -70,7 +78,7 @@ def _parse_json_response(text: str) -> dict:
 
 
 async def _run_workflow(product_id: str, workflow_id: str,
-                        instructions: str, queue_id: str):
+                        instructions: str, queue_id: str, user_id: str = ""):
     """Execute a workflow in the background and store results."""
     try:
         product = await select_one("products", product_id)
@@ -81,7 +89,9 @@ async def _run_workflow(product_id: str, workflow_id: str,
             })
             return
 
-        settings_row = await select_one("settings", 1, id_col="id") or {}
+        # Fetch per-user settings
+        rows = await select("settings", filters={"user_id": user_id}, limit=1) if user_id else []
+        settings_row = rows[0] if rows else {}
         brand_ctx = build_brand_context(
             product,
             brand=settings_row.get("brand"),
@@ -168,10 +178,12 @@ def _generate_preview(workflow_id: str, result: dict) -> str:
 async def launch_workflow(
     data: WorkflowRequest,
     background_tasks: BackgroundTasks,
+    request: Request,
 ) -> WorkflowResponse:
     """Launch an AI workflow. Runs in background, results go to queue."""
+    uid = _uid(request)
     product = await select_one("products", data.product_id)
-    if not product:
+    if not product or (product.get("user_id") and product["user_id"] != uid):
         raise HTTPException(404, "Product not found")
 
     if data.workflow_id not in WORKFLOW_PROMPTS:
@@ -182,6 +194,7 @@ async def launch_workflow(
     await insert("queue", {
         "id": queue_id,
         "product_id": data.product_id,
+        "user_id": uid,
         "workflow_id": data.workflow_id,
         "status": "running",
         "preview": f"Running {data.workflow_id}...",
@@ -195,6 +208,7 @@ async def launch_workflow(
         data.workflow_id,
         data.instructions,
         queue_id,
+        uid,
     )
 
     return WorkflowResponse(
@@ -208,9 +222,9 @@ async def launch_workflow(
 
 
 @router.post("/presskit/generate")
-async def generate_press_kit(data: PressKitRequest) -> dict:
+async def generate_press_kit(data: PressKitRequest, request: Request) -> dict:
     """Scrape URL and generate a press kit via Claude."""
-    product, settings = await _get_product_and_settings(data.product_id)
+    product, settings = await _get_product_and_settings(data.product_id, _uid(request))
     brand_ctx = build_brand_context(
         product, settings.get("brand"), settings.get("prefs")
     )
@@ -243,9 +257,9 @@ async def generate_press_kit(data: PressKitRequest) -> dict:
 
 
 @router.post("/press-release/generate")
-async def generate_press_release(data: PressReleaseRequest) -> dict:
+async def generate_press_release(data: PressReleaseRequest, request: Request) -> dict:
     """Scrape URL and generate a press release via Claude."""
-    product, settings = await _get_product_and_settings(data.product_id)
+    product, settings = await _get_product_and_settings(data.product_id, _uid(request))
     brand_ctx = build_brand_context(
         product, settings.get("brand"), settings.get("prefs")
     )
@@ -299,12 +313,12 @@ async def generate_press_release(data: PressReleaseRequest) -> dict:
 
 
 @router.post("/seo/analyze")
-async def analyze_seo(data: SEORequest) -> dict:
+async def analyze_seo(data: SEORequest, request: Request) -> dict:
     """Scrape URL metadata and generate optimized SEO tags."""
     import logging
     logger = logging.getLogger(__name__)
 
-    product, settings = await _get_product_and_settings(data.product_id)
+    product, settings = await _get_product_and_settings(data.product_id, _uid(request))
     brand_ctx = build_brand_context(
         product, settings.get("brand"), settings.get("prefs")
     )
@@ -339,9 +353,9 @@ async def analyze_seo(data: SEORequest) -> dict:
 
 
 @router.post("/repurpose")
-async def repurpose_content(data: RepurposeRequest) -> dict:
+async def repurpose_content(data: RepurposeRequest, request: Request) -> dict:
     """Repurpose content for multiple platforms."""
-    product, settings = await _get_product_and_settings(data.product_id)
+    product, settings = await _get_product_and_settings(data.product_id, _uid(request))
     brand_ctx = build_brand_context(
         product, settings.get("brand"), settings.get("prefs")
     )
@@ -362,9 +376,9 @@ async def repurpose_content(data: RepurposeRequest) -> dict:
 
 
 @router.post("/pricing/analyze")
-async def analyze_pricing(data: PricingRequest) -> dict:
+async def analyze_pricing(data: PricingRequest, request: Request) -> dict:
     """Generate pricing strategy recommendations."""
-    product, settings = await _get_product_and_settings(data.product_id)
+    product, settings = await _get_product_and_settings(data.product_id, _uid(request))
     brand_ctx = build_brand_context(
         product, settings.get("brand"), settings.get("prefs")
     )
