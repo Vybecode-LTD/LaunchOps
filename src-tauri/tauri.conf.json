@@ -7,7 +7,6 @@
     "frontendDist": "https://launchops.vybecod.ing"
   },
   "app": {
-    "title": "VybeCod.ing — Launch Operations",
     "windows": [
       {
         "title": "VybeCod.ing — Launch Operations",
