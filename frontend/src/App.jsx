@@ -487,7 +487,7 @@ const Home = ({ products, captures, templates, calEvents, products_loading, onAd
             })}
             <Card onClick={onCreate} style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "110px", borderStyle: "dashed" }}>
               <div style={{ fontSize: "28px", opacity: 0.3 }}>+</div>
-              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)" }}>Add Product</div>
+              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)" }}>Add Project</div>
             </Card>
           </div>
         )}
@@ -1485,19 +1485,32 @@ const Settings = ({ settings: st, onSave, onBack, user }) => {
 
 const CreateModal = ({ onClose, onCreate }) => {
   const [n, setN] = useState(""); const [t, setT] = useState(""); const [u, setU] = useState(""); const [c, setC] = useState("#00f0ff");
+  const [projectType, setProjectType] = useState("product");
+  const [desc, setDesc] = useState("");
   const [creating, setCreating] = useState(false);
+  const hasEnoughData = u.trim().length > 0 || desc.trim().length > 80;
   return <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }} onClick={onClose}>
-    <div onClick={e => e.stopPropagation()} style={{ background: "#12121a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "32px", width: "100%", maxWidth: "440px", animation: "slideIn 0.3s ease" }}>
+    <div onClick={e => e.stopPropagation()} style={{ background: "#12121a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "32px", width: "100%", maxWidth: "440px", animation: "slideIn 0.3s ease", maxHeight: "90vh", overflowY: "auto" }}>
       <h3 style={{ margin: "0 0 20px", fontSize: "18px", fontWeight: 700, fontFamily: "'Space Mono', monospace", color: "#f0f0f0" }}>New Project</h3>
-      <Inp label="Name" value={n} onChange={setN} placeholder="e.g., VybeCode DSP" />
+      <Sel label="Project Type" value={projectType} onChange={setProjectType} options={[
+        { value: "product", label: "Product" },
+        { value: "service", label: "Service" },
+        { value: "persona", label: "Persona (Blogger/Podcaster/YouTuber)" },
+      ]} />
+      <Inp label="Name" value={n} onChange={setN} placeholder={projectType === "persona" ? "e.g., TechTalkWithTina" : projectType === "service" ? "e.g., CloudOps Consulting" : "e.g., VybeCode DSP"} />
       <Inp label="Tagline" value={t} onChange={setT} placeholder="One-liner" />
       <Inp label="URL (optional)" value={u} onChange={setU} placeholder="https://..." mono />
+      <TA label="Description" value={desc} onChange={setDesc} placeholder={projectType === "persona" ? "Describe your persona, content niche, audience, and brand identity..." : projectType === "service" ? "Describe your service, target clients, and key differentiators..." : "What does this product do? Target audience, key features, etc."} rows={3} />
+      {!hasEnoughData && n.trim().length > 0 && <div style={{ padding: "10px 14px", background: "rgba(255,170,0,0.08)", border: "1px solid rgba(255,170,0,0.2)", borderRadius: "8px", marginBottom: "14px", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+        <span style={{ color: "#ffaa00", fontSize: "14px", flexShrink: 0 }}>!</span>
+        <span style={{ fontSize: "11px", color: "#ffaa00", lineHeight: 1.5 }}>Not enough information to extract valuation. Please add a web URL or thorough description for best results from AI workflows.</span>
+      </div>}
       <Sel label="Color" value={c} onChange={setC} options={[{ value: "#00f0ff", label: "Cyan" }, { value: "#a855f7", label: "Purple" }, { value: "#ff6b35", label: "Orange" }, { value: "#22c55e", label: "Green" }, { value: "#3b82f6", label: "Blue" }, { value: "#ec4899", label: "Pink" }]} />
       <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
         <Btn onClick={async () => {
           if (!n) return;
           setCreating(true);
-          await onCreate({ name: n, tagline: t, url: u, color: c });
+          await onCreate({ name: n, tagline: t, url: u, color: c, description: desc ? `[${projectType.toUpperCase()}] ${desc}` : `[${projectType.toUpperCase()}]` });
           setCreating(false);
         }} disabled={!n || creating} style={{ flex: 1 }}>{creating ? "Creating..." : "Create"}</Btn>
         <Btn onClick={onClose} color="#ef4444" outline>Cancel</Btn>
