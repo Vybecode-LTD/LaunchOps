@@ -439,14 +439,14 @@ const Home = ({ products, captures, templates, calEvents, products_loading, onAd
       <QuickCapture products={products} onCapture={onCapture} />
 
       <div style={{ display: "flex", gap: "4px", marginBottom: "24px" }}>
-        {[["products", "Products"], ["calendar", "📅 Calendar"], ["templates", "📄 Templates"]].map(([id, label]) => (
+        {[["products", "Projects"], ["calendar", "📅 Calendar"], ["templates", "📄 Templates"]].map(([id, label]) => (
           <button key={id} onClick={() => setSub(id)} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: sub === id ? "rgba(255,255,255,0.08)" : "transparent", color: sub === id ? "#f0f0f0" : "rgba(255,255,255,0.4)", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>{label}</button>
         ))}
       </div>
 
       {sub === "products" && <>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
-          {[{ l: "Products", v: products.length, c: "#00f0ff" }, { l: "Pending", v: totalPending, c: "#ffaa00" }, { l: "Captures", v: captures.length, c: "#a855f7" }, { l: "Templates", v: templates.length, c: "#22c55e" }].map((s, i) => (
+          {[{ l: "Projects", v: products.length, c: "#00f0ff" }, { l: "Pending", v: totalPending, c: "#ffaa00" }, { l: "Captures", v: captures.length, c: "#a855f7" }, { l: "Templates", v: templates.length, c: "#22c55e" }].map((s, i) => (
             <div key={i} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", fontFamily: "var(--mono)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>{s.l}</div>
               <div style={{ fontSize: "26px", fontWeight: 700, color: s.c, fontFamily: "'Space Mono', monospace" }}>{s.v}</div>
@@ -455,12 +455,12 @@ const Home = ({ products, captures, templates, calEvents, products_loading, onAd
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-          <SL style={{ marginBottom: 0 }}>Your Products</SL>
-          <Btn onClick={onCreate} outline small>+ New Product</Btn>
+          <SL style={{ marginBottom: 0 }}>Your Projects</SL>
+          <Btn onClick={onCreate} outline small>+ New Project</Btn>
         </div>
 
         {products_loading ? (
-          <div style={{ textAlign: "center", padding: "40px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)", fontSize: "12px" }}>Loading products...</div>
+          <div style={{ textAlign: "center", padding: "40px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)", fontSize: "12px" }}>Loading projects...</div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px", marginBottom: "28px" }}>
             {products.map(p => {
@@ -741,7 +741,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: "13px", fontFamily: "var(--mono)", padding: 0, marginBottom: "8px" }}>← Products</button>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: "13px", fontFamily: "var(--mono)", padding: 0, marginBottom: "8px" }}>← Projects</button>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "10px" }}>
         <div>
           <h2 style={{ margin: 0, fontSize: "22px", fontWeight: 700, fontFamily: "'Space Mono', monospace", color: p.color }}>{p.name}</h2>
@@ -1238,7 +1238,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
       {/* EDIT */}
       {tab === "edit" && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         <Card>
-          <SL>Product Details</SL>
+          <SL>Project Details</SL>
           <Inp label="Name" value={editDirty.name ?? p.name} onChange={v => setEditDirty(d => ({ ...d, name: v }))} />
           <Inp label="Tagline" value={editDirty.tagline ?? p.tagline} onChange={v => setEditDirty(d => ({ ...d, tagline: v }))} />
           <Inp label="URL" value={editDirty.url ?? (p.url || "")} onChange={v => setEditDirty(d => ({ ...d, url: v }))} mono />
@@ -1285,6 +1285,22 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
             notify("Saved ✓", "#22c55e");
           } catch (e) { notify("Save failed: " + e.message, "#ef4444"); }
         }} disabled={Object.keys(editDirty).length === 0}>Save Changes</Btn>
+
+        {/* Danger Zone */}
+        <Card style={{ borderColor: "rgba(239,68,68,0.15)", marginTop: "12px" }}>
+          <SL style={{ color: "#ef4444" }}>Danger Zone</SL>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>Delete this project and all its data permanently.</div>
+            <Btn onClick={async () => {
+              if (!confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+              try {
+                await api.products.delete(p.id);
+                notify("Project deleted", "#ef4444");
+                onBack();
+              } catch (e) { notify("Delete failed: " + e.message, "#ef4444"); }
+            }} color="#ef4444" outline small>Delete Project</Btn>
+          </div>
+        </Card>
       </div>}
     </div>
   );
@@ -1352,14 +1368,30 @@ const Settings = ({ settings: st, onSave, onBack, user }) => {
         </Card>; })}
       </div>}
 
-      {tab === "brand" && <Card>
-        <SL>Brand Identity</SL>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 14px" }}><Inp label="Brand Name" value={s.brand.name} onChange={v => up("brand", "name", v)} /><Inp label="Tagline" value={s.brand.tagline} onChange={v => up("brand", "tagline", v)} /></div>
-        <TA label="Elevator Pitch" value={s.brand.elevator} onChange={v => up("brand", "elevator", v)} placeholder="What does VybeCod.ing do?" />
-        <Sel label="Tone" value={s.brand.tone} onChange={v => up("brand", "tone", v)} options={[{ value: "creative", label: "Creative & Empowering" }, { value: "professional", label: "Professional" }, { value: "edgy", label: "Edgy & Bold" }, { value: "casual", label: "Casual" }, { value: "technical", label: "Technical" }]} />
-        <Tags label="Keywords" tags={s.brand.keywords} onChange={v => up("brand", "keywords", v)} placeholder="keyword..." />
-        <Tags label="Avoid" tags={s.brand.avoid} onChange={v => up("brand", "avoid", v)} placeholder="phrase..." />
-      </Card>}
+      {tab === "brand" && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <Card style={{ borderColor: "rgba(0,240,255,0.15)" }}>
+          <SL style={{ color: "#00f0ff" }}>White-Label Branding</SL>
+          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "14px" }}>Customize the app appearance. Company name replaces the header. Logo replaces everything.</div>
+          <Inp label="Company Name" value={s.brand.company_name || ""} onChange={v => up("brand", "company_name", v)} placeholder="Your Company Name" />
+          <div style={{ marginBottom: "14px" }}>
+            <label style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.5)", fontFamily: "var(--mono)", display: "block", marginBottom: "6px" }}>Logo URL</label>
+            <input type="text" value={s.brand.logo_url || ""} onChange={e => up("brand", "logo_url", e.target.value)} placeholder="https://example.com/logo.png"
+              style={{ width: "100%", padding: "10px 14px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#e0e0e0", fontSize: "13px", outline: "none", boxSizing: "border-box", fontFamily: "var(--mono)" }} />
+            {s.brand.logo_url && <div style={{ marginTop: "10px", padding: "12px", background: "rgba(0,0,0,0.3)", borderRadius: "8px", display: "flex", alignItems: "center", gap: "12px" }}>
+              <img src={s.brand.logo_url} alt="Logo preview" style={{ maxHeight: "36px", maxWidth: "200px", objectFit: "contain" }} onError={e => { e.target.style.display = "none"; }} />
+              <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)" }}>Preview</span>
+            </div>}
+          </div>
+        </Card>
+        <Card>
+          <SL>Brand Voice</SL>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 14px" }}><Inp label="Brand Name" value={s.brand.name} onChange={v => up("brand", "name", v)} /><Inp label="Tagline" value={s.brand.tagline} onChange={v => up("brand", "tagline", v)} /></div>
+          <TA label="Elevator Pitch" value={s.brand.elevator} onChange={v => up("brand", "elevator", v)} placeholder="What does your company do?" />
+          <Sel label="Tone" value={s.brand.tone} onChange={v => up("brand", "tone", v)} options={[{ value: "creative", label: "Creative & Empowering" }, { value: "professional", label: "Professional" }, { value: "edgy", label: "Edgy & Bold" }, { value: "casual", label: "Casual" }, { value: "technical", label: "Technical" }]} />
+          <Tags label="Keywords" tags={s.brand.keywords} onChange={v => up("brand", "keywords", v)} placeholder="keyword..." />
+          <Tags label="Avoid" tags={s.brand.avoid} onChange={v => up("brand", "avoid", v)} placeholder="phrase..." />
+        </Card>
+      </div>}
 
       {tab === "prefs" && <Card>
         <SL>Agent Behavior</SL>
@@ -1456,7 +1488,7 @@ const CreateModal = ({ onClose, onCreate }) => {
   const [creating, setCreating] = useState(false);
   return <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }} onClick={onClose}>
     <div onClick={e => e.stopPropagation()} style={{ background: "#12121a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "32px", width: "100%", maxWidth: "440px", animation: "slideIn 0.3s ease" }}>
-      <h3 style={{ margin: "0 0 20px", fontSize: "18px", fontWeight: 700, fontFamily: "'Space Mono', monospace", color: "#f0f0f0" }}>New Product</h3>
+      <h3 style={{ margin: "0 0 20px", fontSize: "18px", fontWeight: 700, fontFamily: "'Space Mono', monospace", color: "#f0f0f0" }}>New Project</h3>
       <Inp label="Name" value={n} onChange={setN} placeholder="e.g., VybeCode DSP" />
       <Inp label="Tagline" value={t} onChange={setT} placeholder="One-liner" />
       <Inp label="URL (optional)" value={u} onChange={setU} placeholder="https://..." mono />
@@ -1720,8 +1752,12 @@ function AuthenticatedApp({ user, onLogout }) {
       {/* Header */}
       <div style={{ padding: "18px 32px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.01)", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "14px", cursor: "pointer" }} onClick={() => { setView("home"); setSelId(null); setSub("products"); }}>
-          <div style={{ width: 34, height: 34, borderRadius: "8px", background: "linear-gradient(135deg, #00f0ff, #a855f7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", fontWeight: 900, color: "#0a0a0f", fontFamily: "'Space Mono', monospace" }}>V</div>
-          <div><div style={{ fontSize: "15px", fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>VybeCod<span style={{ color: "#00f0ff" }}>.</span>ing</div><div style={{ fontSize: "9px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)", letterSpacing: "0.12em", textTransform: "uppercase" }}>Launch Operations</div></div>
+          {settings?.brand?.logo_url ? (
+            <img src={settings.brand.logo_url} alt="Logo" style={{ maxHeight: "36px", maxWidth: "180px", objectFit: "contain" }} />
+          ) : (<>
+            <div style={{ width: 34, height: 34, borderRadius: "8px", background: "linear-gradient(135deg, #00f0ff, #a855f7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", fontWeight: 900, color: "#0a0a0f", fontFamily: "'Space Mono', monospace" }}>{(settings?.brand?.company_name || "V")[0].toUpperCase()}</div>
+            <div><div style={{ fontSize: "15px", fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{settings?.brand?.company_name || <>VybeCod<span style={{ color: "#00f0ff" }}>.</span>ing</>}</div><div style={{ fontSize: "9px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)", letterSpacing: "0.12em", textTransform: "uppercase" }}>Launch Operations</div></div>
+          </>)}
         </div>
         <div style={{ display: "flex", gap: "4px" }}>
           {[["home", "Command Center"], ["settings", "⚙ Settings"]].map(([id, label]) => <button key={id} onClick={() => { setView(id); setSelId(null); }} style={{ padding: "7px 16px", borderRadius: "6px", border: "none", background: view === id && !selId ? "rgba(255,255,255,0.08)" : "transparent", color: view === id && !selId ? "#f0f0f0" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>{label}</button>)}
