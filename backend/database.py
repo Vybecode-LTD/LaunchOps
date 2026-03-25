@@ -318,5 +318,20 @@ CREATE INDEX IF NOT EXISTS idx_email_queue_user ON email_queue(user_id);
 
 async def run_setup():
     """Run the schema setup SQL. Safe to call multiple times."""
+    import logging
+    logger = logging.getLogger(__name__)
     pool = await get_pool()
-    await pool.execute(SETUP_SQL)
+    try:
+        await pool.execute(SETUP_SQL)
+        logger.info("Database setup completed successfully")
+    except Exception as e:
+        logger.error(f"Database setup failed: {e}")
+        # Try executing statements individually as fallback
+        for stmt in SETUP_SQL.split(";"):
+            stmt = stmt.strip()
+            if not stmt or stmt.startswith("--"):
+                continue
+            try:
+                await pool.execute(stmt + ";")
+            except Exception as se:
+                logger.warning(f"Statement skipped: {str(se)[:100]}")

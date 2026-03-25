@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Request
 from models import Product, ProductCreate, ProductUpdate, new_id
-from database import insert, select, select_one, update, delete
+from database import insert, select, select_one, update, delete, get_pool
 from datetime import datetime
 
 router = APIRouter(prefix="/api/products", tags=["products"])
@@ -14,15 +14,26 @@ def _uid(request: Request) -> str:
 
 @router.get("")
 async def list_products(request: Request) -> list[dict]:
-    """List all products for the current user."""
-    return await select("products", filters={"user_id": _uid(request)})
+    """List all products for the current user (+ auto-adopt orphans)."""
+    uid = _uid(request)
+    # First, adopt any orphaned products (user_id IS NULL)
+    pool = await get_pool()
+    import uuid as _uuid
+    await pool.execute(
+        'UPDATE products SET user_id = $1 WHERE user_id IS NULL',
+        _uuid.UUID(uid),
+    )
+    return await select("products", filters={"user_id": uid})
 
 
 @router.get("/{product_id}")
 async def get_product(product_id: str, request: Request) -> dict:
     """Get a single product (owned by current user)."""
     product = await select_one("products", product_id)
-    if not product or product.get("user_id") != _uid(request):
+    if not product:
+        raise HTTPException(404, "Product not found")
+    # Allow access if user owns it or it's orphaned
+    if product.get("user_id") and product["user_id"] != _uid(request):
         raise HTTPException(404, "Product not found")
     return product
 
@@ -48,7 +59,9 @@ async def create_product(data: ProductCreate, request: Request) -> dict:
 async def update_product(product_id: str, data: ProductUpdate, request: Request) -> dict:
     """Update a product (owned by current user)."""
     product = await select_one("products", product_id)
-    if not product or product.get("user_id") != _uid(request):
+    if not product:
+        raise HTTPException(404, "Product not found")
+    if product.get("user_id") and product["user_id"] != _uid(request):
         raise HTTPException(404, "Product not found")
     updates = data.model_dump(exclude_none=True)
     updates["updated_at"] = datetime.utcnow().isoformat()
@@ -59,7 +72,9 @@ async def update_product(product_id: str, data: ProductUpdate, request: Request)
 async def delete_product(product_id: str, request: Request) -> dict:
     """Delete a product (owned by current user)."""
     product = await select_one("products", product_id)
-    if not product or product.get("user_id") != _uid(request):
+    if not product:
+        raise HTTPException(404, "Product not found")
+    if product.get("user_id") and product["user_id"] != _uid(request):
         raise HTTPException(404, "Product not found")
     await delete("products", product_id)
     return {"deleted": True}
@@ -69,7 +84,9 @@ async def delete_product(product_id: str, request: Request) -> dict:
 async def update_checklist(product_id: str, checklist: dict, request: Request) -> dict:
     """Update a product's launch checklist state."""
     product = await select_one("products", product_id)
-    if not product or product.get("user_id") != _uid(request):
+    if not product:
+        raise HTTPException(404, "Product not found")
+    if product.get("user_id") and product["user_id"] != _uid(request):
         raise HTTPException(404, "Product not found")
     return await update("products", product_id, {
         "checklist": checklist,

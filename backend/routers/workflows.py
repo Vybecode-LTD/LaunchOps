@@ -34,6 +34,11 @@ async def _get_product_and_settings(product_id: str, user_id: str) -> tuple[dict
         raise HTTPException(404, "Product not found")
     if product.get("user_id") and product["user_id"] != user_id:
         raise HTTPException(403, "Not authorized")
+    # Auto-assign orphaned products to current user
+    if not product.get("user_id"):
+        from database import update as db_update
+        await db_update("products", product_id, {"user_id": user_id})
+        product["user_id"] = user_id
     # Fetch per-user settings
     rows = await select("settings", filters={"user_id": user_id}, limit=1)
     settings_row = rows[0] if rows else {}
@@ -183,8 +188,12 @@ async def launch_workflow(
     """Launch an AI workflow. Runs in background, results go to queue."""
     uid = _uid(request)
     product = await select_one("products", data.product_id)
-    if not product or (product.get("user_id") and product["user_id"] != uid):
+    if not product:
         raise HTTPException(404, "Product not found")
+    if product.get("user_id") and product["user_id"] != uid:
+        raise HTTPException(403, "Not authorized")
+    if not product.get("user_id"):
+        await update("products", data.product_id, {"user_id": uid})
 
     if data.workflow_id not in WORKFLOW_PROMPTS:
         raise HTTPException(400, f"Unknown workflow: {data.workflow_id}")
