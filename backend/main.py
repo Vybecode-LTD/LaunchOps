@@ -1,6 +1,6 @@
 """VybeCod.ing Launch Ops — FastAPI Application.
 
-A semi-autonomous marketing operations platform powered by Claude AI.
+A semi-autonomous marketing operations platform powered by AI.
 Manages multi-product launches with AI-driven workflows, press kit
 generation, SEO optimization, content repurposing, and more.
 """

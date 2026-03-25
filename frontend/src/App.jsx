@@ -946,7 +946,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
       {tab === "pricing" && <div>
         <SL>Pricing Strategy Advisor</SL>
         {!priceResult ? <Card>
-          <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "14px" }}>Claude analyzes competitors, market positioning, and your product to suggest pricing tiers.</div>
+          <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "14px" }}>AI analyzes competitors, market positioning, and your product to suggest pricing tiers.</div>
           <Btn onClick={analyzePricing} disabled={priceLoading}>{priceLoading ? "⏳ Analyzing..." : "Analyze & Suggest Pricing"}</Btn>
         </Card> : <div>
           <Btn onClick={() => setPriceResult(null)} color="#ef4444" outline small style={{ marginBottom: "12px" }}>Re-analyze</Btn>
@@ -1018,10 +1018,10 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
             <div style={{ fontSize: "10px", color: "#00f0ff", padding: "14px", background: "rgba(0,0,0,0.3)", borderRadius: "8px", fontFamily: "var(--mono)", whiteSpace: "pre-wrap", lineHeight: 1.7, maxHeight: "250px", overflow: "auto" }}>{seoResult.head_block}</div>
           </Card>}
 
-          {/* Export to Claude Code */}
+          {/* Export for AI Assistant */}
           <Card style={{ background: "rgba(168,85,247,0.04)", borderColor: "rgba(168,85,247,0.15)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-              <SL style={{ marginBottom: 0, color: "#a855f7" }}>Export to Claude Code</SL>
+              <SL style={{ marginBottom: 0, color: "#a855f7" }}>Export for AI Assistant</SL>
               <Btn onClick={() => {
                 const opt = seoResult.optimized || {};
                 const issues = seoResult.issues || [];
@@ -1052,7 +1052,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
               }} color="#a855f7" small>Copy Prompt</Btn>
             </div>
             <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>
-              Generates a ready-to-paste prompt with all SEO changes. Open Claude Code in your project directory and paste it — Claude will find the right files and apply every change automatically.
+              Generates a ready-to-paste prompt with all SEO changes. Open your AI coding assistant in your project directory and paste it — it will find the right files and apply every change automatically.
             </div>
           </Card>
 
@@ -1242,7 +1242,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
           <Inp label="Name" value={editDirty.name ?? p.name} onChange={v => setEditDirty(d => ({ ...d, name: v }))} />
           <Inp label="Tagline" value={editDirty.tagline ?? p.tagline} onChange={v => setEditDirty(d => ({ ...d, tagline: v }))} />
           <Inp label="URL" value={editDirty.url ?? (p.url || "")} onChange={v => setEditDirty(d => ({ ...d, url: v }))} mono />
-          <TA label="Description (context for Claude)" value={editDirty.description ?? (p.description || "")} onChange={v => setEditDirty(d => ({ ...d, description: v }))} placeholder="What does this product do?" />
+          <TA label="Description (context for AI)" value={editDirty.description ?? (p.description || "")} onChange={v => setEditDirty(d => ({ ...d, description: v }))} placeholder="What does this product do?" />
           <Tags label="Keywords" tags={editDirty.keywords ?? (p.keywords || [])} onChange={v => setEditDirty(d => ({ ...d, keywords: v }))} placeholder="keyword..." />
           <Sel label="Color" value={editDirty.color ?? p.color} onChange={v => setEditDirty(d => ({ ...d, color: v }))} options={[{ value: "#00f0ff", label: "Cyan" }, { value: "#a855f7", label: "Purple" }, { value: "#ff6b35", label: "Orange" }, { value: "#22c55e", label: "Green" }, { value: "#3b82f6", label: "Blue" }, { value: "#ec4899", label: "Pink" }]} />
         </Card>
@@ -1361,7 +1361,7 @@ const Settings = ({ settings: st, onSave, onBack, user }) => {
       </div>
 
       {tab === "platforms" && <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "6px" }}><span style={{ color: "#00f0ff", fontWeight: 600 }}>Auto</span> = Claude posts after approval · <span style={{ color: "#ffaa00", fontWeight: 600 }}>Manual</span> = You post yourself</div>
+        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "6px" }}><span style={{ color: "#00f0ff", fontWeight: 600 }}>Auto</span> = AI posts after approval · <span style={{ color: "#ffaa00", fontWeight: 600 }}>Manual</span> = You post yourself</div>
         {PLATFORMS.map(pl => { const ps = s.platforms[pl.id] || { connected: false, handle: "", mode: "manual" }; return <Card key={pl.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", flexWrap: "wrap" }}>
           <div style={{ width: 32, height: 32, borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", background: ps.connected ? `${pl.color}18` : "rgba(255,255,255,0.04)", border: `1px solid ${ps.connected ? `${pl.color}33` : "rgba(255,255,255,0.08)"}`, fontSize: "13px", fontWeight: 900, color: ps.connected ? pl.color : "rgba(255,255,255,0.2)", fontFamily: "var(--mono)", flexShrink: 0 }}>{pl.icon}</div>
           <div style={{ flex: 1, minWidth: 70 }}><div style={{ fontSize: "12px", fontWeight: 600, color: ps.connected ? "#e0e0e0" : "rgba(255,255,255,0.4)" }}>{pl.name}</div></div>

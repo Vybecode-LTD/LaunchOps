@@ -310,7 +310,11 @@ async def generate_press_release(data: PressReleaseRequest, request: Request) ->
         "{contact_info}", contact_info
     )
 
-    response = await call_claude(system, "Write the press release now.", max_tokens=4096)
+    response = await call_claude(
+        system, "Write the press release now. Use web search to find specific, real distribution channels with contact details.",
+        tools=[{"type": "web_search_20250305", "name": "web_search"}],
+        max_tokens=4096,
+    )
     result = _parse_json_response(response)
 
     # Store on product

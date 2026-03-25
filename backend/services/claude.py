@@ -340,12 +340,21 @@ Write a professional press release following standard format:
 6. Boilerplate (about the company)
 7. Contact information block
 
+For the distribution channels, use web search to find SPECIFIC, REAL resources relevant
+to this product's industry. Each channel must include real contact details where available.
+Look for press release distribution services, industry-specific news outlets, relevant
+journalists, tech blogs, and directories that accept press releases in this space.
+
 Respond in structured JSON with keys:
 - headline: string
 - subheadline: string
 - body: complete press release text in markdown (including dateline, all paragraphs, boilerplate, and contact block)
 - summary: 1-2 sentence summary for distribution emails
-- suggested_distribution: array of distribution channel suggestions
+- suggested_distribution: array of objects, each with: name (publication/outlet name),
+  type (one of: "wire_service", "industry_publication", "tech_blog", "journalist", "directory", "podcast"),
+  url (website URL), contact_email (submission or editor email if findable, or empty string if not),
+  submission_url (specific submission/tip page URL if available, or empty string),
+  notes (brief note on why this outlet is relevant and how to submit)
 - seo_keywords: array of 5-8 keywords for online distribution"""
 
 
