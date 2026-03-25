@@ -62,6 +62,78 @@ const copyToClipboard = (text, notify) => {
   navigator.clipboard.writeText(text).then(() => notify("Copied to clipboard ✓", "#22c55e")).catch(() => notify("Copy failed", "#ef4444"));
 };
 
+/** Convert workflow content to plain text */
+const contentToText = (content) => {
+  if (typeof content === "string") return content;
+  const lines = [];
+  const flatten = (obj, prefix = "") => {
+    for (const [key, val] of Object.entries(obj)) {
+      const label = key.replace(/_/g, " ").toUpperCase();
+      if (typeof val === "string") {
+        lines.push(`${prefix}${label}: ${val}`);
+      } else if (Array.isArray(val)) {
+        lines.push(`\n${prefix}${label}:`);
+        val.forEach((item, i) => {
+          if (typeof item === "string") lines.push(`  ${i + 1}. ${item}`);
+          else if (typeof item === "object" && item !== null) {
+            lines.push(`  --- ${item.name || `Item ${i + 1}`} ---`);
+            Object.entries(item).forEach(([k, v]) => lines.push(`    ${k.replace(/_/g, " ")}: ${typeof v === "string" ? v : JSON.stringify(v)}`));
+          }
+        });
+      } else if (typeof val === "object" && val !== null) {
+        lines.push(`\n${prefix}${label}:`);
+        flatten(val, prefix + "  ");
+      } else {
+        lines.push(`${prefix}${label}: ${val}`);
+      }
+    }
+  };
+  flatten(content);
+  return lines.join("\n");
+};
+
+/** Convert workflow content to markdown */
+const contentToMarkdown = (content, title = "Workflow Results") => {
+  if (typeof content === "string") return `# ${title}\n\n${content}`;
+  const lines = [`# ${title}\n`];
+  for (const [key, val] of Object.entries(content)) {
+    const heading = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    if (typeof val === "string") {
+      lines.push(`## ${heading}\n\n${val}\n`);
+    } else if (Array.isArray(val)) {
+      lines.push(`## ${heading}\n`);
+      val.forEach((item, i) => {
+        if (typeof item === "string") lines.push(`${i + 1}. ${item}`);
+        else if (typeof item === "object" && item !== null) {
+          lines.push(`\n### ${item.name || `Item ${i + 1}`}\n`);
+          Object.entries(item).filter(([k]) => k !== "name").forEach(([k, v]) => {
+            lines.push(`- **${k.replace(/_/g, " ")}**: ${typeof v === "string" ? v : JSON.stringify(v)}`);
+          });
+        }
+      });
+      lines.push("");
+    } else if (typeof val === "object" && val !== null) {
+      lines.push(`## ${heading}\n`);
+      Object.entries(val).forEach(([k, v]) => lines.push(`- **${k.replace(/_/g, " ")}**: ${typeof v === "string" ? v : JSON.stringify(v)}`));
+      lines.push("");
+    } else {
+      lines.push(`## ${heading}\n\n${val}\n`);
+    }
+  }
+  return lines.join("\n");
+};
+
+/** Save text as a downloadable file */
+const saveAsFile = (text, filename, mimeType = "text/plain") => {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 /** Get compose URL for a social platform, or null if not supported */
 const getComposeUrl = (platform, text, url) => {
   const encoded = encodeURIComponent(text);
@@ -550,7 +622,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
     { id: "pricing", label: "Pricing" },
     { id: "seo", label: "🔎 SEO" },
     { id: "checklist", label: "Launch Checklist" },
-    { id: "queue", label: `Queue (${pending})` },
+    { id: "queue", label: `Queue (${pending})`, pulse: pending > 0 },
     { id: "edit", label: "Edit" },
   ];
 
@@ -564,6 +636,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
       setSelWf(null);
       setTaskInput("");
       loadQueue();
+      setTab("queue");
     } catch (e) { notify("Launch failed: " + e.message, "#ef4444"); }
     finally { setLaunching(false); }
   };
@@ -683,7 +756,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
       </div>
 
       <div style={{ display: "flex", gap: "3px", marginBottom: "24px", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "10px", overflowX: "auto" }}>
-        {tabs.map(t => <button key={t.id} onClick={() => { setTab(t.id); setSelWf(null); }} style={{ padding: "7px 13px", borderRadius: "6px", border: "none", whiteSpace: "nowrap", background: tab === t.id ? `${p.color}18` : "transparent", color: tab === t.id ? p.color : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>{t.label}</button>)}
+        {tabs.map(t => <button key={t.id} onClick={() => { setTab(t.id); setSelWf(null); }} style={{ padding: "7px 13px", borderRadius: "6px", border: "none", whiteSpace: "nowrap", background: tab === t.id ? `${p.color}18` : "transparent", color: tab === t.id ? p.color : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)", ...(t.pulse && tab !== t.id ? { animation: "queuePulse 2s ease-in-out infinite", boxShadow: "0 0 8px rgba(255,170,0,0.4)" } : {}) }}>{t.label}</button>)}
       </div>
 
       {/* OVERVIEW */}
@@ -992,21 +1065,47 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
         <SL>Launch Checklist</SL>
         <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "16px" }}>{done}/{totalItems} complete · {pct}% ready</div>
         {LAUNCH_CHECKLIST.map(phase => {
-          const phaseDone = phase.items.filter((_, i) => p.checklist?.[`${phase.phase}_${i}`]).length;
+          const customItems = (p.checklist?.[`_custom_${phase.phase}`] || []);
+          const allItems = [...phase.items, ...customItems];
+          const phaseDone = allItems.filter((_, i) => p.checklist?.[`${phase.phase}_${i}`]).length;
           return <div key={phase.phase} style={{ marginBottom: "20px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
               <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: phase.color }} />
               <span style={{ fontSize: "13px", fontWeight: 700, color: phase.color, fontFamily: "'Space Mono', monospace" }}>{phase.phase}</span>
-              <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)" }}>{phaseDone}/{phase.items.length}</span>
+              <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)" }}>{phaseDone}/{allItems.length}</span>
             </div>
             <div style={{ marginLeft: "16px", borderLeft: `2px solid ${phase.color}22`, paddingLeft: "14px" }}>
-              {phase.items.map((item, i) => {
+              {allItems.map((item, i) => {
                 const key = `${phase.phase}_${i}`;
-                return <label key={key} style={{ display: "flex", alignItems: "flex-start", gap: "8px", padding: "6px 0", cursor: "pointer" }}>
-                  <input type="checkbox" checked={!!p.checklist?.[key]} onChange={e => toggleChecklist(key, e.target.checked)} style={{ accentColor: phase.color, width: "15px", height: "15px", marginTop: "1px", flexShrink: 0 }} />
-                  <span style={{ fontSize: "12px", color: p.checklist?.[key] ? "rgba(255,255,255,0.3)" : "#e0e0e0", textDecoration: p.checklist?.[key] ? "line-through" : "none", lineHeight: 1.5 }}>{item}</span>
-                </label>;
+                const isCustom = i >= phase.items.length;
+                return <div key={key} style={{ display: "flex", alignItems: "flex-start", gap: "8px", padding: "6px 0" }}>
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: "8px", cursor: "pointer", flex: 1 }}>
+                    <input type="checkbox" checked={!!p.checklist?.[key]} onChange={e => toggleChecklist(key, e.target.checked)} style={{ accentColor: phase.color, width: "15px", height: "15px", marginTop: "1px", flexShrink: 0 }} />
+                    <span style={{ fontSize: "12px", color: p.checklist?.[key] ? "rgba(255,255,255,0.3)" : "#e0e0e0", textDecoration: p.checklist?.[key] ? "line-through" : "none", lineHeight: 1.5 }}>{item}</span>
+                  </label>
+                  {isCustom && <button onClick={async () => {
+                    const idx = i - phase.items.length;
+                    const newCustom = customItems.filter((_, ci) => ci !== idx);
+                    const newChecklist = { ...(p.checklist || {}), [`_custom_${phase.phase}`]: newCustom };
+                    await api.products.updateChecklist(p.id, newChecklist);
+                    await reloadProduct();
+                  }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", cursor: "pointer", fontSize: "12px", flexShrink: 0 }}>✕</button>}
+                </div>;
               })}
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const input = e.target.elements.newItem;
+                const val = input.value.trim();
+                if (!val) return;
+                const newCustom = [...customItems, val];
+                const newChecklist = { ...(p.checklist || {}), [`_custom_${phase.phase}`]: newCustom };
+                await api.products.updateChecklist(p.id, newChecklist);
+                await reloadProduct();
+                input.value = "";
+              }} style={{ display: "flex", gap: "6px", marginTop: "6px" }}>
+                <input name="newItem" placeholder="Add custom item..." style={{ flex: 1, padding: "6px 10px", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "6px", color: "#e0e0e0", fontSize: "11px", outline: "none", fontFamily: "var(--mono)" }} />
+                <button type="submit" style={{ background: `${phase.color}22`, border: `1px solid ${phase.color}33`, borderRadius: "6px", color: phase.color, fontSize: "10px", padding: "4px 10px", cursor: "pointer", fontFamily: "var(--mono)" }}>+ Add</button>
+              </form>
             </div>
           </div>;
         })}
@@ -1039,7 +1138,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
                   <Btn onClick={(e) => { e.stopPropagation(); approveItem(q.id); }} color="#22c55e" outline small>✓</Btn>
                   <Btn onClick={(e) => { e.stopPropagation(); rejectItem(q.id); }} color="#ef4444" outline small>✗</Btn>
                 </>}
-                {q.status === "running" && <div style={{ fontSize: "10px", color: "#00f0ff", fontFamily: "var(--mono)", animation: "pulse 1.5s infinite" }}>Running...</div>}
+                {q.status === "running" && <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "10px", color: "#00f0ff", fontFamily: "var(--mono)" }}><span style={{ display: "inline-block", width: "10px", height: "10px", border: "2px solid #00f0ff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /><span style={{ animation: "pulse 1.5s infinite" }}>Working...</span></div>}
                 {hasContent && <Btn onClick={(e) => { e.stopPropagation(); copyToClipboard(contentStr, notify); }} outline small color="#a855f7" style={{ padding: "4px 10px", fontSize: "9px" }}>📋</Btn>}
               </div>
             </div>
@@ -1077,12 +1176,13 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
                   </div>
                 )) : <div style={{ lineHeight: 1.7, fontSize: "14px" }}>{renderMarkdown(contentStr)}</div>}
               </div>
-              {/* Export to Claude Code — only for actionable workflows */}
-              {["competitor", "trend", "cold_outreach", "partnerships", "blog", "announcement"].includes(q.workflow_id) && <div style={{ display: "flex", gap: "6px", marginTop: "8px", justifyContent: "flex-end" }}>
-                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(buildClaudeCodePrompt(q, wf?.name || q.workflow_id, p.name), notify); }} style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.25)", borderRadius: "6px", color: "#a855f7", fontSize: "10px", fontFamily: "var(--mono)", padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
-                  <span style={{ fontSize: "12px" }}>🤖</span> Export to Claude Code
-                </button>
-              </div>}
+              {/* Export options */}
+              <div style={{ display: "flex", gap: "6px", marginTop: "10px", justifyContent: "flex-end", flexWrap: "wrap" }}>
+                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(contentToText(content), notify); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", color: "rgba(255,255,255,0.6)", fontSize: "10px", fontFamily: "var(--mono)", padding: "5px 12px", cursor: "pointer" }}>Copy TXT</button>
+                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(contentToMarkdown(content, wf?.name || q.workflow_id), notify); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", color: "rgba(255,255,255,0.6)", fontSize: "10px", fontFamily: "var(--mono)", padding: "5px 12px", cursor: "pointer" }}>Copy MD</button>
+                <button onClick={(e) => { e.stopPropagation(); saveAsFile(contentToText(content), `${q.workflow_id}.txt`, "text/plain"); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", color: "rgba(255,255,255,0.6)", fontSize: "10px", fontFamily: "var(--mono)", padding: "5px 12px", cursor: "pointer" }}>Save TXT</button>
+                <button onClick={(e) => { e.stopPropagation(); saveAsFile(contentToMarkdown(content, wf?.name || q.workflow_id), `${q.workflow_id}.md`, "text/markdown"); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", color: "rgba(255,255,255,0.6)", fontSize: "10px", fontFamily: "var(--mono)", padding: "5px 12px", cursor: "pointer" }}>Save MD</button>
+              </div>
             </div>}
           </Card>;
         }) : <div style={{ textAlign: "center", padding: "50px", color: "rgba(255,255,255,0.25)", fontFamily: "var(--mono)", fontSize: "12px" }}>Queue empty. Launch a workflow to populate it.</div>}
@@ -1607,6 +1707,8 @@ function AuthenticatedApp({ user, onLogout }) {
         @keyframes slideIn { from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)} }
         @keyframes slideDown { from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)} }
         @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.5} }
+        @keyframes spin { to{transform:rotate(360deg)} }
+        @keyframes queuePulse { 0%,100%{box-shadow:0 0 4px rgba(255,170,0,0.2)}50%{box-shadow:0 0 12px rgba(255,170,0,0.6);background:rgba(255,170,0,0.08)} }
         textarea::placeholder,input::placeholder{color:rgba(255,255,255,0.25)}
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
         select option{background:#15151f}
