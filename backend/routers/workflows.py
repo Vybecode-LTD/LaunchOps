@@ -40,7 +40,7 @@ async def _get_product_and_settings(product_id: str, user_id: str) -> tuple[dict
         await db_update("products", product_id, {"user_id": user_id})
         product["user_id"] = user_id
     # Fetch per-user settings
-    rows = await select("settings", filters={"user_id": user_id}, limit=1)
+    rows = await select("settings", filters={"user_id": user_id}, order="updated_at", limit=1)
     settings_row = rows[0] if rows else {}
     return product, settings_row
 
@@ -95,7 +95,7 @@ async def _run_workflow(product_id: str, workflow_id: str,
             return
 
         # Fetch per-user settings
-        rows = await select("settings", filters={"user_id": user_id}, limit=1) if user_id else []
+        rows = await select("settings", filters={"user_id": user_id}, order="updated_at", limit=1) if user_id else []
         settings_row = rows[0] if rows else {}
         brand_ctx = build_brand_context(
             product,
