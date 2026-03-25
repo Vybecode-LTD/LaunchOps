@@ -193,7 +193,7 @@ settings_router = APIRouter(prefix="/api/settings", tags=["settings"])
 async def get_settings(request: Request) -> dict:
     """Get settings for the current user."""
     uid = _uid(request)
-    rows = await select("settings", filters={"user_id": uid}, limit=1)
+    rows = await select("settings", filters={"user_id": uid}, order="updated_at", limit=1)
     if not rows:
         return GlobalSettings().model_dump()
     row = rows[0]
@@ -208,7 +208,7 @@ async def get_settings(request: Request) -> dict:
 async def update_settings(data: GlobalSettings, request: Request) -> dict:
     """Update settings for the current user (creates if not exists)."""
     uid = _uid(request)
-    rows = await select("settings", filters={"user_id": uid}, limit=1)
+    rows = await select("settings", filters={"user_id": uid}, order="updated_at", limit=1)
 
     payload = {
         "platforms": data.platforms,
