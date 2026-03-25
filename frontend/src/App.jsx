@@ -1319,6 +1319,9 @@ const Settings = ({ settings: st, onSave, onBack, user }) => {
   const [regEnabled, setRegEnabled] = useState(true);
   const [newUser, setNewUser] = useState({ email: "", password: "", name: "" });
   const [adminError, setAdminError] = useState("");
+  const [adminProjects, setAdminProjects] = useState([]);
+  const [transferProject, setTransferProject] = useState("");
+  const [transferUser, setTransferUser] = useState("");
 
   const isAdmin = user?.role === "admin";
 
@@ -1328,8 +1331,8 @@ const Settings = ({ settings: st, onSave, onBack, user }) => {
   useEffect(() => {
     if (tab === "admin" && isAdmin) {
       setAdminLoading(true);
-      Promise.all([api.admin.listUsers(), api.admin.getRegistration()])
-        .then(([users, reg]) => { setAdminUsers(users); setRegEnabled(reg.registration_enabled); })
+      Promise.all([api.admin.listUsers(), api.admin.getRegistration(), api.admin.listProjects()])
+        .then(([users, reg, projects]) => { setAdminUsers(users); setRegEnabled(reg.registration_enabled); setAdminProjects(projects); })
         .catch(() => {})
         .finally(() => setAdminLoading(false));
     }
@@ -1473,6 +1476,42 @@ const Settings = ({ settings: st, onSave, onBack, user }) => {
                 }} style={{ padding: "4px 8px", borderRadius: "4px", border: "1px solid rgba(239,68,68,0.2)", background: "transparent", color: "#ef4444", fontSize: "9px", cursor: "pointer", fontFamily: "var(--mono)" }}>Delete</button>}
               </div>
             ))}
+        </Card>
+
+        {/* Transfer project */}
+        <Card style={{ borderColor: "rgba(168,85,247,0.15)" }}>
+          <SL style={{ color: "#a855f7" }}>Transfer Project</SL>
+          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "14px" }}>Move a project and all its data to a different user account.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.5)", fontFamily: "var(--mono)", display: "block", marginBottom: "6px" }}>Project</label>
+              <select value={transferProject} onChange={e => setTransferProject(e.target.value)} style={{ width: "100%", padding: "10px 14px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#e0e0e0", fontSize: "12px", fontFamily: "var(--mono)", outline: "none" }}>
+                <option value="" style={{ background: "#15151f" }}>Select project...</option>
+                {adminProjects.map(p => <option key={p.id} value={p.id} style={{ background: "#15151f" }}>{p.name} ({p.user_email})</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.5)", fontFamily: "var(--mono)", display: "block", marginBottom: "6px" }}>Transfer To</label>
+              <select value={transferUser} onChange={e => setTransferUser(e.target.value)} style={{ width: "100%", padding: "10px 14px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#e0e0e0", fontSize: "12px", fontFamily: "var(--mono)", outline: "none" }}>
+                <option value="" style={{ background: "#15151f" }}>Select user...</option>
+                {adminUsers.map(u => <option key={u.id} value={u.id} style={{ background: "#15151f" }}>{u.name || u.email} ({u.email})</option>)}
+              </select>
+            </div>
+          </div>
+          <Btn onClick={async () => {
+            if (!transferProject || !transferUser) return;
+            const proj = adminProjects.find(p => p.id === transferProject);
+            const usr = adminUsers.find(u => u.id === transferUser);
+            if (!confirm(`Transfer "${proj?.name}" to ${usr?.email}?`)) return;
+            try {
+              await api.admin.transferProject({ product_id: transferProject, target_user_id: transferUser });
+              // Refresh project list
+              const projects = await api.admin.listProjects();
+              setAdminProjects(projects);
+              setTransferProject(""); setTransferUser("");
+              setAdminError("");
+            } catch (e) { setAdminError(e.message); }
+          }} disabled={!transferProject || !transferUser} color="#a855f7" small>Transfer Project</Btn>
         </Card>
       </div>}
     </div>

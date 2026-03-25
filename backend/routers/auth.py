@@ -209,6 +209,61 @@ async def admin_delete_user(user_id: str, request: Request) -> dict:
     return {"status": "deleted"}
 
 
+@router.get("/admin/projects")
+async def admin_list_projects(request: Request) -> list:
+    """List all projects across all users. Admin only."""
+    await _require_admin(request)
+    products = await select("products", order="updated_at")
+    users = await select("users", order="updated_at")
+    user_map = {u["id"]: u.get("email", "") for u in users}
+    return [{
+        "id": str(p["id"]), "name": p.get("name", ""),
+        "user_id": p.get("user_id", ""),
+        "user_email": user_map.get(p.get("user_id", ""), "unassigned"),
+        "status": p.get("status", ""),
+        "url": p.get("url", ""),
+    } for p in products]
+
+
+@router.post("/admin/transfer-project")
+async def admin_transfer_project(request: Request) -> dict:
+    """Transfer a project from one user to another. Admin only."""
+    await _require_admin(request)
+    body = await request.json()
+    product_id = body.get("product_id")
+    target_user_id = body.get("target_user_id")
+    if not product_id or not target_user_id:
+        raise HTTPException(400, "product_id and target_user_id required")
+
+    product = await select_one("products", product_id)
+    if not product:
+        raise HTTPException(404, "Project not found")
+
+    target_user = await select_one("users", target_user_id)
+    if not target_user:
+        raise HTTPException(404, "Target user not found")
+
+    await update("products", product_id, {"user_id": target_user_id})
+
+    # Also transfer related queue items, captures, calendar events
+    from database import get_pool
+    import uuid as _uuid
+    pool = await get_pool()
+    tid = _uuid.UUID(target_user_id)
+    pid = _uuid.UUID(product_id)
+    await pool.execute('UPDATE queue SET user_id = $1 WHERE product_id = $2', tid, pid)
+    await pool.execute('UPDATE captures SET user_id = $1 WHERE product_id = $2', tid, pid)
+    await pool.execute('UPDATE calendar_events SET user_id = $1 WHERE product_id = $2', tid, pid)
+    await pool.execute('UPDATE email_queue SET user_id = $1 WHERE product_id = $2', tid, pid)
+
+    return {
+        "status": "transferred",
+        "product": product.get("name"),
+        "from_user": product.get("user_id"),
+        "to_user": target_user_id,
+    }
+
+
 @router.get("/admin/registration")
 async def get_registration_status(request: Request) -> dict:
     """Get registration enabled status. Admin only."""

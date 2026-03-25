@@ -50,6 +50,8 @@ export const admin = {
   deleteUser: (id) => request(`/api/auth/admin/users/${id}`, { method: "DELETE" }),
   getRegistration: () => request("/api/auth/admin/registration"),
   setRegistration: (data) => request("/api/auth/admin/registration", { method: "PUT", body: data }),
+  transferProject: (data) => request("/api/auth/admin/transfer-project", { method: "POST", body: data }),
+  listProjects: () => request("/api/auth/admin/projects"),
 };
 
 // ─── Products ───
