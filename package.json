@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "repository": {
     "type": "git",
@@ -17,5 +19,8 @@
   "bugs": {
     "url": "https://github.com/PromptMonster-Media-Ltd/LaunchOps/issues"
   },
-  "homepage": "https://github.com/PromptMonster-Media-Ltd/LaunchOps#readme"
+  "homepage": "https://github.com/PromptMonster-Media-Ltd/LaunchOps#readme",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1"
+  }
 }

@@ -3,6 +3,9 @@ node_modules/
 frontend/dist/
 backend/static/
 
+# Tauri
+src-tauri/target/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
