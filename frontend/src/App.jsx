@@ -904,7 +904,21 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
           </Card>}
           {prResult.suggested_distribution && <Card>
             <SL>Suggested Distribution Channels</SL>
-            {prResult.suggested_distribution.map((ch, i) => <div key={i} style={{ padding: "4px 0", fontSize: "13px", color: "rgba(255,255,255,0.6)" }}>• {ch}</div>)}
+            {prResult.suggested_distribution.map((ch, i) => {
+              if (typeof ch === "string") return <div key={i} style={{ padding: "4px 0", fontSize: "13px", color: "rgba(255,255,255,0.6)" }}>• {ch}</div>;
+              return <div key={i} style={{ padding: "10px 12px", marginBottom: "8px", background: "rgba(0,0,0,0.2)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 600, color: "#e0e0e0" }}>{ch.name || "Unknown"}</span>
+                  {ch.type && <Badge color={ch.type === "wire_service" ? "#00f0ff" : ch.type === "journalist" ? "#a855f7" : ch.type === "tech_blog" ? "#22c55e" : "#ff6b35"}>{ch.type.replace(/_/g, " ")}</Badge>}
+                </div>
+                {ch.notes && <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", marginBottom: "6px", lineHeight: 1.4 }}>{ch.notes}</div>}
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                  {ch.url && <a href={ch.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "11px", color: "#00f0ff", textDecoration: "none", fontFamily: "var(--mono)" }}>Website ↗</a>}
+                  {ch.submission_url && <a href={ch.submission_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "11px", color: "#22c55e", textDecoration: "none", fontFamily: "var(--mono)" }}>Submit ↗</a>}
+                  {ch.contact_email && <a href={"mailto:" + ch.contact_email} style={{ fontSize: "11px", color: "#ff6b35", textDecoration: "none", fontFamily: "var(--mono)" }}>{ch.contact_email}</a>}
+                </div>
+              </div>;
+            })}
           </Card>}
           {prResult.seo_keywords && <Card>
             <SL>SEO Keywords</SL>
