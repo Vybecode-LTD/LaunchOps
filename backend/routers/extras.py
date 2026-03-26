@@ -119,6 +119,9 @@ async def list_events(
 async def create_event(data: CalendarEventCreate, request: Request) -> dict:
     """Create a calendar event for the current user."""
     product = await select_one("products", data.product_id)
+    # Verify product belongs to current user
+    if product and str(product.get("user_id", "")) != _uid(request):
+        product = None
     event = CalendarEvent(
         id=new_id(),
         date=data.date,

@@ -32,13 +32,8 @@ async def _get_product_and_settings(product_id: str, user_id: str) -> tuple[dict
     product = await select_one("products", product_id)
     if not product:
         raise HTTPException(404, "Product not found")
-    if product.get("user_id") and product["user_id"] != user_id:
+    if str(product.get("user_id", "")) != user_id:
         raise HTTPException(403, "Not authorized")
-    # Auto-assign orphaned products to current user
-    if not product.get("user_id"):
-        from database import update as db_update
-        await db_update("products", product_id, {"user_id": user_id})
-        product["user_id"] = user_id
     # Fetch per-user settings
     rows = await select("settings", filters={"user_id": user_id}, order="updated_at", limit=1)
     settings_row = rows[0] if rows else {}

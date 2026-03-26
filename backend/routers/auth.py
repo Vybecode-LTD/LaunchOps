@@ -39,6 +39,14 @@ async def register(data: RegisterRequest) -> dict:
         "enabled": True,
     })
 
+    # Create per-user settings row so they don't inherit shared data
+    await insert("settings", {
+        "user_id": str(user["id"]),
+        "platforms": {},
+        "brand": {},
+        "prefs": {},
+    })
+
     token = create_token(str(user["id"]), user["email"])
     return {
         "token": token,
