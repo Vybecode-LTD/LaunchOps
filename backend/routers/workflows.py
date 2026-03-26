@@ -50,6 +50,9 @@ def _parse_json_response(text: str) -> dict:
     import re
     cleaned = text.strip()
 
+    # Strip <cite> tags from web search results
+    cleaned = re.sub(r'</?cite[^>]*>', '', cleaned)
+
     # Strip markdown code fences (```json ... ``` or ``` ... ```)
     fence_match = re.search(r'```(?:json)?\s*\n?(.*?)```', cleaned, re.DOTALL)
     if fence_match:
