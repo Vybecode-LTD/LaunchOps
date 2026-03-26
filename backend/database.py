@@ -303,6 +303,33 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS registration_enabled BOOLEAN DEFAU
 
 ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
 
+-- Brands table
+CREATE TABLE IF NOT EXISTS brands (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL DEFAULT '',
+    tagline TEXT DEFAULT '',
+    tone TEXT DEFAULT 'professional',
+    keywords JSONB DEFAULT '[]',
+    avoid JSONB DEFAULT '[]',
+    elevator TEXT DEFAULT '',
+    company_name TEXT DEFAULT '',
+    industry TEXT DEFAULT '',
+    location TEXT DEFAULT '',
+    founded TEXT DEFAULT '',
+    founder_name TEXT DEFAULT '',
+    founder_title TEXT DEFAULT '',
+    phone TEXT DEFAULT '',
+    email TEXT DEFAULT '',
+    company_size TEXT DEFAULT '',
+    boilerplate TEXT DEFAULT '',
+    logo_url TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_brands_user ON brands(user_id);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS brand_id UUID REFERENCES brands(id) ON DELETE SET NULL;
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_queue_product ON queue(product_id);

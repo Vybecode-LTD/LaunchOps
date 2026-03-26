@@ -147,3 +147,11 @@ export const settings = {
   get: () => request("/api/settings"),
   update: (data) => request("/api/settings", { method: "PUT", body: data }),
 };
+
+// ─── Brands ───
+export const brands = {
+  list: () => request("/api/brands"),
+  create: (data) => request("/api/brands", { method: "POST", body: data }),
+  update: (id, data) => request(`/api/brands/${id}`, { method: "PATCH", body: data }),
+  delete: (id) => request(`/api/brands/${id}`, { method: "DELETE" }),
+};

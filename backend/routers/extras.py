@@ -222,3 +222,45 @@ async def update_settings(data: GlobalSettings, request: Request) -> dict:
     else:
         payload["user_id"] = uid
         return await insert("settings", payload)
+
+
+# ═══════════════════════════════════════
+# BRANDS
+# ═══════════════════════════════════════
+
+brands_router = APIRouter(prefix="/api/brands", tags=["brands"])
+
+
+@brands_router.get("")
+async def list_brands(request: Request) -> list[dict]:
+    """List all brands for the current user."""
+    return await select("brands", filters={"user_id": _uid(request)}, order="created_at")
+
+
+@brands_router.post("", status_code=201)
+async def create_brand(data: dict, request: Request) -> dict:
+    """Create a new brand."""
+    data["user_id"] = _uid(request)
+    data["created_at"] = datetime.utcnow().isoformat()
+    data["updated_at"] = datetime.utcnow().isoformat()
+    return await insert("brands", data)
+
+
+@brands_router.patch("/{brand_id}")
+async def update_brand(brand_id: str, data: dict, request: Request) -> dict:
+    """Update a brand."""
+    brand = await select_one("brands", brand_id)
+    if not brand or str(brand.get("user_id")) != _uid(request):
+        raise HTTPException(404, "Brand not found")
+    data["updated_at"] = datetime.utcnow().isoformat()
+    return await update("brands", brand_id, data)
+
+
+@brands_router.delete("/{brand_id}")
+async def delete_brand(brand_id: str, request: Request) -> dict:
+    """Delete a brand."""
+    brand = await select_one("brands", brand_id)
+    if not brand or str(brand.get("user_id")) != _uid(request):
+        raise HTTPException(404, "Brand not found")
+    await delete("brands", brand_id)
+    return {"deleted": True}

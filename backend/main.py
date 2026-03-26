@@ -31,6 +31,7 @@ from routers.extras import (
     calendar_router,
     captures_router,
     settings_router,
+    brands_router,
 )
 
 # Frontend dist directory (built by Dockerfile)
@@ -133,6 +134,7 @@ def create_app() -> FastAPI:
     app.include_router(calendar_router)
     app.include_router(captures_router)
     app.include_router(settings_router)
+    app.include_router(brands_router)
 
     @app.get("/health")
     async def health():

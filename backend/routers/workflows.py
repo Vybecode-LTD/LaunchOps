@@ -42,6 +42,12 @@ async def _get_product_and_settings(product_id: str, user_id: str) -> tuple[dict
     # Fetch per-user settings
     rows = await select("settings", filters={"user_id": user_id}, order="updated_at", limit=1)
     settings_row = rows[0] if rows else {}
+    # Fetch assigned brand (if any)
+    brand_id = product.get("brand_id")
+    if brand_id:
+        brand_row = await select_one("brands", str(brand_id))
+        if brand_row:
+            settings_row["_brand_override"] = brand_row
     return product, settings_row
 
 
@@ -100,10 +106,16 @@ async def _run_workflow(product_id: str, workflow_id: str,
         # Fetch per-user settings
         rows = await select("settings", filters={"user_id": user_id}, order="updated_at", limit=1) if user_id else []
         settings_row = rows[0] if rows else {}
+        # Fetch assigned brand (if any)
+        brand_override = None
+        brand_id = product.get("brand_id")
+        if brand_id:
+            brand_override = await select_one("brands", str(brand_id))
         brand_ctx = build_brand_context(
             product,
             brand=settings_row.get("brand"),
             prefs=settings_row.get("prefs"),
+            brand_override=brand_override,
         )
 
         prompt_config = WORKFLOW_PROMPTS.get(workflow_id)
@@ -238,7 +250,7 @@ async def generate_press_kit(data: PressKitRequest, request: Request) -> dict:
     """Scrape URL and generate a press kit via Claude."""
     product, settings = await _get_product_and_settings(data.product_id, _uid(request))
     brand_ctx = build_brand_context(
-        product, settings.get("brand"), settings.get("prefs")
+        product, settings.get("brand"), settings.get("prefs"), brand_override=settings.get("_brand_override")
     )
 
     # Scrape the URL
@@ -273,7 +285,7 @@ async def generate_press_release(data: PressReleaseRequest, request: Request) ->
     """Scrape URL and generate a press release via Claude."""
     product, settings = await _get_product_and_settings(data.product_id, _uid(request))
     brand_ctx = build_brand_context(
-        product, settings.get("brand"), settings.get("prefs")
+        product, settings.get("brand"), settings.get("prefs"), brand_override=settings.get("_brand_override")
     )
 
     scraped = await scrape_url(data.url)
@@ -336,7 +348,7 @@ async def analyze_seo(data: SEORequest, request: Request) -> dict:
 
     product, settings = await _get_product_and_settings(data.product_id, _uid(request))
     brand_ctx = build_brand_context(
-        product, settings.get("brand"), settings.get("prefs")
+        product, settings.get("brand"), settings.get("prefs"), brand_override=settings.get("_brand_override")
     )
 
     logger.info(f"SEO: scraping {data.url}")
@@ -373,7 +385,7 @@ async def repurpose_content(data: RepurposeRequest, request: Request) -> dict:
     """Repurpose content for multiple platforms."""
     product, settings = await _get_product_and_settings(data.product_id, _uid(request))
     brand_ctx = build_brand_context(
-        product, settings.get("brand"), settings.get("prefs")
+        product, settings.get("brand"), settings.get("prefs"), brand_override=settings.get("_brand_override")
     )
 
     system = REPURPOSE_PROMPT.replace(
@@ -396,7 +408,7 @@ async def analyze_pricing(data: PricingRequest, request: Request) -> dict:
     """Generate pricing strategy recommendations."""
     product, settings = await _get_product_and_settings(data.product_id, _uid(request))
     brand_ctx = build_brand_context(
-        product, settings.get("brand"), settings.get("prefs")
+        product, settings.get("brand"), settings.get("prefs"), brand_override=settings.get("_brand_override")
     )
 
     system = PRICING_PROMPT.replace(

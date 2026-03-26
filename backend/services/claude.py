@@ -108,14 +108,46 @@ def build_brand_context(
     product: dict,
     brand: dict | None = None,
     prefs: dict | None = None,
+    brand_override: dict | None = None,
 ) -> str:
-    """Build the brand context block injected into all system prompts."""
+    """Build the brand context block injected into all system prompts.
+
+    brand_override: a full brand row from the brands table, used when a
+    product has an assigned brand. Takes priority over global brand settings.
+    """
     from datetime import datetime
     brand = brand or {}
     prefs = prefs or {}
-    company = product.get("company_details") or {}
+
+    # If a brand is assigned to this product, use its data
+    b = brand_override or brand
+    # Company details come from the assigned brand if available, else from product
+    company = {}
+    if brand_override:
+        company = {
+            "company_name": brand_override.get("company_name", ""),
+            "location": brand_override.get("location", ""),
+            "founded": brand_override.get("founded", ""),
+            "industry": brand_override.get("industry", ""),
+            "company_size": brand_override.get("company_size", ""),
+            "founder_name": brand_override.get("founder_name", ""),
+            "founder_title": brand_override.get("founder_title", ""),
+            "phone": brand_override.get("phone", ""),
+            "email": brand_override.get("email", ""),
+            "boilerplate": brand_override.get("boilerplate", ""),
+        }
+    else:
+        company = product.get("company_details") or {}
 
     today = datetime.utcnow().strftime("%B %d, %Y")
+
+    # Handle keywords/avoid as either list or JSONB
+    kw = b.get("keywords", [])
+    if isinstance(kw, str):
+        kw = [kw]
+    avoid = b.get("avoid", [])
+    if isinstance(avoid, str):
+        avoid = [avoid]
 
     sections = [
         f"# Today's Date: {today}",
@@ -123,15 +155,15 @@ def build_brand_context(
         "Always use the actual values provided in this context.",
         "",
         "# Brand Context",
-        f"Brand: {brand.get('name', 'VybeCod.ing')}",
-        f"Tagline: {brand.get('tagline', '')}",
-        f"Elevator: {brand.get('elevator', '')}",
-        f"Tone: {brand.get('tone', 'creative')}",
-        f"Keywords to weave in: {', '.join(brand.get('keywords', []))}",
-        f"Phrases to AVOID: {', '.join(brand.get('avoid', []))}",
+        f"Brand: {b.get('name', '')}",
+        f"Tagline: {b.get('tagline', '')}",
+        f"Elevator: {b.get('elevator', '')}",
+        f"Tone: {b.get('tone', 'professional')}",
+        f"Keywords to weave in: {', '.join(kw)}",
+        f"Phrases to AVOID: {', '.join(avoid)}",
         "",
         "# Company Details",
-        f"Company Name: {company.get('company_name', brand.get('name', ''))}",
+        f"Company Name: {company.get('company_name', b.get('name', ''))}",
         f"Location: {company.get('location', '')}",
         f"Founded: {company.get('founded', '')}",
         f"Industry: {company.get('industry', '')}",
@@ -169,15 +201,23 @@ def build_brand_context(
 
 WORKFLOW_PROMPTS = {
     "competitor": {
-        "system": """You are a competitive intelligence analyst for a software company.
-Analyze the specified competitor thoroughly. Cover: product features, pricing,
-target audience, strengths, weaknesses, market positioning, and opportunities
-for differentiation.
+        "system": """You are a competitive intelligence analyst. Your job is to find and
+analyze REAL, SPECIFIC competitors to the product described below.
+
+CRITICAL INSTRUCTIONS:
+- Use web search to find ACTUAL competitors by name, with real URLs and pricing
+- NEVER use placeholder names like "[Competitor A]" or vague descriptions
+- NEVER say "various competitors exist" — NAME THEM with real details
+- Include at least 5 specific competitors with their actual product names, URLs, and pricing
+- Research each competitor's actual features, pricing pages, and market position
 
 {brand_context}
 
-Respond in structured JSON with keys: competitor_name, overview, features,
-pricing, audience, strengths, weaknesses, opportunities, threat_level (1-10).""",
+Respond in structured JSON with key: competitors (array of objects, each with:
+name (real company/product name), url (actual website URL), overview (what they do),
+features (array of specific features they offer), pricing (actual pricing from their site
+or "Contact for pricing" if not public), audience (who they target), strengths (array),
+weaknesses (array), threat_level (1-10), differentiation (how our product differs)).""",
         "tools": [{"type": "web_search_20250305", "name": "web_search"}],
     },
 

@@ -563,6 +563,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
   const [wfTemplates, setWfTemplates] = useState([]);
   const [editDirty, setEditDirty] = useState({});
   const [expandedQueue, setExpandedQueue] = useState(null);
+  const [availableBrands, setAvailableBrands] = useState([]);
   const pollRef = useRef(null);
 
   // Load queue items
@@ -576,6 +577,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
   }, [p.id]);
 
   useEffect(() => { loadQueue(); }, [loadQueue]);
+  useEffect(() => { if (tab === "edit") api.brands.list().then(setAvailableBrands).catch(() => {}); }, [tab]);
 
   // Load email queue
   const loadEmails = useCallback(async () => {
@@ -1276,10 +1278,12 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
           <Sel label="Color" value={editDirty.color ?? p.color} onChange={v => setEditDirty(d => ({ ...d, color: v }))} options={[{ value: "#00f0ff", label: "Cyan" }, { value: "#a855f7", label: "Purple" }, { value: "#ff6b35", label: "Orange" }, { value: "#22c55e", label: "Green" }, { value: "#3b82f6", label: "Blue" }, { value: "#ec4899", label: "Pink" }]} />
         </Card>
 
-        {/* Company Details */}
+        {/* Brand Assignment */}
         <Card style={{ borderColor: "rgba(0,240,255,0.15)" }}>
-          <SL style={{ color: "#00f0ff" }}>Company Details</SL>
-          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "14px" }}>Used in press releases, press kits, and outreach. Fill in what applies to this product's parent company.</div>
+          <SL style={{ color: "#00f0ff" }}>Brand / Company</SL>
+          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "14px" }}>Assign a brand to this project. Brand info is used in press releases, press kits, and all AI workflows. Manage brands in Settings → Brands.</div>
+          <Sel label="Assigned Brand" value={editDirty.brand_id ?? (p.brand_id || "")} onChange={v => setEditDirty(d => ({ ...d, brand_id: v || null }))} options={[{ value: "", label: "— No brand (use details below) —" }, ...availableBrands.map(b => ({ value: b.id, label: b.name + (b.industry ? ` (${b.industry})` : "") }))]} />
+          {!(editDirty.brand_id ?? p.brand_id) && <div style={{ marginTop: "8px", fontSize: "11px", color: "rgba(255,255,255,0.3)" }}>No brand assigned. You can enter company details below as a fallback, or create a brand in Settings → Brands.</div>}
           {(() => {
             const cd = editDirty.company_details ?? p.company_details ?? {};
             const upCo = (field, val) => setEditDirty(d => ({ ...d, company_details: { ...(d.company_details ?? p.company_details ?? {}), [field]: val } }));
@@ -1381,10 +1385,21 @@ const Settings = ({ settings: st, onSave, onBack, user }) => {
   const [adminProjects, setAdminProjects] = useState([]);
   const [transferProject, setTransferProject] = useState("");
   const [transferUser, setTransferUser] = useState("");
+  const [brandsList, setBrandsList] = useState([]);
+  const [brandsLoading, setBrandsLoading] = useState(false);
+  const [newBrand, setNewBrand] = useState({});
+  const [editingBrand, setEditingBrand] = useState(null);
 
   const isAdmin = user?.role === "admin";
 
+  const loadBrands = async () => {
+    setBrandsLoading(true);
+    try { setBrandsList(await api.brands.list()); } catch {}
+    setBrandsLoading(false);
+  };
+
   useEffect(() => { setLocal(st); }, [st]);
+  useEffect(() => { if (tab === "brands") loadBrands(); }, [tab]);
 
   // Load admin data when admin tab is selected
   useEffect(() => {
@@ -1416,7 +1431,7 @@ const Settings = ({ settings: st, onSave, onBack, user }) => {
       </div>
 
       <div style={{ display: "flex", gap: "4px", marginBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "10px", overflowX: "auto" }}>
-        {[["platforms", "📱 Platforms"], ["brand", "🎨 Brand"], ["prefs", "⚙ Preferences"], ...(isAdmin ? [["admin", "🔒 Admin"]] : [])].map(([id, label]) => <button key={id} onClick={() => setTab(id)} style={{ padding: "7px 14px", borderRadius: "6px", border: "none", whiteSpace: "nowrap", background: tab === id ? "rgba(0,240,255,0.1)" : "transparent", color: tab === id ? "#00f0ff" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>{label}</button>)}
+        {[["platforms", "📱 Platforms"], ["brands", "🏢 Brands"], ["brand", "🎨 Voice"], ["prefs", "⚙ Preferences"], ...(isAdmin ? [["admin", "🔒 Admin"]] : [])].map(([id, label]) => <button key={id} onClick={() => setTab(id)} style={{ padding: "7px 14px", borderRadius: "6px", border: "none", whiteSpace: "nowrap", background: tab === id ? "rgba(0,240,255,0.1)" : "transparent", color: tab === id ? "#00f0ff" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>{label}</button>)}
       </div>
 
       {tab === "platforms" && <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1428,6 +1443,67 @@ const Settings = ({ settings: st, onSave, onBack, user }) => {
           <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}><span style={{ fontSize: "9px", fontWeight: 700, fontFamily: "var(--mono)", color: ps.mode === "auto" ? "#00f0ff" : "#ffaa00" }}>{ps.mode === "auto" ? "AUTO" : "MANUAL"}</span><Toggle on={ps.mode === "auto"} onChange={v => upp(pl.id, "mode", v ? "auto" : "manual")} /></div>
           <button onClick={() => upp(pl.id, "connected", !ps.connected)} style={{ padding: "5px 10px", borderRadius: "5px", fontSize: "9px", fontWeight: 700, fontFamily: "var(--mono)", cursor: "pointer", border: "none", background: ps.connected ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.12)", color: ps.connected ? "#ef4444" : "#22c55e" }}>{ps.connected ? "Disconnect" : "Connect"}</button>
         </Card>; })}
+      </div>}
+
+      {tab === "brands" && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "4px" }}>Create brands with company details. Assign them to projects so AI outputs use the correct company info, tone, and boilerplate.</div>
+
+        {/* Create new brand */}
+        <Card style={{ borderColor: "rgba(0,240,255,0.15)" }}>
+          <SL style={{ color: "#00f0ff" }}>Create Brand</SL>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+            <Inp label="Brand Name *" value={newBrand.name || ""} onChange={v => setNewBrand(b => ({ ...b, name: v }))} placeholder="Acme Corp" />
+            <Inp label="Industry" value={newBrand.industry || ""} onChange={v => setNewBrand(b => ({ ...b, industry: v }))} placeholder="Music Technology" />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+            <Inp label="Location" value={newBrand.location || ""} onChange={v => setNewBrand(b => ({ ...b, location: v }))} placeholder="Los Angeles, CA" />
+            <Inp label="Founded" value={newBrand.founded || ""} onChange={v => setNewBrand(b => ({ ...b, founded: v }))} placeholder="2024" />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+            <Inp label="Founder Name" value={newBrand.founder_name || ""} onChange={v => setNewBrand(b => ({ ...b, founder_name: v }))} placeholder="Jane Smith" />
+            <Inp label="Founder Title" value={newBrand.founder_title || ""} onChange={v => setNewBrand(b => ({ ...b, founder_title: v }))} placeholder="CEO & Founder" />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+            <Inp label="Phone" value={newBrand.phone || ""} onChange={v => setNewBrand(b => ({ ...b, phone: v }))} placeholder="+1 (555) 123-4567" mono />
+            <Inp label="Email" value={newBrand.email || ""} onChange={v => setNewBrand(b => ({ ...b, email: v }))} placeholder="press@company.com" mono />
+          </div>
+          <Inp label="Company Size" value={newBrand.company_size || ""} onChange={v => setNewBrand(b => ({ ...b, company_size: v }))} placeholder="1-10 employees" />
+          <Inp label="Tagline" value={newBrand.tagline || ""} onChange={v => setNewBrand(b => ({ ...b, tagline: v }))} placeholder="Empowering creators everywhere" />
+          <Inp label="Tone" value={newBrand.tone || ""} onChange={v => setNewBrand(b => ({ ...b, tone: v }))} placeholder="professional, approachable" />
+          <TA label="Elevator Pitch" value={newBrand.elevator || ""} onChange={v => setNewBrand(b => ({ ...b, elevator: v }))} placeholder="One paragraph about what the company does..." />
+          <TA label="Boilerplate (for press releases)" value={newBrand.boilerplate || ""} onChange={v => setNewBrand(b => ({ ...b, boilerplate: v }))} placeholder="About the company paragraph used at the bottom of press releases..." />
+          <Btn onClick={async () => {
+            if (!newBrand.name) return;
+            try {
+              await api.brands.create(newBrand);
+              setNewBrand({});
+              loadBrands();
+            } catch (e) { setAdminError(e.message); }
+          }} disabled={!newBrand.name} color="#00f0ff">Create Brand</Btn>
+        </Card>
+
+        {/* Existing brands */}
+        {brandsLoading ? <div style={{ textAlign: "center", padding: "20px", color: "rgba(255,255,255,0.3)" }}>Loading...</div> :
+        brandsList.length === 0 ? <div style={{ textAlign: "center", padding: "30px", color: "rgba(255,255,255,0.25)", fontFamily: "var(--mono)", fontSize: "12px" }}>No brands yet. Create one above.</div> :
+        brandsList.map(br => <Card key={br.id} style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <div>
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "#e0e0e0" }}>{br.name}</div>
+              {br.industry && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{br.industry}{br.location ? ` · ${br.location}` : ""}</div>}
+            </div>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <Btn onClick={async () => {
+                if (confirm("Delete this brand?")) {
+                  await api.brands.delete(br.id);
+                  loadBrands();
+                }
+              }} color="#ef4444" outline small>Delete</Btn>
+            </div>
+          </div>
+          {br.founder_name && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)" }}>{br.founder_title || "Founder"}: {br.founder_name}</div>}
+          {br.email && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)" }}>{br.email}{br.phone ? ` · ${br.phone}` : ""}</div>}
+          {br.boilerplate && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", marginTop: "6px", lineHeight: 1.4 }}>{br.boilerplate.substring(0, 150)}{br.boilerplate.length > 150 ? "..." : ""}</div>}
+        </Card>)}
       </div>}
 
       {tab === "brand" && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
