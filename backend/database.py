@@ -265,6 +265,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS email_settings JSONB DEFAULT '{}';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS press_release JSONB;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS company_details JSONB DEFAULT '{}';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS pricing_result JSONB;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS market_analysis JSONB;
 
 -- Multi-tenant: add user_id to all content tables
 ALTER TABLE products ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;

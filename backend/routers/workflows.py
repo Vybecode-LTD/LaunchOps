@@ -9,14 +9,14 @@ import json
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from models import (
     WorkflowRequest, WorkflowResponse, PressKitRequest, PressReleaseRequest,
-    SEORequest, RepurposeRequest, PricingRequest, QueueItem, new_id,
-    TaskStatus, QueueStatus,
+    SEORequest, RepurposeRequest, PricingRequest, MarketAnalysisRequest,
+    QueueItem, new_id, TaskStatus, QueueStatus,
 )
 from database import insert, select, select_one, update
 from services.claude import (
     call_claude, build_brand_context, WORKFLOW_PROMPTS,
     PRESS_KIT_PROMPT, PRESS_RELEASE_PROMPT, SEO_ANALYSIS_PROMPT,
-    REPURPOSE_PROMPT, PRICING_PROMPT,
+    REPURPOSE_PROMPT, PRICING_PROMPT, MARKET_ANALYSIS_PROMPT,
 )
 from services.scraper import scrape_url
 
@@ -419,4 +419,45 @@ async def analyze_pricing(data: PricingRequest, request: Request) -> dict:
 
     # Store on product for persistence
     await update("products", data.product_id, {"pricing_result": result})
+    return result
+
+
+# ─── Market Analysis ───
+
+
+@router.post("/market-analysis")
+async def market_analysis(data: MarketAnalysisRequest, request: Request) -> dict:
+    """Generate comprehensive market analysis report."""
+    product, settings = await _get_product_and_settings(data.product_id, _uid(request))
+    brand_ctx = build_brand_context(
+        product, settings.get("brand"), settings.get("prefs"), brand_override=settings.get("_brand_override")
+    )
+
+    # Build pricing context from stored pricing result or user override
+    if data.custom_pricing:
+        pricing_context = f"User-provided pricing:\n{data.custom_pricing}"
+    elif product.get("pricing_result"):
+        pr = product["pricing_result"]
+        tiers = pr.get("tiers", [])
+        pricing_lines = []
+        for t in tiers:
+            pricing_lines.append(f"- {t.get('name', 'Tier')}: {t.get('price', 'N/A')} ({', '.join(t.get('features', [])[:3])})")
+        pricing_context = "Pricing from pricing module:\n" + "\n".join(pricing_lines) if pricing_lines else "No pricing data available — estimate based on market research."
+    else:
+        pricing_context = "No pricing data available — estimate based on market research and competitor analysis."
+
+    system = MARKET_ANALYSIS_PROMPT.replace(
+        "{brand_context}", brand_ctx
+    ).replace("{pricing_context}", pricing_context)
+
+    response = await call_claude(
+        system,
+        "Produce the full market analysis report now. Use web search to find real data on competitors, market size, and pricing.",
+        tools=[{"type": "web_search_20250305", "name": "web_search"}],
+        max_tokens=8192,
+    )
+    result = _parse_json_response(response)
+
+    # Store on product for persistence
+    await update("products", data.product_id, {"market_analysis": result})
     return result

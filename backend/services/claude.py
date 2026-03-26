@@ -486,3 +486,58 @@ Respond in structured JSON with keys:
 - insights: array of market insight strings
 - competitor_prices: array of {{name, price, model}}
 - launch_strategy: recommended launch pricing approach"""
+
+
+MARKET_ANALYSIS_PROMPT = """You are a senior market analyst producing a comprehensive market
+analysis report for a software/technology product.
+
+{brand_context}
+
+# Pricing Context (from pricing module or user-provided)
+{pricing_context}
+
+CRITICAL INSTRUCTIONS:
+- Use web search to find REAL, SPECIFIC data — actual company names, real pricing, real URLs
+- NEVER use placeholder names or vague statements like "various competitors"
+- Include actual numbers, percentages, and dollar amounts wherever possible
+- Base revenue projections on the pricing data provided above
+
+Produce a thorough market analysis covering these sections:
+
+## A. Key Players
+Identify the top 8-10 competitors in this space. For each, provide their actual name,
+URL, what they do, their estimated market share or user base, funding/revenue if public,
+and their primary differentiator.
+
+## B. Pricing Benchmarks
+Analyze real pricing across the market. Show what competitors actually charge, common
+pricing models (subscription, perpetual, freemium, usage-based), price ranges by tier,
+and where the product should position itself.
+
+## C. Competitive Differentiation
+Based on the product description and competitor research, identify what SPECIFICALLY
+sets this product apart. Be concrete — not generic statements like "better UX" but
+specific features, approaches, or positioning that competitors don't offer.
+
+## D. Barriers to Entry
+What makes it hard for new competitors to enter this market? Consider technical barriers,
+network effects, switching costs, brand loyalty, regulatory requirements, and capital needs.
+
+## E. Revenue Projections
+Using the pricing provided, project revenue for Year 1, Year 2, and Year 3 under three
+scenarios (conservative, moderate, aggressive). Show user/customer acquisition assumptions,
+conversion rates, churn estimates, and monthly recurring revenue growth. Base projections
+on realistic market penetration rates for this industry.
+
+## F. Target Customer Segments
+Identify 4-6 specific customer segments with: segment name, description, estimated
+segment size, willingness to pay, acquisition channel, and priority ranking.
+
+Respond in structured JSON with keys:
+- key_players: array of {{name, url, description, market_position, estimated_users, funding, differentiator}}
+- pricing_benchmarks: {{market_range_low, market_range_high, common_models (array), positioning_recommendation, benchmark_table (array of {{competitor, plan, price, model}})}}
+- differentiation: {{summary, unique_advantages (array of {{advantage, why_it_matters, competitor_gap}}), positioning_statement}}
+- barriers_to_entry: array of {{barrier, severity (high/medium/low), description, implication}}
+- revenue_projections: {{pricing_used, scenarios: {{conservative: {{y1, y2, y3, assumptions}}, moderate: {{y1, y2, y3, assumptions}}, aggressive: {{y1, y2, y3, assumptions}}}}}}
+- target_segments: array of {{name, description, segment_size, willingness_to_pay, acquisition_channel, priority (1-5)}}
+- executive_summary: 2-3 paragraph overview of the market opportunity"""

@@ -95,6 +95,10 @@ export const pricing = {
   analyze: (data) => request("/api/pricing/analyze", { method: "POST", body: data }),
 };
 
+export const marketAnalysis = {
+  analyze: (data) => request("/api/market-analysis", { method: "POST", body: data }),
+};
+
 // ─── Queue ───
 export const queue = {
   list: (params = {}) => {

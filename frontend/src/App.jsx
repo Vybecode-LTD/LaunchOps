@@ -555,6 +555,10 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
   const [prContacts, setPrContacts] = useState({ media_contact_name: "", media_contact_email: "", media_contact_phone: "", technical_contact_name: "", technical_contact_email: "", sales_contact_name: "", sales_contact_email: "", additional_notes: "" });
   const [priceResult, setPriceResult] = useState(p.pricing_result || null);
   const [priceLoading, setPriceLoading] = useState(false);
+  const [marketResult, setMarketResult] = useState(p.market_analysis || null);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketPricingMode, setMarketPricingMode] = useState("auto"); // "auto" = use pricing module, "custom" = user input
+  const [marketCustomPricing, setMarketCustomPricing] = useState("");
   const [seoUrl, setSeoUrl] = useState(p.url || "");
   const [seoResult, setSeoResult] = useState(p.seo_result || null);
   const [seoLoading, setSeoLoading] = useState(false);
@@ -625,6 +629,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
     { id: "press_kit", label: "Press Kit" },
     { id: "repurpose", label: "Repurposer" },
     { id: "pricing", label: "Pricing" },
+    { id: "market", label: "Market Analysis" },
     { id: "seo", label: "🔎 SEO" },
     { id: "checklist", label: "Launch Checklist" },
     { id: "queue", label: `Queue (${pending})`, pulse: pending > 0 },
@@ -694,6 +699,19 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
       notify("Pricing analysis ready ✓", "#22c55e");
     } catch (e) { notify("Pricing failed: " + e.message, "#ef4444"); }
     finally { setPriceLoading(false); }
+  };
+
+  const analyzeMarket = async () => {
+    setMarketLoading(true);
+    try {
+      const result = await api.marketAnalysis.analyze({
+        product_id: p.id,
+        custom_pricing: marketPricingMode === "custom" ? marketCustomPricing : "",
+      });
+      setMarketResult(result);
+      notify("Market analysis complete ✓", "#22c55e");
+    } catch (e) { notify("Market analysis failed: " + e.message, "#ef4444"); }
+    finally { setMarketLoading(false); }
   };
 
   // ─── SEO (API) ───
@@ -796,7 +814,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
         </div>
         <SL>Quick Actions</SL>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
-          {[["📦", "Press Kit", "press_kit"], ["📰", "Press Release", "press_release"], ["🔄", "Repurpose", "repurpose"], ["💰", "Pricing", "pricing"], ["🔎", "SEO", "seo"], ["✨", "Workflows", "workflows"], ["🛫", "Checklist", "checklist"], ["📋", "Queue", "queue"], ["📧", "Emails", "emails"], ["✏️", "Edit", "edit"]].map(([icon, label, t], i) => (
+          {[["📦", "Press Kit", "press_kit"], ["📰", "Press Release", "press_release"], ["🔄", "Repurpose", "repurpose"], ["💰", "Pricing", "pricing"], ["📊", "Market", "market"], ["🔎", "SEO", "seo"], ["✨", "Workflows", "workflows"], ["🛫", "Checklist", "checklist"], ["📋", "Queue", "queue"], ["📧", "Emails", "emails"], ["✏️", "Edit", "edit"]].map(([icon, label, t], i) => (
             <Card key={i} onClick={() => setTab(t)} style={{ cursor: "pointer", padding: "14px", textAlign: "center" }}>
               <div style={{ fontSize: "18px", marginBottom: "4px" }}>{icon}</div>
               <div style={{ fontSize: "11px", fontWeight: 600, color: "#e0e0e0" }}>{label}</div>
@@ -1015,6 +1033,144 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
             </Card>)}
           </div>}
           {priceResult.insights && <Card><SL>Market Insights</SL>{priceResult.insights.map((ins, i) => <div key={i} style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>→ {ins}</div>)}</Card>}
+        </div>}
+      </div>}
+
+      {/* MARKET ANALYSIS */}
+      {tab === "market" && <div>
+        <SL>Market Analysis</SL>
+        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "16px" }}>Comprehensive market intelligence — key players, pricing benchmarks, competitive differentiation, revenue projections, and target segments.</div>
+        {!marketResult && !marketLoading ? <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <Card>
+            <SL>Pricing Input for Revenue Projections</SL>
+            <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "10px" }}>Revenue projections need pricing data. Choose a source:</div>
+            <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+              <button onClick={() => setMarketPricingMode("auto")} style={{ padding: "8px 14px", borderRadius: "6px", border: `1px solid ${marketPricingMode === "auto" ? "#00f0ff44" : "rgba(255,255,255,0.08)"}`, background: marketPricingMode === "auto" ? "rgba(0,240,255,0.08)" : "transparent", color: marketPricingMode === "auto" ? "#00f0ff" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>
+                {priceResult ? "Use Pricing Module Results" : "Auto-detect from Market"}</button>
+              <button onClick={() => setMarketPricingMode("custom")} style={{ padding: "8px 14px", borderRadius: "6px", border: `1px solid ${marketPricingMode === "custom" ? "#ff6b3544" : "rgba(255,255,255,0.08)"}`, background: marketPricingMode === "custom" ? "rgba(255,107,53,0.08)" : "transparent", color: marketPricingMode === "custom" ? "#ff6b35" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--mono)" }}>
+                Set Custom Pricing</button>
+            </div>
+            {marketPricingMode === "auto" && priceResult && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", padding: "10px", background: "rgba(0,240,255,0.04)", borderRadius: "6px", border: "1px solid rgba(0,240,255,0.1)" }}>
+              Using pricing module tiers: {(priceResult.tiers || []).map(t => `${t.name} (${t.price})`).join(", ") || "No tiers found"}
+            </div>}
+            {marketPricingMode === "auto" && !priceResult && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", padding: "10px", background: "rgba(255,170,0,0.04)", borderRadius: "6px", border: "1px solid rgba(255,170,0,0.1)" }}>
+              No pricing module results yet. AI will estimate based on market research. Run the Pricing module first for more accurate projections.
+            </div>}
+            {marketPricingMode === "custom" && <TA label="Your Pricing" value={marketCustomPricing} onChange={setMarketCustomPricing} placeholder="e.g., Free tier, Pro at $29/mo, Enterprise at $99/mo..." />}
+          </Card>
+          <Btn onClick={analyzeMarket} disabled={marketLoading}>Generate Market Analysis</Btn>
+        </div> : marketLoading ? <Card style={{ textAlign: "center", padding: "50px" }}>
+          <div style={{ fontSize: "28px", marginBottom: "14px", animation: "pulse 1.5s infinite" }}>📊</div>
+          <div style={{ fontSize: "13px", color: "#00f0ff", fontFamily: "var(--mono)", marginBottom: "8px" }}>Analyzing market...</div>
+          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)" }}>This may take 30-60 seconds — researching competitors, pricing, and market data.</div>
+        </Card> : marketResult && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Badge color="#22c55e">COMPLETE</Badge>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <Btn onClick={() => copyToClipboard(JSON.stringify(marketResult, null, 2), notify)} color="#a855f7" outline small>Copy All</Btn>
+              <Btn onClick={() => setMarketResult(null)} color="#ef4444" outline small>Re-analyze</Btn>
+            </div>
+          </div>
+
+          {/* Executive Summary */}
+          {marketResult.executive_summary && <Card style={{ borderColor: "rgba(0,240,255,0.15)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <SL style={{ marginBottom: 0, color: "#00f0ff" }}>Executive Summary</SL>
+              <Btn onClick={() => copyToClipboard(marketResult.executive_summary, notify)} outline small color="#a855f7">📋</Btn>
+            </div>
+            <div style={{ fontSize: "14px", color: "rgba(255,255,255,0.75)", lineHeight: 1.8 }}>{renderMarkdown(marketResult.executive_summary)}</div>
+          </Card>}
+
+          {/* Key Players */}
+          {marketResult.key_players && <Card>
+            <SL>Key Players ({marketResult.key_players.length})</SL>
+            {marketResult.key_players.map((kp, i) => <div key={i} style={{ padding: "12px", marginBottom: "8px", background: "rgba(0,0,0,0.2)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                <span style={{ fontSize: "14px", fontWeight: 600, color: "#e0e0e0" }}>{kp.name}</span>
+                {kp.url && <a href={kp.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "11px", color: "#00f0ff", textDecoration: "none", fontFamily: "var(--mono)" }}>Visit ↗</a>}
+              </div>
+              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}>{kp.description}</div>
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", fontSize: "10px", fontFamily: "var(--mono)", color: "rgba(255,255,255,0.35)" }}>
+                {kp.estimated_users && <span>Users: {kp.estimated_users}</span>}
+                {kp.funding && <span>Funding: {kp.funding}</span>}
+                {kp.market_position && <span>{kp.market_position}</span>}
+              </div>
+            </div>)}
+          </Card>}
+
+          {/* Pricing Benchmarks */}
+          {marketResult.pricing_benchmarks && <Card>
+            <SL>Pricing Benchmarks</SL>
+            {marketResult.pricing_benchmarks.positioning_recommendation && <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.6)", marginBottom: "12px", padding: "10px", background: "rgba(0,240,255,0.04)", borderRadius: "6px", border: "1px solid rgba(0,240,255,0.1)" }}>{marketResult.pricing_benchmarks.positioning_recommendation}</div>}
+            {marketResult.pricing_benchmarks.benchmark_table && <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                <thead><tr style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                  {["Competitor", "Plan", "Price", "Model"].map(h => <th key={h} style={{ textAlign: "left", padding: "8px 10px", color: "rgba(255,255,255,0.4)", fontFamily: "var(--mono)", fontSize: "10px", fontWeight: 600 }}>{h}</th>)}
+                </tr></thead>
+                <tbody>{marketResult.pricing_benchmarks.benchmark_table.map((row, i) => <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                  <td style={{ padding: "8px 10px", color: "#e0e0e0" }}>{row.competitor}</td>
+                  <td style={{ padding: "8px 10px", color: "rgba(255,255,255,0.6)" }}>{row.plan}</td>
+                  <td style={{ padding: "8px 10px", color: "#22c55e", fontFamily: "var(--mono)" }}>{row.price}</td>
+                  <td style={{ padding: "8px 10px", color: "rgba(255,255,255,0.4)" }}>{row.model}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>}
+          </Card>}
+
+          {/* Competitive Differentiation */}
+          {marketResult.differentiation && <Card>
+            <SL>Competitive Differentiation</SL>
+            {marketResult.differentiation.summary && <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.6)", marginBottom: "12px" }}>{marketResult.differentiation.summary}</div>}
+            {marketResult.differentiation.unique_advantages && marketResult.differentiation.unique_advantages.map((adv, i) => <div key={i} style={{ padding: "10px 12px", marginBottom: "6px", background: "rgba(34,197,94,0.04)", borderRadius: "6px", border: "1px solid rgba(34,197,94,0.1)" }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "#22c55e", marginBottom: "2px" }}>{adv.advantage}</div>
+              {adv.why_it_matters && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)" }}>{adv.why_it_matters}</div>}
+              {adv.competitor_gap && <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", fontFamily: "var(--mono)", marginTop: "4px" }}>Gap: {adv.competitor_gap}</div>}
+            </div>)}
+            {marketResult.differentiation.positioning_statement && <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", fontStyle: "italic", marginTop: "10px", padding: "10px", background: "rgba(0,0,0,0.2)", borderRadius: "6px" }}>"{marketResult.differentiation.positioning_statement}"</div>}
+          </Card>}
+
+          {/* Barriers to Entry */}
+          {marketResult.barriers_to_entry && <Card>
+            <SL>Barriers to Entry</SL>
+            {marketResult.barriers_to_entry.map((b, i) => <div key={i} style={{ display: "flex", gap: "10px", padding: "8px 0", borderBottom: i < marketResult.barriers_to_entry.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+              <Badge color={b.severity === "high" ? "#ef4444" : b.severity === "medium" ? "#ffaa00" : "#22c55e"}>{b.severity}</Badge>
+              <div><div style={{ fontSize: "13px", fontWeight: 600, color: "#e0e0e0" }}>{b.barrier}</div>
+              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{b.description}</div></div>
+            </div>)}
+          </Card>}
+
+          {/* Revenue Projections */}
+          {marketResult.revenue_projections && <Card>
+            <SL>Revenue Projections</SL>
+            {marketResult.revenue_projections.pricing_used && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "12px", fontFamily: "var(--mono)" }}>Based on: {marketResult.revenue_projections.pricing_used}</div>}
+            {marketResult.revenue_projections.scenarios && <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
+              {Object.entries(marketResult.revenue_projections.scenarios).map(([scenario, data]) => <Card key={scenario} style={{ textAlign: "center", border: scenario === "moderate" ? `1px solid ${p.color}44` : undefined }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: scenario === "conservative" ? "#ffaa00" : scenario === "moderate" ? "#22c55e" : "#00f0ff", fontFamily: "var(--mono)", textTransform: "uppercase", marginBottom: "10px" }}>{scenario}</div>
+                {["y1", "y2", "y3"].map(yr => <div key={yr} style={{ marginBottom: "6px" }}>
+                  <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)" }}>{yr === "y1" ? "Year 1" : yr === "y2" ? "Year 2" : "Year 3"}</div>
+                  <div style={{ fontSize: "16px", fontWeight: 700, color: "#e0e0e0", fontFamily: "'Space Mono', monospace" }}>{typeof data[yr] === "string" ? data[yr] : data[yr] ? `$${Number(data[yr]).toLocaleString()}` : "—"}</div>
+                </div>)}
+                {data.assumptions && <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", marginTop: "8px", lineHeight: 1.4 }}>{data.assumptions}</div>}
+              </Card>)}
+            </div>}
+          </Card>}
+
+          {/* Target Segments */}
+          {marketResult.target_segments && <Card>
+            <SL>Target Customer Segments</SL>
+            {marketResult.target_segments.map((seg, i) => <div key={i} style={{ padding: "12px", marginBottom: "8px", background: "rgba(0,0,0,0.2)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                <span style={{ fontSize: "14px", fontWeight: 600, color: "#e0e0e0" }}>{seg.name}</span>
+                {seg.priority && <Badge color={seg.priority <= 2 ? "#22c55e" : seg.priority <= 4 ? "#ffaa00" : "#ef4444"}>P{seg.priority}</Badge>}
+              </div>
+              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", marginBottom: "6px" }}>{seg.description}</div>
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", fontSize: "10px", fontFamily: "var(--mono)", color: "rgba(255,255,255,0.35)" }}>
+                {seg.segment_size && <span>Size: {seg.segment_size}</span>}
+                {seg.willingness_to_pay && <span>WTP: {seg.willingness_to_pay}</span>}
+                {seg.acquisition_channel && <span>Channel: {seg.acquisition_channel}</span>}
+              </div>
+            </div>)}
+          </Card>}
         </div>}
       </div>}
 

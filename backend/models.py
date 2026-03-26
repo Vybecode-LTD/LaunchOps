@@ -250,6 +250,14 @@ class PricingResult(BaseModel):
     insights: list[str] = []
 
 
+# ─── Market Analysis ───
+
+
+class MarketAnalysisRequest(BaseModel):
+    product_id: str
+    custom_pricing: str = ""  # Optional user-provided pricing override
+
+
 # ─── Templates ───
 
 
