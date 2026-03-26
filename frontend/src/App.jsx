@@ -217,7 +217,10 @@ const renderMarkdown = (text) => {
   return elements;
 };
 
-/** Build a Claude Code prompt from a queue item's content */
+/** Strip emoji characters from a string for clean AI assistant prompts */
+const stripEmoji = (str) => typeof str === "string" ? str.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1FA00}-\u{1FA9F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu, "").replace(/\s{2,}/g, " ").trim() : str;
+
+/** Build an AI assistant prompt from a queue item's content */
 const buildClaudeCodePrompt = (queueItem, workflowName, productName) => {
   const content = queueItem.content || {};
   let prompt = `## ${workflowName} Results for ${productName}\n\n`;
@@ -242,7 +245,7 @@ const buildClaudeCodePrompt = (queueItem, workflowName, productName) => {
     }
   }
 
-  return prompt;
+  return stripEmoji(prompt);
 };
 
 /* ═══════════════════════════════════════
@@ -1077,7 +1080,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
               <SL style={{ marginBottom: 0, color: "#a855f7" }}>Export for AI Assistant</SL>
               <Btn onClick={() => {
                 const opt = seoResult.optimized || {};
-                const issues = seoResult.issues || [];
+                const issues = (seoResult.issues || []).map(stripEmoji);
                 const prompt = [
                   `Update the SEO metadata for ${seoUrl}. Here are the specific changes to make:`,
                   ``,
@@ -1085,14 +1088,14 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
                   ...issues.map((issue, i) => `${i + 1}. ${issue}`),
                   ``,
                   `## Optimized Metadata`,
-                  opt.title ? `- **Title tag**: \`${opt.title}\`` : null,
-                  opt.description ? `- **Meta description**: \`${opt.description}\`` : null,
-                  opt.og_title ? `- **OG Title**: \`${opt.og_title}\`` : null,
-                  opt.og_description ? `- **OG Description**: \`${opt.og_description}\`` : null,
+                  opt.title ? `- **Title tag**: \`${stripEmoji(opt.title)}\`` : null,
+                  opt.description ? `- **Meta description**: \`${stripEmoji(opt.description)}\`` : null,
+                  opt.og_title ? `- **OG Title**: \`${stripEmoji(opt.og_title)}\`` : null,
+                  opt.og_description ? `- **OG Description**: \`${stripEmoji(opt.og_description)}\`` : null,
                   opt.og_image ? `- **OG Image**: \`${opt.og_image}\`` : null,
                   opt.canonical ? `- **Canonical URL**: \`${opt.canonical}\`` : null,
-                  opt.keywords ? `- **Keywords**: \`${opt.keywords}\`` : null,
-                  opt.twitter_card ? `- **Twitter Card**: \`${typeof opt.twitter_card === "string" ? opt.twitter_card : JSON.stringify(opt.twitter_card)}\`` : null,
+                  opt.keywords ? `- **Keywords**: \`${stripEmoji(opt.keywords)}\`` : null,
+                  opt.twitter_card ? `- **Twitter Card**: \`${typeof opt.twitter_card === "string" ? stripEmoji(opt.twitter_card) : JSON.stringify(opt.twitter_card)}\`` : null,
                   opt.robots ? `- **Robots**: \`${opt.robots}\`` : null,
                   ``,
                   opt.json_ld ? `## JSON-LD Structured Data\nAdd this to the page's \`<head>\`:\n\`\`\`html\n<script type="application/ld+json">\n${typeof opt.json_ld === "string" ? opt.json_ld : JSON.stringify(opt.json_ld, null, 2)}\n</script>\n\`\`\`` : null,
