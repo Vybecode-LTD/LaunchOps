@@ -905,19 +905,33 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
             </div>
           </div>
           {prResult.headline && <Card>
-            <div style={{ fontSize: "20px", fontWeight: 700, color: "#e0e0e0", lineHeight: 1.4, marginBottom: "6px" }}>{prResult.headline}</div>
-            {prResult.subheadline && <div style={{ fontSize: "14px", color: "rgba(255,255,255,0.5)", fontStyle: "italic" }}>{prResult.subheadline}</div>}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+              <div>
+                <div style={{ fontSize: "20px", fontWeight: 700, color: "#e0e0e0", lineHeight: 1.4, marginBottom: "6px" }}>{prResult.headline}</div>
+                {prResult.subheadline && <div style={{ fontSize: "14px", color: "rgba(255,255,255,0.5)", fontStyle: "italic" }}>{prResult.subheadline}</div>}
+              </div>
+              <Btn onClick={() => copyToClipboard(`${prResult.headline}${prResult.subheadline ? "\n" + prResult.subheadline : ""}`, notify)} outline small color="#a855f7" style={{ flexShrink: 0 }}>📋</Btn>
+            </div>
           </Card>}
           {prResult.body && <Card>
-            <SL>Full Press Release</SL>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <SL style={{ marginBottom: 0 }}>Full Press Release</SL>
+              <Btn onClick={() => copyToClipboard(prResult.body, notify)} outline small color="#a855f7">📋 Copy</Btn>
+            </div>
             <div style={{ fontSize: "14px", color: "rgba(255,255,255,0.75)", lineHeight: 1.8 }}>{renderMarkdown(prResult.body)}</div>
           </Card>}
           {prResult.summary && <Card>
-            <SL>Distribution Summary</SL>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <SL style={{ marginBottom: 0 }}>Distribution Summary</SL>
+              <Btn onClick={() => copyToClipboard(prResult.summary, notify)} outline small color="#a855f7">📋 Copy</Btn>
+            </div>
             <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.6)", lineHeight: 1.6 }}>{prResult.summary}</div>
           </Card>}
           {prResult.suggested_distribution && <Card>
-            <SL>Suggested Distribution Channels</SL>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <SL style={{ marginBottom: 0 }}>Suggested Distribution Channels</SL>
+              <Btn onClick={() => copyToClipboard(prResult.suggested_distribution.map(ch => typeof ch === "string" ? ch : `${ch.name}${ch.url ? " — " + ch.url : ""}${ch.contact_email ? " — " + ch.contact_email : ""}`).join("\n"), notify)} outline small color="#a855f7">📋 Copy All</Btn>
+            </div>
             {prResult.suggested_distribution.map((ch, i) => {
               if (typeof ch === "string") return <div key={i} style={{ padding: "4px 0", fontSize: "13px", color: "rgba(255,255,255,0.6)" }}>• {ch}</div>;
               return <div key={i} style={{ padding: "10px 12px", marginBottom: "8px", background: "rgba(0,0,0,0.2)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -935,7 +949,10 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
             })}
           </Card>}
           {prResult.seo_keywords && <Card>
-            <SL>SEO Keywords</SL>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <SL style={{ marginBottom: 0 }}>SEO Keywords</SL>
+              <Btn onClick={() => copyToClipboard(prResult.seo_keywords.join(", "), notify)} outline small color="#a855f7">📋 Copy</Btn>
+            </div>
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>{prResult.seo_keywords.map((kw, i) => <Badge key={i} color="#00f0ff">{kw}</Badge>)}</div>
           </Card>}
         </div>}
