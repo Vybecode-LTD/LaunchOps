@@ -187,6 +187,7 @@ CREATE TABLE IF NOT EXISTS products (
     checklist JSONB DEFAULT '{}',
     seo_result JSONB,
     email_settings JSONB DEFAULT '{}',
+    company_details JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -262,6 +263,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Migrations (safe to re-run)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS email_settings JSONB DEFAULT '{}';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS press_release JSONB;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS company_details JSONB DEFAULT '{}';
 
 -- Multi-tenant: add user_id to all content tables
 ALTER TABLE products ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;

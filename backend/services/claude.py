@@ -110,10 +110,18 @@ def build_brand_context(
     prefs: dict | None = None,
 ) -> str:
     """Build the brand context block injected into all system prompts."""
+    from datetime import datetime
     brand = brand or {}
     prefs = prefs or {}
+    company = product.get("company_details") or {}
+
+    today = datetime.utcnow().strftime("%B %d, %Y")
 
     sections = [
+        f"# Today's Date: {today}",
+        "IMPORTANT: Never output placeholder text like '[current date]', '[City]', or '[Company Name]'.",
+        "Always use the actual values provided in this context.",
+        "",
         "# Brand Context",
         f"Brand: {brand.get('name', 'VybeCod.ing')}",
         f"Tagline: {brand.get('tagline', '')}",
@@ -122,6 +130,18 @@ def build_brand_context(
         f"Keywords to weave in: {', '.join(brand.get('keywords', []))}",
         f"Phrases to AVOID: {', '.join(brand.get('avoid', []))}",
         "",
+        "# Company Details",
+        f"Company Name: {company.get('company_name', brand.get('name', ''))}",
+        f"Location: {company.get('location', '')}",
+        f"Founded: {company.get('founded', '')}",
+        f"Industry: {company.get('industry', '')}",
+        f"Company Size: {company.get('company_size', '')}",
+        f"Founder/CEO: {company.get('founder_name', '')}",
+        f"Founder Title: {company.get('founder_title', '')}",
+        f"Company Phone: {company.get('phone', '')}",
+        f"Company Email: {company.get('email', '')}",
+        f"Boilerplate: {company.get('boilerplate', '')}",
+        "",
         "# Product Context",
         f"Product: {product.get('name', '')}",
         f"Tagline: {product.get('tagline', '')}",
@@ -129,6 +149,7 @@ def build_brand_context(
         f"Description: {product.get('description', '')}",
         f"Keywords: {', '.join(product.get('keywords', []))}",
         f"Status: {product.get('status', 'pre_launch')}",
+        f"Type: {product.get('project_type', 'product')}",
         "",
         "# Output Preferences",
         f"Research depth: {prefs.get('depth', 'thorough')}",

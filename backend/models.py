@@ -97,6 +97,7 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
     keywords: Optional[list[str]] = None
     email_settings: Optional[dict] = None
+    company_details: Optional[dict] = None
 
 
 class Product(BaseModel):
@@ -112,6 +113,7 @@ class Product(BaseModel):
     checklist: dict = {}
     seo_result: Optional[dict] = None
     email_settings: dict = {}
+    company_details: dict = {}
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

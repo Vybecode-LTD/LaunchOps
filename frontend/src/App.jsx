@@ -719,6 +719,18 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
       loadQueue();
     } catch (e) { notify("Failed: " + e.message, "#ef4444"); }
   };
+  const saveAsTemplate = async (queueItem) => {
+    try {
+      const content = typeof queueItem.content === "string" ? queueItem.content : JSON.stringify(queueItem.content, null, 2);
+      await api.templates.create({
+        name: `${queueItem.workflow_id || "workflow"} — ${new Date().toLocaleDateString()}`,
+        type: "content",
+        content: content,
+        tags: [queueItem.workflow_id || "general"],
+      });
+      notify("Saved as template ✓", "#22c55e");
+    } catch (e) { notify("Save failed: " + e.message, "#ef4444"); }
+  };
 
   // ─── Checklist (API) ───
   const toggleChecklist = async (key, checked) => {
@@ -1153,7 +1165,10 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
                   <Btn onClick={(e) => { e.stopPropagation(); rejectItem(q.id); }} color="#ef4444" outline small>✗</Btn>
                 </>}
                 {q.status === "running" && <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "10px", color: "#00f0ff", fontFamily: "var(--mono)" }}><span style={{ display: "inline-block", width: "10px", height: "10px", border: "2px solid #00f0ff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /><span style={{ animation: "pulse 1.5s infinite" }}>Working...</span></div>}
-                {hasContent && <Btn onClick={(e) => { e.stopPropagation(); copyToClipboard(contentStr, notify); }} outline small color="#a855f7" style={{ padding: "4px 10px", fontSize: "9px" }}>📋</Btn>}
+                {hasContent && <>
+                  <Btn onClick={(e) => { e.stopPropagation(); copyToClipboard(contentStr, notify); }} outline small color="#a855f7" style={{ padding: "4px 10px", fontSize: "9px" }}>📋</Btn>
+                  <Btn onClick={(e) => { e.stopPropagation(); saveAsTemplate(q); }} outline small color="#00f0ff" style={{ padding: "4px 10px", fontSize: "9px" }}>💾</Btn>
+                </>}
               </div>
             </div>
             {isExpanded && hasContent && <div style={{ marginTop: "12px" }}>
@@ -1259,6 +1274,36 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
           <TA label="Description (context for AI)" value={editDirty.description ?? (p.description || "")} onChange={v => setEditDirty(d => ({ ...d, description: v }))} placeholder="What does this product do?" />
           <Tags label="Keywords" tags={editDirty.keywords ?? (p.keywords || [])} onChange={v => setEditDirty(d => ({ ...d, keywords: v }))} placeholder="keyword..." />
           <Sel label="Color" value={editDirty.color ?? p.color} onChange={v => setEditDirty(d => ({ ...d, color: v }))} options={[{ value: "#00f0ff", label: "Cyan" }, { value: "#a855f7", label: "Purple" }, { value: "#ff6b35", label: "Orange" }, { value: "#22c55e", label: "Green" }, { value: "#3b82f6", label: "Blue" }, { value: "#ec4899", label: "Pink" }]} />
+        </Card>
+
+        {/* Company Details */}
+        <Card style={{ borderColor: "rgba(0,240,255,0.15)" }}>
+          <SL style={{ color: "#00f0ff" }}>Company Details</SL>
+          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "14px" }}>Used in press releases, press kits, and outreach. Fill in what applies to this product's parent company.</div>
+          {(() => {
+            const cd = editDirty.company_details ?? p.company_details ?? {};
+            const upCo = (field, val) => setEditDirty(d => ({ ...d, company_details: { ...(d.company_details ?? p.company_details ?? {}), [field]: val } }));
+            return <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+                <Inp label="Company Name" value={cd.company_name || ""} onChange={v => upCo("company_name", v)} placeholder="Acme Corp" />
+                <Inp label="Industry" value={cd.industry || ""} onChange={v => upCo("industry", v)} placeholder="Music Technology" />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+                <Inp label="Location (City, State/Country)" value={cd.location || ""} onChange={v => upCo("location", v)} placeholder="Los Angeles, CA" />
+                <Inp label="Founded Year" value={cd.founded || ""} onChange={v => upCo("founded", v)} placeholder="2024" />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+                <Inp label="Founder / CEO Name" value={cd.founder_name || ""} onChange={v => upCo("founder_name", v)} placeholder="Jane Smith" />
+                <Inp label="Founder Title" value={cd.founder_title || ""} onChange={v => upCo("founder_title", v)} placeholder="CEO & Founder" />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+                <Inp label="Company Phone" value={cd.phone || ""} onChange={v => upCo("phone", v)} placeholder="+1 (555) 123-4567" mono />
+                <Inp label="Company Email" value={cd.email || ""} onChange={v => upCo("email", v)} placeholder="press@company.com" mono />
+              </div>
+              <Inp label="Company Size" value={cd.company_size || ""} onChange={v => upCo("company_size", v)} placeholder="1-10 employees" />
+              <TA label="Company Boilerplate (About paragraph for press)" value={cd.boilerplate || ""} onChange={v => upCo("boilerplate", v)} placeholder="A short paragraph about the company used at the bottom of press releases..." />
+            </>;
+          })()}
         </Card>
 
         {/* Email Server Settings */}
