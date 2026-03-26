@@ -734,6 +734,14 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
     } catch (e) { notify("Save failed: " + e.message, "#ef4444"); }
   };
 
+  const deleteQueueItem = async (id) => {
+    try {
+      await api.queue.delete(id);
+      notify("Deleted ✓", "#22c55e");
+      loadQueue();
+    } catch (e) { notify("Delete failed: " + e.message, "#ef4444"); }
+  };
+
   // ─── Checklist (API) ───
   const toggleChecklist = async (key, checked) => {
     const newChecklist = { ...(p.checklist || {}), [key]: checked };
@@ -1188,6 +1196,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
                   <Btn onClick={(e) => { e.stopPropagation(); copyToClipboard(contentStr, notify); }} outline small color="#a855f7" style={{ padding: "4px 10px", fontSize: "9px" }}>📋</Btn>
                   <Btn onClick={(e) => { e.stopPropagation(); saveAsTemplate(q); }} outline small color="#00f0ff" style={{ padding: "4px 10px", fontSize: "9px" }}>💾</Btn>
                 </>}
+                {q.status !== "running" && <Btn onClick={(e) => { e.stopPropagation(); if (confirm("Delete this queue item?")) deleteQueueItem(q.id); }} outline small color="#ef4444" style={{ padding: "4px 10px", fontSize: "9px" }}>🗑</Btn>}
               </div>
             </div>
             {isExpanded && hasContent && <div style={{ marginTop: "12px" }}>
