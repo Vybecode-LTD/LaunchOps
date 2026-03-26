@@ -75,6 +75,15 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Security headers middleware
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Permissions-Policy"] = "local-network=(), bluetooth=(), usb=(), serial=(), hid=()"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
     # Auth middleware — protect /api/* except /api/auth/*
     @app.middleware("http")
     async def auth_middleware(request: Request, call_next):
