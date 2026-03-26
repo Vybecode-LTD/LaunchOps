@@ -550,7 +550,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
   const [prResult, setPrResult] = useState(p.press_release || null);
   const [prLoading, setPrLoading] = useState(false);
   const [prContacts, setPrContacts] = useState({ media_contact_name: "", media_contact_email: "", media_contact_phone: "", technical_contact_name: "", technical_contact_email: "", sales_contact_name: "", sales_contact_email: "", additional_notes: "" });
-  const [priceResult, setPriceResult] = useState(null);
+  const [priceResult, setPriceResult] = useState(p.pricing_result || null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [seoUrl, setSeoUrl] = useState(p.url || "");
   const [seoResult, setSeoResult] = useState(p.seo_result || null);
@@ -647,7 +647,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
   const generatePressKit = async () => {
     if (!pressUrl) return;
     setGenerating(true);
-    setGenStep("Scraping & analyzing...");
+    setGenStep("Analyzing site...");
     try {
       await api.pressKit.generate({ product_id: p.id, url: pressUrl });
       notify("Press kit ready ✓", "#22c55e");
@@ -863,7 +863,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
       {/* PRESS RELEASE */}
       {tab === "press_release" && <div>
         <SL>Press Release Builder</SL>
-        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "16px" }}>Generate a publication-ready press release from your website. URL scrape required.</div>
+        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "16px" }}>Generate a publication-ready press release from your website. URL analysis required.</div>
         {!prResult && !prLoading ? <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <Card>
             <Inp label="Website URL (required)" value={prUrl} onChange={setPrUrl} placeholder="https://vybecod.ing" mono />
@@ -895,7 +895,7 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
           </Card>
           <Btn onClick={generatePressRelease} disabled={!prUrl || prLoading}>Generate Press Release</Btn>
         </div>
-        : prLoading ? <Card style={{ textAlign: "center", padding: "50px" }}><div style={{ fontSize: "28px", marginBottom: "14px", animation: "pulse 1.5s infinite" }}>📰</div><div style={{ fontSize: "13px", color: "#00f0ff", fontFamily: "var(--mono)" }}>Scraping site & writing press release...</div></Card>
+        : prLoading ? <Card style={{ textAlign: "center", padding: "50px" }}><div style={{ fontSize: "28px", marginBottom: "14px", animation: "pulse 1.5s infinite" }}>📰</div><div style={{ fontSize: "13px", color: "#00f0ff", fontFamily: "var(--mono)" }}>Analyzing site & writing press release...</div></Card>
         : prResult && <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Badge color="#22c55e">READY</Badge>

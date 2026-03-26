@@ -251,7 +251,7 @@ async def generate_press_kit(data: PressKitRequest, request: Request) -> dict:
     # Scrape the URL
     scraped = await scrape_url(data.url)
     if scraped.get("status") != "ok":
-        raise HTTPException(400, f"Could not scrape URL: {scraped.get('error')}")
+        raise HTTPException(400, f"Could not analyze URL: {scraped.get('error')}")
 
     scraped_content = (
         f"Page title: {scraped['metadata'].get('title', '')}\n"
@@ -285,7 +285,7 @@ async def generate_press_release(data: PressReleaseRequest, request: Request) ->
 
     scraped = await scrape_url(data.url)
     if scraped.get("status") != "ok":
-        raise HTTPException(400, f"Could not scrape URL: {scraped.get('error')}")
+        raise HTTPException(400, f"Could not analyze URL: {scraped.get('error')}")
 
     scraped_content = (
         f"Page title: {scraped['metadata'].get('title', '')}\n"
@@ -350,7 +350,7 @@ async def analyze_seo(data: SEORequest, request: Request) -> dict:
     scraped = await scrape_url(data.url)
     if scraped.get("status") != "ok":
         logger.error(f"SEO: scrape failed: {scraped.get('error')}")
-        raise HTTPException(400, f"Could not scrape URL: {scraped.get('error')}")
+        raise HTTPException(400, f"Could not analyze URL: {scraped.get('error')}")
 
     logger.info(f"SEO: scrape OK, title={scraped['metadata'].get('title', '(none)')}")
     current_meta = json.dumps(scraped["metadata"], indent=2)
@@ -415,4 +415,8 @@ async def analyze_pricing(data: PricingRequest, request: Request) -> dict:
         "Analyze the market and suggest pricing.",
         tools=[{"type": "web_search_20250305", "name": "web_search"}],
     )
-    return _parse_json_response(response)
+    result = _parse_json_response(response)
+
+    # Store on product for persistence
+    await update("products", data.product_id, {"pricing_result": result})
+    return result
