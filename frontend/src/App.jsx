@@ -1215,7 +1215,11 @@ const ProductDash = ({ product: p, reloadProduct, onBack, notify, templates = []
                           {Object.entries(item).filter(([ik]) => ik !== "name").map(([ik, iv]) => (
                             <div key={ik} style={{ marginBottom: "8px" }}>
                               <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "3px" }}>{ik.replace(/_/g, " ")}</div>
-                              <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.65)", lineHeight: 1.6 }}>{typeof iv === "string" ? renderMarkdown(iv) : Array.isArray(iv) ? iv.join(", ") : String(iv)}</div>
+                              <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.65)", lineHeight: 1.6 }}>{
+                                ik === "threat_level" ? <span style={{ fontWeight: 700, color: iv >= 7 ? "#ef4444" : iv >= 4 ? "#ffaa00" : "#22c55e" }}>{iv ?? "?"}/10</span>
+                                : ik === "url" && typeof iv === "string" && iv.startsWith("http") ? <a href={iv} target="_blank" rel="noopener noreferrer" style={{ color: "#00f0ff", textDecoration: "none" }}>{iv} ↗</a>
+                                : typeof iv === "string" ? renderMarkdown(iv) : Array.isArray(iv) ? iv.join(", ") : String(iv ?? "N/A")
+                              }</div>
                             </div>
                           ))}
                         </div>
@@ -1474,62 +1478,128 @@ const Settings = ({ settings: st, onSave, onBack, user }) => {
       {tab === "brands" && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginBottom: "4px" }}>Create brands with company details. Assign them to projects so AI outputs use the correct company info, tone, and boilerplate.</div>
 
-        {/* Create new brand */}
-        <Card style={{ borderColor: "rgba(0,240,255,0.15)" }}>
-          <SL style={{ color: "#00f0ff" }}>Create Brand</SL>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
-            <Inp label="Brand Name *" value={newBrand.name || ""} onChange={v => setNewBrand(b => ({ ...b, name: v }))} placeholder="Acme Corp" />
-            <Inp label="Industry" value={newBrand.industry || ""} onChange={v => setNewBrand(b => ({ ...b, industry: v }))} placeholder="Music Technology" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
-            <Inp label="Location" value={newBrand.location || ""} onChange={v => setNewBrand(b => ({ ...b, location: v }))} placeholder="Los Angeles, CA" />
-            <Inp label="Founded" value={newBrand.founded || ""} onChange={v => setNewBrand(b => ({ ...b, founded: v }))} placeholder="2024" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
-            <Inp label="Founder Name" value={newBrand.founder_name || ""} onChange={v => setNewBrand(b => ({ ...b, founder_name: v }))} placeholder="Jane Smith" />
-            <Inp label="Founder Title" value={newBrand.founder_title || ""} onChange={v => setNewBrand(b => ({ ...b, founder_title: v }))} placeholder="CEO & Founder" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
-            <Inp label="Phone" value={newBrand.phone || ""} onChange={v => setNewBrand(b => ({ ...b, phone: v }))} placeholder="+1 (555) 123-4567" mono />
-            <Inp label="Email" value={newBrand.email || ""} onChange={v => setNewBrand(b => ({ ...b, email: v }))} placeholder="press@company.com" mono />
-          </div>
-          <Inp label="Company Size" value={newBrand.company_size || ""} onChange={v => setNewBrand(b => ({ ...b, company_size: v }))} placeholder="1-10 employees" />
-          <Inp label="Tagline" value={newBrand.tagline || ""} onChange={v => setNewBrand(b => ({ ...b, tagline: v }))} placeholder="Empowering creators everywhere" />
-          <Inp label="Tone" value={newBrand.tone || ""} onChange={v => setNewBrand(b => ({ ...b, tone: v }))} placeholder="professional, approachable" />
-          <TA label="Elevator Pitch" value={newBrand.elevator || ""} onChange={v => setNewBrand(b => ({ ...b, elevator: v }))} placeholder="One paragraph about what the company does..." />
-          <TA label="Boilerplate (for press releases)" value={newBrand.boilerplate || ""} onChange={v => setNewBrand(b => ({ ...b, boilerplate: v }))} placeholder="About the company paragraph used at the bottom of press releases..." />
-          <Btn onClick={async () => {
-            if (!newBrand.name) return;
-            try {
-              await api.brands.create(newBrand);
-              setNewBrand({});
-              loadBrands();
-            } catch (e) { setAdminError(e.message); }
-          }} disabled={!newBrand.name} color="#00f0ff">Create Brand</Btn>
-        </Card>
+        {/* Brand form helper */}
+        {(() => {
+          const BrandForm = ({ data, setData, onSave, saveLabel, saveColor, onCancel }) => {
+            const founders = data.founders || [];
+            const addFounder = () => setData(d => ({ ...d, founders: [...(d.founders || []), { name: "", title: "" }] }));
+            const updateFounder = (idx, field, val) => setData(d => ({ ...d, founders: (d.founders || []).map((f, i) => i === idx ? { ...f, [field]: val } : f) }));
+            const removeFounder = (idx) => setData(d => ({ ...d, founders: (d.founders || []).filter((_, i) => i !== idx) }));
+            return <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+                <Inp label="Brand Name *" value={data.name || ""} onChange={v => setData(d => ({ ...d, name: v }))} placeholder="Acme Corp" />
+                <Inp label="Industry" value={data.industry || ""} onChange={v => setData(d => ({ ...d, industry: v }))} placeholder="Music Technology" />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+                <Inp label="Location" value={data.location || ""} onChange={v => setData(d => ({ ...d, location: v }))} placeholder="Los Angeles, CA" />
+                <Inp label="Founded" value={data.founded || ""} onChange={v => setData(d => ({ ...d, founded: v }))} placeholder="2024" />
+              </div>
 
-        {/* Existing brands */}
-        {brandsLoading ? <div style={{ textAlign: "center", padding: "20px", color: "rgba(255,255,255,0.3)" }}>Loading...</div> :
-        brandsList.length === 0 ? <div style={{ textAlign: "center", padding: "30px", color: "rgba(255,255,255,0.25)", fontFamily: "var(--mono)", fontSize: "12px" }}>No brands yet. Create one above.</div> :
-        brandsList.map(br => <Card key={br.id} style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-            <div>
-              <div style={{ fontSize: "15px", fontWeight: 700, color: "#e0e0e0" }}>{br.name}</div>
-              {br.industry && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{br.industry}{br.location ? ` · ${br.location}` : ""}</div>}
-            </div>
-            <div style={{ display: "flex", gap: "6px" }}>
-              <Btn onClick={async () => {
-                if (confirm("Delete this brand?")) {
-                  await api.brands.delete(br.id);
+              {/* Founders */}
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <label style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.5)", fontFamily: "var(--mono)" }}>FOUNDERS / KEY PEOPLE</label>
+                  <button onClick={addFounder} style={{ background: "rgba(0,240,255,0.1)", border: "1px solid rgba(0,240,255,0.2)", color: "#00f0ff", cursor: "pointer", fontSize: "11px", fontFamily: "var(--mono)", padding: "3px 10px", borderRadius: "5px" }}>+ Add</button>
+                </div>
+                {founders.length === 0 && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.25)", padding: "8px 0" }}>No founders added. Click + Add above.</div>}
+                {founders.map((f, idx) => <div key={idx} style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "6px" }}>
+                  <div style={{ flex: 1 }}><Inp label="" value={f.name || ""} onChange={v => updateFounder(idx, "name", v)} placeholder="Name" /></div>
+                  <div style={{ flex: 1 }}><Inp label="" value={f.title || ""} onChange={v => updateFounder(idx, "title", v)} placeholder="Title (CEO, CTO...)" /></div>
+                  <button onClick={() => removeFounder(idx)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "14px", flexShrink: 0, padding: "0 4px" }}>✕</button>
+                </div>)}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+                <Inp label="Phone" value={data.phone || ""} onChange={v => setData(d => ({ ...d, phone: v }))} placeholder="+1 (555) 123-4567" mono />
+                <Inp label="Email" value={data.email || ""} onChange={v => setData(d => ({ ...d, email: v }))} placeholder="press@company.com" mono />
+              </div>
+              <Inp label="Company Size" value={data.company_size || ""} onChange={v => setData(d => ({ ...d, company_size: v }))} placeholder="1-10 employees" />
+              <Inp label="Tagline" value={data.tagline || ""} onChange={v => setData(d => ({ ...d, tagline: v }))} placeholder="Empowering creators everywhere" />
+              <Inp label="Tone" value={data.tone || ""} onChange={v => setData(d => ({ ...d, tone: v }))} placeholder="professional, approachable" />
+              <TA label="Elevator Pitch" value={data.elevator || ""} onChange={v => setData(d => ({ ...d, elevator: v }))} placeholder="One paragraph about what the company does..." />
+              <TA label="Boilerplate (for press releases)" value={data.boilerplate || ""} onChange={v => setData(d => ({ ...d, boilerplate: v }))} placeholder="About the company paragraph used at the bottom of press releases..." />
+              <div style={{ display: "flex", gap: "8px" }}>
+                <Btn onClick={onSave} disabled={!data.name} color={saveColor}>{saveLabel}</Btn>
+                {onCancel && <Btn onClick={onCancel} color="#ef4444" outline>Cancel</Btn>}
+              </div>
+            </>;
+          };
+
+          return <>
+            {/* Create new brand */}
+            <Card style={{ borderColor: "rgba(0,240,255,0.15)" }}>
+              <SL style={{ color: "#00f0ff" }}>Create Brand</SL>
+              <BrandForm data={newBrand} setData={setNewBrand} saveLabel="Create Brand" saveColor="#00f0ff" onSave={async () => {
+                if (!newBrand.name) return;
+                try {
+                  // Flatten founders for backward compat
+                  const payload = { ...newBrand };
+                  if (payload.founders?.length > 0) {
+                    payload.founder_name = payload.founders.map(f => f.name).join(", ");
+                    payload.founder_title = payload.founders.map(f => f.title).join(", ");
+                  }
+                  await api.brands.create(payload);
+                  setNewBrand({});
                   loadBrands();
+                } catch (e) { setAdminError(e.message); }
+              }} />
+            </Card>
+
+            {/* Existing brands */}
+            {brandsLoading ? <div style={{ textAlign: "center", padding: "20px", color: "rgba(255,255,255,0.3)" }}>Loading...</div> :
+            brandsList.length === 0 ? <div style={{ textAlign: "center", padding: "30px", color: "rgba(255,255,255,0.25)", fontFamily: "var(--mono)", fontSize: "12px" }}>No brands yet. Create one above.</div> :
+            brandsList.map(br => <Card key={br.id} style={{ borderColor: editingBrand === br.id ? "rgba(0,240,255,0.3)" : "rgba(255,255,255,0.08)" }}>
+              {editingBrand === br.id ? (() => {
+                const [editData, setEditData] = [brandsList.find(b => b.id === br.id) || br, (fn) => {
+                  setBrandsList(prev => prev.map(b => b.id === br.id ? (typeof fn === "function" ? fn(b) : fn) : b));
+                }];
+                // Parse existing founder_name/title into founders array if not already
+                if (!editData.founders) {
+                  const names = (editData.founder_name || "").split(",").map(s => s.trim()).filter(Boolean);
+                  const titles = (editData.founder_title || "").split(",").map(s => s.trim());
+                  const parsedFounders = names.map((n, i) => ({ name: n, title: titles[i] || "" }));
+                  if (parsedFounders.length > 0) editData.founders = parsedFounders;
                 }
-              }} color="#ef4444" outline small>Delete</Btn>
-            </div>
-          </div>
-          {br.founder_name && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)" }}>{br.founder_title || "Founder"}: {br.founder_name}</div>}
-          {br.email && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)" }}>{br.email}{br.phone ? ` · ${br.phone}` : ""}</div>}
-          {br.boilerplate && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", marginTop: "6px", lineHeight: 1.4 }}>{br.boilerplate.substring(0, 150)}{br.boilerplate.length > 150 ? "..." : ""}</div>}
-        </Card>)}
+                return <>
+                  <SL style={{ color: "#00f0ff" }}>Edit: {br.name}</SL>
+                  <BrandForm data={editData} setData={setEditData} saveLabel="Save Changes" saveColor="#22c55e" onCancel={() => { setEditingBrand(null); loadBrands(); }} onSave={async () => {
+                    try {
+                      const payload = { ...editData };
+                      delete payload.id; delete payload.user_id; delete payload.created_at; delete payload.updated_at;
+                      if (payload.founders?.length > 0) {
+                        payload.founder_name = payload.founders.map(f => f.name).join(", ");
+                        payload.founder_title = payload.founders.map(f => f.title).join(", ");
+                      }
+                      delete payload.founders;
+                      await api.brands.update(br.id, payload);
+                      setEditingBrand(null);
+                      loadBrands();
+                    } catch (e) { setAdminError(e.message); }
+                  }} />
+                </>;
+              })() : <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <div>
+                    <div style={{ fontSize: "15px", fontWeight: 700, color: "#e0e0e0" }}>{br.name}</div>
+                    {br.industry && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{br.industry}{br.location ? ` · ${br.location}` : ""}</div>}
+                  </div>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <Btn onClick={() => setEditingBrand(br.id)} color="#00f0ff" outline small>Edit</Btn>
+                    <Btn onClick={async () => {
+                      if (confirm("Delete this brand?")) {
+                        await api.brands.delete(br.id);
+                        loadBrands();
+                      }
+                    }} color="#ef4444" outline small>Delete</Btn>
+                  </div>
+                </div>
+                {br.founder_name && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)" }}>{br.founder_name}{br.founder_title ? ` (${br.founder_title})` : ""}</div>}
+                {br.email && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", fontFamily: "var(--mono)" }}>{br.email}{br.phone ? ` · ${br.phone}` : ""}</div>}
+                {br.boilerplate && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", marginTop: "6px", lineHeight: 1.4 }}>{br.boilerplate.substring(0, 150)}{br.boilerplate.length > 150 ? "..." : ""}</div>}
+              </>}
+            </Card>)}
+          </>;
+        })()}
       </div>}
 
       {tab === "brand" && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
