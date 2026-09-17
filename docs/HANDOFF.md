@@ -13,7 +13,7 @@ managed-by: session-orchestrator/handoff-builder
 - **Phases 0 (stabilise), 1 (foundation) and 2 (interface rebuild) are complete.** Phase 3 (real actions) is next and not started.
 - **Live in production** on Railway at **https://launchops.run** (HTTPS, certificate issued 2026-09-17, valid to 2026-12-16). First ever deployment of this app.
 - `main` is at **`f143f1c`** (merge of PR #2) and is what production runs. Every push to `main` deploys.
-- **Committed at handoff, but not merged:** this session's work is on the local branch **`fix/refresh-token-clock-skew`** (head `39ff28b`) — `35d24c5` the BUG-027 fix, `584cff6` a regression test, `7c1f1cb` the session-end documents, `39ff28b` the design-system correction. The branch is **not pushed**, so nothing is on GitHub and **the BUG-027 security fix is not in production**. Opening the pull request and merging it (merge commit, never squash) is B-13 and still needs the owner. `.github/workflows/test-pipeline.yml` stays untracked for ever.
+- **In review at handoff, not merged:** this session's work is on branch **`fix/refresh-token-clock-skew`**, open as **pull request #3** (head `ee4932a`) — `35d24c5` the BUG-027 fix, `584cff6` a regression test, `7c1f1cb` the session-end documents, `39ff28b` the design-system correction. Until it merges, **the BUG-027 security fix is not in production**. Merging it (merge commit, never squash) once CI is green is B-13. `.github/workflows/test-pipeline.yml` stays untracked for ever.
 - **All quality gates green:** backend 550 passed / 98.31% coverage, frontend 601 passed in 49 files / 99.19% lines, Playwright 69 passed, ruff + ESLint clean, pip-audit and npm advisories clear, gitleaks passing in CI.
 
 ## Start here — confirm a green baseline
@@ -52,7 +52,7 @@ Nothing below moves without a decision; each is written up with its working defa
 - **D15 brand kernel** (B-8, B-9, B-10): does a project's brand override the organisation's voice field by field or wholesale; which role may edit it; should each result record the brand version it used.
 - **D8 reset links** (B-11): may organisation owners create password reset links, or platform admins only (current behaviour)?
 - **Billing** (B-12): what is metered and charged, so billing settings can be designed.
-- **Pushing and merging this session's branch** (B-13) — the work is committed on `fix/refresh-token-clock-skew` but not pushed, so the BUG-027 security fix is not live. Ask before pushing (see "Where the project stands").
+- **Merging this session's pull request #3** (B-13) — the work is on `fix/refresh-token-clock-skew`, pushed and in review; until it merges, the BUG-027 security fix is not live.
 
 ## Warnings — do not learn these the hard way
 

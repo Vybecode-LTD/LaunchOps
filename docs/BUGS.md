@@ -11,7 +11,7 @@ managed-by: session-orchestrator/bug-fix-tracker
 First edition of this registry. It back-fills every bug found and fixed during the Phase 0–2
 rebuild, up to the handoff of 2026-09-17. All of it is on `main`, merged in pull request #1
 (merge commit `24eff91`) and #2 (`f143f1c`) — except BUG-027, found and fixed at the end of the
-same session, which is committed on the unmerged local branch `fix/refresh-token-clock-skew`.
+same session, which is in pull request #3 on branch `fix/refresh-token-clock-skew`, not yet merged.
 
 **Every fix in this project lands with a test that failed before the fix and passed after it.**
 All 27 bugs below did. The regression tests named in each entry were read and confirmed to exist
@@ -273,7 +273,7 @@ Two accepted gaps. Neither is a defect in shipped behaviour; both are holes in t
 - **Status:** ✅ Fixed and verified
 - **Not yet on `main`:** unlike every other entry here, this fix is not in production. It is
   commit `35d24c5` (`backend/routers/auth.py`, `backend/tests/test_sessions.py`) on the local
-  branch `fix/refresh-token-clock-skew`, which is not pushed and not merged. Tracked as B-13 in
+  branch `fix/refresh-token-clock-skew`, open as pull request #3 and not yet merged. Tracked as B-13 in
   `docs/ROADMAP.md`.
 
 ---

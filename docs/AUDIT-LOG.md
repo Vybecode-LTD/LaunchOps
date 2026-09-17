@@ -28,7 +28,7 @@ document owner had finished. Three had not — see Concurrency.
 **Repository state at open:** `main` at `f143f1c`; 6 modified, 4 untracked; no branch but `main`.
 **At close:** `main` **unchanged at `f143f1c`** — production is exactly what it was. The session's
 work now sits on the local branch `fix/refresh-token-clock-skew`, 4 commits ahead of `main`
-(`35d24c5`, `584cff6`, `7c1f1cb`, `39ff28b`), **not pushed**. Six documents are modified in the
+(`35d24c5`, `584cff6`, `7c1f1cb`, `39ff28b`), later pushed as pull request #3 with this audit's own fixes in `ee4932a`. Six documents are modified in the
 working tree — this audit's finding-14 corrections and this log itself.
 `.github/workflows/test-pipeline.yml` stays untracked by design.
 **This reconciler made no commit, stage, push or branch.** The commits were made by another agent
@@ -155,5 +155,5 @@ in this entry is true as of the final sweep, not of the moment each document was
    script"). It is a **code comment**, so this reconciler left it; it should be corrected to match
    `frontend/public/theme-init.js`.
 5. **Standing:** re-audit at the next session end, and **again immediately after B-13 merges**.
-   Six documents now describe a branch that is not merged; the moment it lands on `main`, every
+   Six documents now describe pull request #3, unmerged; the moment it lands on `main`, every
    one of them is stale again. Finding 14 is what that looks like when it is missed by a minute.

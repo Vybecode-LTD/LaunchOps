@@ -53,10 +53,12 @@ _After the first handoff pass, same session._
   to document owners. Both high findings were in the assessment plan and are corrected — a
   "certificate still issuing" claim, and a superseded next-step list.
 
-### Not yet committed
+### Not yet merged
 
 - The BUG-027 fix (`backend/routers/auth.py`, `backend/tests/test_sessions.py`) and this
-  documentation batch are working-tree changes, not on `main` — see B-13 in `docs/ROADMAP.md`.
+  documentation batch are pull request #3, on branch `fix/refresh-token-clock-skew`. Until it
+  merges they are not on `main` and the security fix is not in production — B-13 in
+  `docs/ROADMAP.md`.
 
 ---
 

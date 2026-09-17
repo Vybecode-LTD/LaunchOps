@@ -43,7 +43,7 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
   - usage ledger with monthly budgets and a Settings → Usage page
 
   Plus the rest of Phase 0: encrypted SMTP passwords, SSRF guard, startup guards, Alembic migrations, the daily email cap, deleted duplicate deploy files, CI security scans. Then, on 2026-09-17: the `ADMIN_EMAIL` setting, the Railway deployment, pull request #1 (branch `feature/launchops-v2-foundation`: `d7752c3` the v2 work, `4ecbcc4` `.gitleaksignore`), merged into `main` as `24eff91` after all CI checks passed, and pull request #2 (documentation: `4f433ee`, `b0beeaf`), merged as `f143f1c`. After that, `ANTHROPIC_API_KEY` was set on Railway, a live smoke test passed, and **launchops.run went live over HTTPS**.
-- **Active task:** none. **`main` is still at `f143f1c`, and that is what production runs.** This session's work is committed on the local branch **`fix/refresh-token-clock-skew`** (head `39ff28b`), which is **not pushed and not merged**: `35d24c5` the BUG-027 refresh-token fix, `584cff6` the text-block regression test, `7c1f1cb` the session-end documents, `39ff28b` the design-system correction. Because it is unmerged, **the BUG-027 security fix is not in production.** Opening the pull request, waiting for CI and merging with a merge commit (never a squash) is B-13 in `docs/ROADMAP.md`, and still needs the owner. Only `.github/workflows/test-pipeline.yml` remains deliberately untracked.
+- **Active task:** none. **`main` is still at `f143f1c`, and that is what production runs.** This session's work is on branch **`fix/refresh-token-clock-skew`**, pushed and open as **pull request #3**, not yet merged: `35d24c5` the BUG-027 refresh-token fix, `584cff6` the text-block regression test, `7c1f1cb` the session-end documents, `39ff28b` the design-system correction. Because it is unmerged, **the BUG-027 security fix is not in production.** Merging it with a merge commit (never a squash) once CI is green is B-13 in `docs/ROADMAP.md`. Only `.github/workflows/test-pipeline.yml` remains deliberately untracked.
 - **Next** (priority order; the first four are owner-only account, DNS and console work, not code — full list in `docs/ROADMAP.md` → Active):
   - delete the stray account `guard-check@example.com` and "Guard check's organisation" (Settings → Team & access): a sign-up probe created it on the live site
   - confirm who holds the first (admin) account, and decide whether open registration stays on
@@ -357,4 +357,4 @@ The developer cannot configure pip/python in system PATH on Windows. Always use 
 
 ---
 
-Last-verified: 2026-09-17 · production `f143f1c` (`main`) · this session's work on the unmerged local branch `fix/refresh-token-clock-skew` (`39ff28b`)
+Last-verified: 2026-09-17 · production `f143f1c` (`main`) · this session's work in pull request #3, branch `fix/refresh-token-clock-skew` (`ee4932a`)
