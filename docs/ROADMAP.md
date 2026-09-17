@@ -1,8 +1,8 @@
 ---
 document: ROADMAP
-version: 1.1.0
-last-updated: 2026-09-17T19:40:00Z
-last-audit: 2026-09-17T19:30:00Z
+version: 1.1.1
+last-updated: 2026-09-17T20:10:00Z
+last-audit: 2026-09-17T20:05:00Z
 managed-by: session-orchestrator/roadmap-manager
 ---
 
@@ -148,6 +148,8 @@ account, DNS and Railway housekeeping that only the owner can do.
 ## Blocked / needs the owner
 
 Nothing here can move without a decision. Each links to where the question is written up.
+Twelve are open (B-1 to B-12); once a decision is made and carried out the item moves to
+**Decided** below, so this table is only ever the outstanding list.
 
 | # | Question | Source | Working default until answered |
 |---|---|---|---|
@@ -163,7 +165,28 @@ Nothing here can move without a decision. Each links to where the question is wr
 | B-10 | Brand kernel: should each result record the brand version it used? | D15 | Not built; ties D15 to the result history in D16. |
 | B-11 | Should organisation owners also be able to create password reset links? | D8 | Platform admins only, because a person can belong to several organisations and an owner who could reset a password could reach that member's other organisations. |
 | B-12 | Billing: what is metered and charged, so billing settings can be designed | Plan §6 Phase 2, Progress | Usage and budgets are visible per organisation; no billing surface. |
-| B-13 | Merge the session-end batch — the BUG-027 refresh-token fix and this handoff's documents | Session end 2026-09-17; BUG-027 in `docs/BUGS.md` | **In review, not merged.** It is pull request #3, branch `fix/refresh-token-clock-skew` (head `ee4932a`): `35d24c5` the fix, `584cff6` a regression test, `7c1f1cb` the session-end documents, `39ff28b` the design-system correction. `main` is untouched at `f143f1c`, so **the security fix is not live**. The owner asked for the branch, the pull request and the merge on 2026-09-17. What remains: wait for CI, then merge with a **merge commit** — never a squash, because `.gitleaksignore` pins its three reviewed findings by per-commit fingerprint, and every push to `main` deploys to production. |
+
+## Decided
+
+Items that were blocked on an owner decision, now decided and carried out. They are kept for the
+record: none of them is waiting on anyone, and none counts towards the open decisions above.
+
+### B-13 — Merge the session-end batch (the BUG-027 refresh-token fix and the handoff documents) — done 2026-09-17
+
+- **Decision:** the owner was asked and chose **branch, pull request, merge after CI**. All of it
+  is done.
+- **Merged:** pull request #3, branch `fix/refresh-token-clock-skew`, into `main` as merge commit
+  **`bc6143c`** — a merge commit, never a squash, so `.gitleaksignore`'s three per-commit
+  fingerprints still resolve.
+- **CI was green first:** backend (550 tests against a `postgres:18` service, behind the 95%
+  coverage gate), frontend (lint, typecheck, Vitest, build, Playwright) and the gitleaks secret
+  scan over the full history.
+- **Six commits landed:** `35d24c5` the BUG-027 fix, `584cff6` a regression test, `7c1f1cb` the
+  session-end documents, `39ff28b` the design-system correction, `ee4932a` the reconciliation
+  fixes, `c486949` the branch-state notes.
+- **Deployed and verified:** Railway deployed `bc6143c` successfully at 2026-09-17T19:47:08Z.
+  `/health` answers 200 `{"status":"ok"}`, and `POST /api/auth/refresh` with no cookie answers 401
+  session-ended. **The BUG-027 security fix is live in production.**
 
 ## Next up
 
