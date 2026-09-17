@@ -5,3 +5,7 @@
 # generic API key rule. They're keys of the stored launch plan format (lib/domain/checklist.ts).
 d7752c36480f4d437f9e3536a5ba4c3154ee6d9d:frontend/src/lib/domain/checklist.test.ts:generic-api-key:11
 d7752c36480f4d437f9e3536a5ba4c3154ee6d9d:frontend/src/lib/domain/checklist.test.ts:generic-api-key:23
+
+# The note about those keys in docs/TESTING.md first quoted them in the same test syntax, which
+# matched the rule again. The note was reworded in a later commit; this entry covers the original.
+4f433ee7443652d11f8d55053de6041785d9ca6f:docs/TESTING.md:generic-api-key:195

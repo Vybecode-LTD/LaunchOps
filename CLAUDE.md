@@ -15,7 +15,7 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
 | | |
 |---|---|
 | **Positioning** | Being prepared for corporate partners who run portfolios of startups (multi-venture first). |
-| **Production domain** | https://launchops.run, which the owner is adding as the custom domain. The app was deployed on Railway on 2026-09-17 and answers at https://launchops-production-0457.up.railway.app. See [Deployment & CI](#deployment--ci). |
+| **Production domain** | https://launchops.run, the custom domain of the Railway deployment. Railway verified the domain on 2026-09-17, but its HTTPS certificate was still being issued. The app also answers at https://launchops-production-0457.up.railway.app. See [Deployment & CI](#deployment--ci). |
 | **Roadmap, findings, phase status** | `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`, section "Progress" |
 | **Phase 1 decisions (D1–D16)** | `docs/PHASE1_DESIGN.md` |
 | **Design system** | `docs/DESIGN_SYSTEM.md` |
@@ -38,12 +38,11 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
   - prompt caching
   - usage ledger with monthly budgets and a Settings → Usage page
 
-  Plus the rest of Phase 0: encrypted SMTP passwords, SSRF guard, startup guards, Alembic migrations, the daily email cap, deleted duplicate deploy files, CI security scans. Then, on 2026-09-17, the `ADMIN_EMAIL` setting and the Railway deployment.
-- **Active task:** none. All work is **uncommitted on `main`** until the owner reviews it. Don't commit without asking, and create a branch first.
+  Plus the rest of Phase 0: encrypted SMTP passwords, SSRF guard, startup guards, Alembic migrations, the daily email cap, deleted duplicate deploy files, CI security scans. Then, on 2026-09-17: the `ADMIN_EMAIL` setting, the Railway deployment, and pull request #1 (branch `feature/launchops-v2-foundation`: `d7752c3` the v2 work, `4ecbcc4` `.gitleaksignore`), merged into `main` as `24eff91` after all CI checks passed. After that, `ANTHROPIC_API_KEY` was set on Railway, a live smoke test passed, and launchops.run was added as the custom domain.
+- **Active task:** none. The v2 work is merged into `main`. Don't commit without asking, and create a branch first.
 - **Next:**
-  - set `ANTHROPIC_API_KEY` on the `launchops` service and run a live smoke test against the real Anthropic API (tests only use a fake transport)
-  - add launchops.run as the custom domain, then sign up with the `ADMIN_EMAIL` address and decide whether registration stays open (Settings → Team & access)
-  - owner review, then commit on a branch, then connect `launchops` to GitHub (`Vybecode-LTD/LaunchOps`) so pushes deploy
+  - once https://launchops.run answers over HTTPS, sign up with the `ADMIN_EMAIL` address and decide whether registration stays open (Settings → Team & access)
+  - suggested: turn on Wait for CI in the `launchops` service's source settings, so a push to `main` deploys only after CI passes
   - optional: `MAIL_*` settings, database backups, deleting the leftover volume `postgres-volume-qVKY`
   - owner decisions: plan section 8; the brand kernel questions in D15; whether organisation owners should also create reset links (D8)
   - Phase 2 follow-up: brand kernel, result history, billing settings
@@ -153,7 +152,7 @@ There are 18 operations. **The catalogue's descriptions must stay true to backen
 | Kind | # | Operations | Behaviour |
 |---|---|---|---|
 | Background workflow | 12 | competitor, trend, announcement, social posts, ad copy, blog, cold outreach, partnerships, podcasts, Reddit, directories, launch platforms | `POST /api/workflows/launch` saves a running result and a durable job in one transaction, then returns. A worker runs the job: inside the web process by default (`WORKER_ENABLED`), or `python -m worker`. The job survives restarts. Failures a retry might fix get 3 attempts (after 30 s, then 2 min). An Editor can cancel it (`POST /api/queue/{id}/cancel`), and each attempt stops after `JOB_TIMEOUT_MINUTES` (15). The result lands in Review. |
-| Synchronous report | 5 | market analysis, pricing, press kit, press release, SEO | Stored on the project and stamped with `generated_at`. Market analysis and pricing use `CLAUDE_REPORT_MODEL`. If the AI call fails, the API returns 503/502/504 with a readable reason and never overwrites a saved report. |
+| Synchronous report | 5 | market analysis, pricing, press kit, press release, SEO | Stored on the project and stamped with `generated_at`. Market analysis and pricing use `CLAUDE_REPORT_MODEL`. If the AI call fails, the API returns 503 (unavailable), 502 (provider error or unusable result), 504 (timeout) or 422 (declined), each with a readable reason, and never overwrites a saved report. |
 | Tool | 1 | repurpose | Returns platform-adapted copy directly. Not stored. |
 
 ### Key behaviours
@@ -183,6 +182,7 @@ There are 18 operations. **The catalogue's descriptions must stay true to backen
 - The system prompt has three parts (`Prompt`). The instructions and the brand context (`build_brand_context()`) are cached; the run details and today's date aren't.
 - Prompts: `WORKFLOW_PROMPTS` covers the 12 background workflows. Press kit, press release, SEO, repurpose, pricing and market analysis each have their own `*_INSTRUCTIONS`.
 - `pause_turn` resumes, and each call has a 10-minute deadline, retries and resumes included.
+- Requests to `claude-opus-5` and `claude-fable-5-1` opt in to server-side fallbacks (`fallbacks: "default"` with the `server-side-fallback-2026-07-01` beta; `SERVER_FALLBACK_MODELS`). If the model's safety classifiers decline a request, Anthropic re-runs it on the recommended fallback model instead of returning the refusal. A refusal that remains is a 422 with a readable message.
 - Every API response is recorded in the `ai_usage` ledger (`services/usage.py`; costs in `services/pricing.py`).
 - The frontend still renders `raw_response` for results stored before structured outputs.
 
@@ -302,7 +302,7 @@ The developer cannot configure pip/python in system PATH on Windows. Always use 
 
 - Never write into OneDrive or the Documents/Desktop folders.
 - Bug fixes need a failing test first. Keep ESLint at zero warnings. Update docs at the point of change.
-- Don't commit without asking the owner, and create a branch first.
+- Don't commit without asking the owner, and create a branch first. Every push to `main` deploys to production on Railway.
 - Keep the operation descriptions in `frontend/src/lib/domain/operations.ts` true to backend behaviour.
 - Launch plan phase names and item order are part of the stored data format (`frontend/src/lib/domain/checklist.ts`). Never rename or reorder them.
 
@@ -314,18 +314,25 @@ The developer cannot configure pip/python in system PATH on Windows. Always use 
   - `launchops`: built from the root `Dockerfile` and root `railway.toml`. The Dockerfile builds `frontend/dist` with Node 24, then Python 3.12 serves the API and the SPA from `static/`. `railway.toml` sets the `/health` healthcheck. The job worker runs inside this service; to split it out, run `python -m worker` as a second service and set `WORKER_ENABLED=false` here.
   - `Postgres`: the Railway Postgres 18 template, with a volume.
   - Startup applies pending migrations; a failed migration stops the app from starting.
-  - Variables on `launchops`: `DATABASE_URL` (references `${{Postgres.DATABASE_URL}}` over the private network), `JWT_SECRET` and `FIELD_ENCRYPTION_KEY` (generated), `APP_URL=https://launchops.run`, `ADMIN_EMAIL`. Not set yet: `ANTHROPIC_API_KEY` (the owner sets it) and `MAIL_*` (optional).
-  - Source: `launchops` isn't connected to GitHub. It runs the uncommitted working tree, uploaded with `railway up`. After the work is committed, connect it to `Vybecode-LTD/LaunchOps` so pushes deploy.
+  - Variables on `launchops`: `DATABASE_URL` (references `${{Postgres.DATABASE_URL}}` over the private network), `JWT_SECRET` and `FIELD_ENCRYPTION_KEY` (generated), `APP_URL=https://launchops.run`, `ADMIN_EMAIL`, `ANTHROPIC_API_KEY`. Not set yet: `MAIL_*` (optional).
+  - Source: `launchops` is connected to GitHub `Vybecode-LTD/LaunchOps`, branch `main`, so every push to `main` deploys. Turning on Wait for CI in the service's source settings is suggested, so a deploy waits for CI to pass.
+  - Domain: launchops.run is the custom domain of `launchops` (port 8080). DNS is at Spaceship, with the apex CNAME flattened to Railway's edge. Railway has verified the domain, and no CAA or AAAA record is in the way. The HTTPS certificate was still being issued on 2026-09-17.
   - The old `backend`, `frontend` and `src-tauri` services have been removed. A detached empty volume, `postgres-volume-qVKY`, is left over and can be deleted in the dashboard.
-- **Status (2026-09-17):** deployed. `launchops` answers at https://launchops-production-0457.up.railway.app, and the owner is adding launchops.run as its custom domain. Verified live:
+- **Status (2026-09-17):** the deployment that picked up `ANTHROPIC_API_KEY` is live. `launchops` answers at https://launchops-production-0457.up.railway.app; launchops.run is verified, but its HTTPS certificate was still being issued. Verified live on the deployment built from `24eff91`:
   - `/health` answers ok, and the interface loads
   - unauthenticated API calls get 401
   - a first registration from another address gets 403, so the database and migrations work
-  - security headers, including HSTS, are sent
+  - security headers, including HSTS, were checked on the first deployment, before GitHub was connected
+- **Live smoke test (2026-09-17):** passed with the deployment's key. `generate_result` made three calls against the real Anthropic API, all with valid results, for about $0.10 in total:
+  - a non-research operation on Sonnet 5 (structured outputs)
+  - a research operation on Sonnet 5: 3 web searches, the strict submit tool, 6 verified sources, cache reads of about 15,000 tokens
+  - a non-research operation on Opus 5 with the server-side fallback beta
+
+  It was a one-off manual check; the automated tests still use a fake API.
 - **Desktop:** `src-tauri/` is a webview pointing at https://launchops.run. `.github/workflows/build-desktop.yml` builds installers on `v*` tags.
 - **CI:** `.github/workflows/ci.yml` has three jobs:
   - Backend: ruff, pip-audit, then pytest with a `postgres:18` service and the 95% coverage gate.
-  - Secrets: gitleaks over the full git history.
+  - Secrets: gitleaks over the full git history. `.gitleaksignore` lists two reviewed false positives (launch plan keys in `frontend/src/lib/domain/checklist.test.ts`) by exact fingerprint.
   - Frontend: npm audit (fails on high or critical), lint, typecheck, Vitest coverage, build, Playwright.
 
 ---
@@ -336,4 +343,4 @@ The **"Progress"** section of `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` has the 
 
 ---
 
-Last-verified: 2026-09-17 · HEAD `97a0706` plus the uncommitted working tree
+Last-verified: 2026-09-17 · HEAD `24eff91`
