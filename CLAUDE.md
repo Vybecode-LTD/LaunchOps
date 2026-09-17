@@ -58,9 +58,9 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
 
 | Suite | Result | Coverage |
 |---|---|---|
-| Backend pytest | 550 passed | 98.31% of application code — 3,316 statements, 56 missed (tests excluded). `backend/.coveragerc` enforces the 95% deploy gate (`fail_under = 95`; omits `tests/`, `.venv/` and `venv/`) whenever coverage is collected (`python -m pytest --cov`, as CI runs it). |
+| Backend pytest | 554 passed | 98.32% of application code — 3,324 statements, 56 missed (tests excluded). `backend/.coveragerc` enforces the 95% deploy gate (`fail_under = 95`; omits `tests/`, `.venv/` and `venv/`) whenever coverage is collected (`python -m pytest --cov`, as CI runs it). |
 | Frontend Vitest | 49 files, 601 passed | 99.19% lines (statements 97.03%, branches 89.97%, functions 96.47%). `frontend/vitest.config.ts` enforces 95% lines (`coverage.thresholds`) in `npm run coverage`. |
-| Playwright (chromium) | 69 passed (3 smoke, 12 golden path, 54 accessibility: 27 screens × 2 themes) | n/a |
+| Playwright (chromium) | 96 passed (3 smoke, 12 golden path, 54 accessibility: 27 screens × 2 themes, 27 responsive: 27 screens at a 390px phone viewport). The responsive specs are new: the accessibility scans run at the default desktop viewport, so three screens shipped scrolling sideways by about 135px without failing anything. | n/a |
 
 ---
 
@@ -119,7 +119,8 @@ LaunchOps/
 │   ├── src/pages/             # auth (sign in, password reset, invitation), portfolio, project/*, review, outbox,
 │   │                          #   calendar, library, settings/*
 │   ├── src/test/              # fakeApi.ts (shared fake backend), renderApp, roles, app-level tests
-│   ├── e2e/                   # smoke, golden, a11y specs; support/ (fakeBackend, sample workspace); capture.mjs (screenshots)
+│   ├── e2e/                   # smoke, golden, a11y and responsive specs (responsive.spec.ts: every screen at 390px);
+│   │                          #   support/ (fakeBackend, sample workspace); capture.mjs (screenshots)
 │   └── vite / vitest / playwright / eslint / tsconfig.* configs
 └── docs/                      ← managed documents: versioned together, edited through their subagents
     ├── ASSESSMENT_AND_DEVELOPMENT_PLAN.md   # findings, phased plan, Progress
@@ -178,7 +179,7 @@ There are 18 operations. **The catalogue's descriptions must stay true to backen
 - **SMTP passwords** are write-only (the API returns `smtp_password_set`, never the password) and encrypted at rest with `FIELD_ENCRYPTION_KEY`.
 - **Live updates:** `GET /api/events` (SSE, read with fetch so the token stays in a header) refreshes Review and the Outbox. Polling slows to 30 s while connected.
 - **Stalled operations:** the activity indicator and Review flag operations running over 60 minutes as possibly stuck.
-- **Usage and budgets:** every Claude API response goes in the `ai_usage` ledger with an estimated cost, including $10 per 1,000 web searches. An optional monthly budget per organisation gives 429 once reached. Owners see both in Settings → Usage.
+- **Usage and budgets:** every Claude API response goes in the `ai_usage` ledger with an estimated cost, including $10 per 1,000 web searches. A monthly budget per organisation gives 429 once reached, and an organisation that has never set one falls back to the platform default, `DEFAULT_MONTHLY_AI_BUDGET_USD`. Owners see both in Settings → Usage.
 - **Calendar:** month and week views. Dragging reschedules entries (`PATCH /api/calendar/{id}`) and launch dates (`PATCH /api/products/{id}`), and every move can be undone. The day agenda is the keyboard alternative.
 - **Dates** the user picks are local `YYYY-MM-DD` keys and are never converted through UTC.
 - **JSONB reorders object keys**, so the frontend restores the canonical field order for AI results (`frontend/src/lib/domain/order.ts`).
@@ -295,6 +296,7 @@ This machine can't download Chromium through `npx playwright install chromium`; 
 | `RATE_LIMIT_ENABLED` | backend | Default `true`: rate limits on sign-in, registration, password resets and AI operations |
 | `AI_OPERATIONS_PER_HOUR`, `MAX_CONCURRENT_TASKS` | backend | Per account: AI operations per hour (default 60) and background operations running at once (default 5) |
 | `MAX_EMAILS_PER_DAY` | backend | Outbox sends per account in any 24 hours (default 20); 0 switches sending off |
+| `DEFAULT_MONTHLY_AI_BUDGET_USD` | backend | Monthly AI spending cap for **any organisation that has not set a budget of its own** (default 25). Registration creates an organisation with no budget, and every deployment bills AI to one `ANTHROPIC_API_KEY`, so without this a self-registered account could spend on that key without limit. An organisation's own budget always wins; the default only covers those that never set one, and **clearing** an organisation's budget falls back to this default rather than meaning unlimited. `0` means no default cap. Documented in `backend/.env.example`. |
 | `SECRET_KEY` | backend | Unused; kept so existing `.env` files still load |
 | `TEST_DATABASE_URL` | backend tests | Overrides the local test database default |
 | `LAUNCHOPS_API_URL` | frontend | Dev proxy target only (`frontend/.env.local`) |

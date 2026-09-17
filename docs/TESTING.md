@@ -15,11 +15,11 @@ Per-file counts were taken from the test files on 2026-09-17 (`pytest --collect-
 
 | Suite | Location | Runner | Latest run, 2026-09-16/17 |
 |---|---|---|---|
-| Backend API, database, jobs and AI client | `backend/tests/` | pytest | 550 collected, 550 passed |
+| Backend API, database, jobs and AI client | `backend/tests/` | pytest | 554 collected, 554 passed |
 | Frontend units, components, whole app | `frontend/src/**/*.test.ts(x)` | Vitest (jsdom) | 49 files, 601 passed |
-| Browser, production build | `frontend/e2e/*.spec.ts` | Playwright (Chromium) | 69 passed |
+| Browser, production build | `frontend/e2e/*.spec.ts` | Playwright (Chromium) | 96 passed |
 
-**Total: 1,220 tests, all passed. There are no xfails or skips.**
+**Total: 1,251 tests, all passed. There are no xfails or skips.**
 
 The other gates passed in the same runs: `ruff check .`, `npm run lint` (zero warnings) and `npm run typecheck`. pip-audit found no known vulnerabilities, and npm's advisory service found none in 614 installed package versions (checked from Python; see section 2).
 
@@ -310,7 +310,12 @@ Three scans can't run on this development machine the way CI runs them:
   - zero violations are required. A failure prints each rule, its impact and help text, and up to five offending nodes.
 
   Screens scanned: Sign in, Forgot password, Reset password, Invitation, Portfolio, Project overview, Operations, Run sheet (dialog), Reports, Market analysis report, SEO report, Review, Research result with sources, Outbox, Launch plan, Project settings, Calendar month, Calendar week, Library, Workspace settings, Brand voice, Companies, Channels, Organisation settings, Activity, Usage, Team.
-- **`e2e/capture.mjs` is a manual screenshot tool, not a test.** Playwright only collects `*.spec.ts`.
+- **`e2e/responsive.spec.ts` checks that no screen scrolls sideways on a phone.**
+  - A **390×844** viewport (an iPhone 15/16 in portrait) with reduced motion, on the same 27 screens the accessibility scan covers. Each test asserts that the document is no wider than the viewport (`documentElement.scrollWidth` against `clientWidth`).
+  - **Why it exists:** the accessibility scans run at the default desktop viewport, so three screens shipped scrolling sideways — Portfolio by 136px, Review by 133px and the review result by 133px — without anything failing. The spec found a fourth on its first run, the SEO report's section header.
+  - It measures the symptom rather than any particular cause, then hides candidate elements one at a time and names the one whose removal would fix the overflow, so a regression says where to look.
+  - The causes fixed were the launch board's auto-layout table leaking its intrinsic width past the wrapper that clips it (`contain: content`), a segmented control whose flex items could not shrink, and a section header that would not wrap.
+- **`e2e/capture.mjs` is a manual screenshot tool, not a test.** Playwright only collects `*.spec.ts` — but it collects **every** `*.spec.ts` in `e2e/`, so a temporary file named that way joins the suite (gap 12).
   - Usage: `node e2e/capture.mjs <outDir> <token> [baseUrl]`.
   - Runs against a live dev server backed by a real backend (default `http://localhost:5173`, which proxies `/api`).
   - The data must include projects named "VybeCode DSP" and "Orbit Payroll".
@@ -326,9 +331,9 @@ Three scans can't run on this development machine the way CI runs them:
 
 How the totals reconcile with the latest runs:
 
-- **Backend:** 324 plain tests + 226 cases from 31 parametrized tests = 550. The largest expansions are in `test_organisations.py` (59 cases), `test_workflows.py` (51), `test_results.py` (36) and `test_scraper.py` (23).
+- **Backend:** 328 plain tests + 226 cases from 31 parametrized tests = 554. The largest expansions are in `test_organisations.py` (59 cases), `test_workflows.py` (51), `test_results.py` (36) and `test_scraper.py` (23).
 - **Vitest:** 508 plain tests + 93 cases from 6 `it.each` tables = 601. The tables: `endpoints.test.ts` 58, `results.test.tsx` 12 + 12 + 5 + 3, `fakeApi.test.ts` 3. `npx vitest list` shows 514, because it lists each `it.each` once.
-- **Playwright:** 3 + 12 + 27 × 2 = 69.
+- **Playwright:** 3 + 12 + 27 × 2 + 27 = 96.
 
 ### Backend: `backend/tests/` (pytest)
 
@@ -357,9 +362,9 @@ How the totals reconcile with the latest runs:
 | `test_security.py` | 15 | 22 | Hardening (F-7): outside debug mode, startup refuses a weak JWT secret (3) and a missing or invalid encryption key (2); debug mode starts with a development secret; API docs only in debug mode; cross-origin calls only from configured origins; security headers, and HSTS on HTTPS responses; rate limits on sign-in per account and per address, account creation per address, and AI operations per account; a cap on running operations per account; new passwords must be 8 to 72 bytes (5), including admin-created accounts; unknown accounts get the same password check, so response time doesn't reveal which emails have accounts |
 | `test_sessions.py` | 14 | 15 | Sessions: signing in sets a refresh cookie scripts can't read, secure over HTTPS; access tokens last 15 minutes and expired ones are refused; refreshing rotates the cookie and issues a new access token; two tabs refreshing at once both stay signed in; refreshing without a cookie, with an expired refresh token or for a disabled account ends the session; reusing an old refresh token ends every session from that sign-in, and other sign-ins survive; a replayed token is still caught when the application's clock runs five seconds behind the database's, because the comparison is made in SQL against the `used_at` the database wrote; signing out revokes the refresh token; session routes need no access token (2) |
 | `test_tenancy.py` | 9 | 9 | Isolation between two users' own organisations for products, queue, templates, captures, calendar (including not leaking a foreign project's name and color), brands and email queue (no SMTP call). Seven AI endpoints answer 404 for another organisation's product, without calling Claude or the scraper |
-| `test_usage.py` | 10 | 13 | AI usage ledger, costs and budgets: costs follow the published prices (4 models); a model without a known price costs nothing and says so; web searches cost $10 per 1,000 on top of tokens; operations record who used what for which project; owners set a monthly budget; operations stop once this month's budget is used, and last month's spending doesn't count; owners see the month's usage by operation, project, member and model, and earlier months; calls to models without a price are counted separately |
+| `test_usage.py` | 14 | 17 | AI usage ledger, costs and budgets: costs follow the published prices (4 models); a model without a known price costs nothing and says so; web searches cost $10 per 1,000 on top of tokens; operations record who used what for which project; owners set a monthly budget; operations stop once this month's budget is used, and last month's spending doesn't count; owners see the month's usage by operation, project, member and model, and earlier months; calls to models without a price are counted separately. The platform default budget (`DEFAULT_MONTHLY_AI_BUDGET_USD`, default 25): an organisation that never set its own is capped by it, its own budget wins, clearing a budget falls back to it, and `0` leaves the organisation uncapped. Registration creates an organisation with no budget, and `ensure_within_budget` used to return at once when the budget was `NULL`, so a self-registered organisation had no cap on the deployment's single API key; all four tests were written to fail first |
 | `test_workflows.py` | 35 | 78 | A background workflow result lands in the queue (pending, or failed with the readable AI error); unknown workflows are rejected, or fail if one reaches the job; a workflow for a deleted project fails. Operations ask for their structured result type with the right model and tools, and search the web only when their prompt needs it (12 workflows, 6 synchronous endpoints); market analysis gets room for a long report; the scraped page and notes go in the run details, not the cached parts of the three-part prompt (F-10). Startup fails operations a restart interrupted (F-9). Press kit generated and stored; press kit, press release and SEO report unreachable URLs. Repurpose. Social posts for the connected platforms. Press release contacts and notes. Market analysis is given the pricing to build on (4). Competitor preview text (B11) and previews of unexpected answers. Server-set `generated_at` and `source_url` on 5 report endpoints (B12). On 6 synchronous endpoints: AI configuration error 503 with the reason, provider error 502, timeout 504, refusal 422. A failed report keeps the saved one. Missing or foreign projects |
-| **Total** | **355** | **550** | 550 passed |
+| **Total** | **359** | **554** | 554 passed |
 
 ### Frontend units: `frontend/src/lib/` and `frontend/src/app/` (Vitest)
 
@@ -434,8 +439,9 @@ How the totals reconcile with the latest runs:
 | `e2e/smoke.spec.ts` | 3 | 3 | Portfolio to project to market analysis report in the production build, with no page errors and the Mona Sans font applied. Dark theme chosen from the account menu persists across reload. Navigation collapses into a menu at 390×844 |
 | `e2e/golden.spec.ts` | 12 | 12 | Main task per screen, asserting on recorded API requests: sign in and return, create a project, run a workflow with instructions, open an operation from the command palette, review with the keyboard and approve, send outbox drafts after confirmation, tick a launch plan item, drag a calendar entry and undo, download a report as Markdown (ending with its numbered sources), print a report with each source's address, save a library template, save the brand voice |
 | `e2e/a11y.spec.ts` | 1 | 54 | axe-core WCAG 2.2 A/AA scan of 27 screens × light and dark themes (one `test()` inside two loops) |
+| `e2e/responsive.spec.ts` | 1 | 27 | The same 27 screens at 390×844: the document may not be wider than the viewport, and a failure names the element whose removal would fix the overflow (one `test()` inside a loop) |
 
-**Playwright total: 16 defined, 69 run.**
+**Playwright total: 17 defined, 96 run.**
 
 ### Test support files (not tests)
 
@@ -459,7 +465,7 @@ How the totals reconcile with the latest runs:
 
 ### Backend (pytest-cov, statement coverage of application code)
 
-**98.31%**: 3,316 statements, 56 missed. `backend/.coveragerc` leaves out the tests and virtual environments, and the run fails below 95%.
+**98.32%**: 3,324 statements, 56 missed. `backend/.coveragerc` leaves out the tests and virtual environments, and the run fails below 95%.
 
 Application modules below 95%:
 
@@ -470,13 +476,13 @@ Application modules below 95%:
 | `services/audit.py` | 92.86% | Shortening quoted text over 80 characters in activity summaries |
 | `worker.py` | 93.10% | The `python worker.py` entry point (`__main__`) |
 
-Between 95% and 100%: `routers/organisations.py` 95.38%, `main.py` 95.83%, `routers/queue.py` 96.02%, `services/usage.py` 96.43%, `database.py` 97.66%, `services/scraper.py` 97.71%, `services/access.py` 98.25%, `routers/auth.py` 98.31% and `services/claude.py` 98.33%.
+Between 95% and 100%: `routers/organisations.py` 95.38%, `main.py` 95.83%, `routers/queue.py` 96.02%, `services/usage.py` 96.77%, `database.py` 97.66%, `services/scraper.py` 97.71%, `services/access.py` 98.25%, `routers/auth.py` 98.31% and `services/claude.py` 98.33%.
 
 Everything else is at 100%: `config.py`, `models.py`, `routers/events.py`, `routers/extras.py`, `routers/products.py`, `routers/workflows.py`, `services/auth.py`, `services/email.py`, `services/events.py`, `services/field_crypto.py`, `services/jobs.py`, `services/mailer.py`, `services/pricing.py`, `services/results.py` and the seven migrations `0001`–`0007`.
 
 The modules that were weakest on 2026-09-14 are now covered: `services/email.py` from 54.55% to 100%, `services/claude.py` from 57.69% to 98.33%, and `routers/workflows.py` from 82.73% to 100%.
 
-Per-module figures come from the run's `backend/.coverage` (written 2026-09-16 23:45), read with `python -m coverage report --no-skip-covered --precision=2`. The default report rounds to whole percentages. Only `routers/auth.py` was re-measured in the 2026-09-17 19:0x run (296 statements, 5 missed, 98.31%); every other module keeps the earlier run's figure.
+Per-module figures come from the latest full run's `backend/.coverage` (2026-09-17, 554 tests with `--cov`), read with `python -m coverage report --no-skip-covered --precision=2`. The default report rounds to whole percentages. Every module was measured in that run, and the only per-module figure that moved is `services/usage.py`, 96.43% → 96.77% (62 statements, 2 missed), where the platform default budget added code; `config.py` gained the setting and stays at 100%.
 
 ### Frontend (Vitest, V8)
 
@@ -486,9 +492,9 @@ Per-module figures come from the run's `backend/.coverage` (written 2026-09-16 2
 
 ### Playwright
 
-- **Result:** 69 passed: 3 smoke, 12 golden path, 54 accessibility (27 screens × light and dark).
+- **Result:** 96 passed: 3 smoke, 12 golden path, 54 accessibility (27 screens × light and dark) and 27 responsive (the same 27 screens at 390×844).
 - **Browser:** locally, the pre-installed headless shell through the temporary config (section 2); CI installs Chromium.
-- **Last run record:** don't use `frontend/test-results/.last-run.json` as evidence for these figures. It holds only the most recent Playwright run of any kind; on 2026-09-17 that was a temporary screenshot run, not the suite.
+- **Last run record:** don't use `frontend/test-results/.last-run.json` as evidence for these figures. It holds only the most recent Playwright run of any kind; earlier on 2026-09-17 that was a temporary screenshot run rather than the suite.
 - **Coverage:** browser runs collect none.
 
 ### History
@@ -498,16 +504,17 @@ Per-module figures come from the run's `backend/.coverage` (written 2026-09-16 2
 | 2026-09-14, earlier | 151 passed, 2 xfailed | 92% with tests; 85% application code (1,522 statements, 228 missed) | 165 in 15 files | 82.17 / 71.45 / 77.47 / 86.43 | 54 passed |
 | 2026-09-14, later | 162 passed, 2 xfailed | 90.84% application code (1,528 statements, 140 missed) | 168 in 16 files | 82.31 / 71.56 / 77.87 / 86.47 | 54 passed |
 | 2026-09-16/17 | 548 passed | 98.31% application code (3,311 statements, 56 missed) | 601 in 49 files | 97.03 / 89.97 / 96.47 / 99.19 | 69 passed |
-| 2026-09-17 19:0x (latest) | 550 passed in 164.63 s | 98.31% application code (3,316 statements, 56 missed) | 601 in 49 files | 97.03 / 89.97 / 96.47 / 99.19 | 69 passed |
+| 2026-09-17 19:0x | 550 passed in 164.63 s | 98.31% application code (3,316 statements, 56 missed) | 601 in 49 files | 97.03 / 89.97 / 96.47 / 99.19 | 69 passed |
+| 2026-09-17, later (latest) | 554 passed | 98.32% application code (3,324 statements, 56 missed) | 601 in 49 files | 97.03 / 89.97 / 96.47 / 99.19 | 96 passed |
 
-The 2026-09-17 19:0x run was backend only, on a fresh scratch cluster (port 56433): it added `test_claude.py::test_an_answer_split_across_text_blocks_is_joined_exactly` and `test_sessions.py::test_a_reused_token_is_caught_even_if_the_app_clock_lags_the_database`. The Vitest and Playwright figures are carried over unchanged from 2026-09-16/17.
+The 2026-09-17 19:0x run was backend only, on a fresh scratch cluster (port 56433): it added `test_claude.py::test_an_answer_split_across_text_blocks_is_joined_exactly` and `test_sessions.py::test_a_reused_token_is_caught_even_if_the_app_clock_lags_the_database`. The Vitest and Playwright figures in that row are carried over unchanged from 2026-09-16/17. The later runs added the four platform default budget tests in `test_usage.py`, with the 8 new application statements they cover, and the 27 tests in `e2e/responsive.spec.ts`; its Vitest figures are carried over too, because no `src/**` TypeScript changed — only four CSS Modules files.
 
 ### Against the constitution's gates
 
 | Gate | Threshold | Backend | Frontend |
 |---|---|---|---|
-| PR | 85% line | Met: 98.31% | Met: 99.19% lines |
-| Deploy | 95% | Met: 98.31%. Enforced by `fail_under = 95` | Met for lines: 99.19%, enforced by `thresholds.lines = 95`. Branches are at 89.97% and not gated |
+| PR | 85% line | Met: 98.32% | Met: 99.19% lines |
+| Deploy | 95% | Met: 98.32%. Enforced by `fail_under = 95` | Met for lines: 99.19%, enforced by `thresholds.lines = 95`. Branches are at 89.97% and not gated |
 | New code | 95% | Not measured (no diff coverage) | Not measured |
 | Security-critical (auth/payment/data) | 95% | Met for `routers/auth.py` (98.31%), `services/auth.py` (100%), `services/access.py` (98.25%), `services/field_crypto.py` (100%) and `database.py` (97.66%). Below it: `services/ratelimit.py` (90.74%) and `services/audit.py` (92.86%) | Not recorded per file |
 
@@ -541,7 +548,7 @@ Tooling enforces the totals at the 95% deploy gate, which covers the 85% PR gate
 4. **No mutation, load, property-based or visual-regression tests.** Examples of each: mutmut or StrykerJS; a load tool; hypothesis; Playwright screenshot comparison. `e2e/capture.mjs` only produces screenshots for manual review.
 
 5. **Automated accessibility checks catch only part of WCAG issues.** Manual keyboard and screen-reader passes are still needed before a release. The scan itself also has gaps:
-   - It runs at the desktop viewport only.
+   - It runs at the desktop viewport only. `e2e/responsive.spec.ts` covers the same 27 screens at 390×844, but only for sideways scrolling, not for accessibility.
    - Not scanned: `/register`, the not-found page, three of the five report documents (pricing, press kit, press release), and dialogs other than the run sheet (for example New project, Capture an idea, send confirmation, command palette).
 
 6. **The backend has no type gate.** mypy is in neither `requirements-dev.txt` nor CI. The frontend has `tsc -b`.
@@ -553,7 +560,7 @@ Tooling enforces the totals at the 95% deploy gate, which covers the 85% PR gate
    - pip-audit checks `requirements.txt` only, not the test and lint tools in `requirements-dev.txt`.
 
 9. **Playwright runs Chromium only.**
-   - There is no Firefox or WebKit project, and one smoke test at 390×844 is the only mobile-layout check in a browser.
+   - There is no Firefox or WebKit project. Phone layout is checked at 390×844 by `e2e/responsive.spec.ts` (27 screens, sideways scrolling only) and one smoke test (navigation collapsing into a menu); nothing checks a tablet width, and nothing else about a small screen is asserted.
    - Locally, the browser is a pre-installed headless shell rather than one Playwright installs (section 2).
 
 10. **An untracked `test-pipeline.yml` would fail if committed.**
@@ -561,3 +568,5 @@ Tooling enforces the totals at the 95% deploy gate, which covers the 85% PR gate
    - Its Python job would run, because it detects `backend/requirements.txt`, then fail at install, since it installs from the repo root.
 
 11. **Bug IDs have no register yet.** `B1`–`B13` and `B15`–`B19` exist only as backend test section headers. There is no `B14` group, and no `docs/BUGS.md` maps the IDs to root causes and fixes.
+
+12. **Nothing stops a stray spec from joining the Playwright suite.** `frontend/playwright.config.ts` uses `testDir: "e2e"` with `testMatch: "*.spec.ts"`, so any file dropped in `e2e/` is collected silently. On 2026-09-17 a temporary screenshot file created as `e2e/_audit-shots.spec.ts` would have added 63 failing tests to `npm run e2e` had the suite been run before it was deleted; the convention that `e2e/capture.mjs` is a tool, not a test, is documented but unenforced. **Safe pattern** (used afterwards): name a temporary Playwright file `*.pwtest.ts` and point a throwaway config's `testMatch` at it, so the real suite can never collect it.
