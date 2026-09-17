@@ -1,7 +1,7 @@
 ---
 document: CLAUDE
 version: 1.1.1
-last-updated: 2026-09-17T20:10:00Z
+last-updated: 2026-09-17T20:15:00Z
 last-audit: 2026-09-17T20:05:00Z
 managed-by: session-orchestrator/memory-updater
 ---
@@ -20,7 +20,7 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
 | **Findings, phased plan, phase status** | `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`, section "Progress" |
 | **Bugs** | `docs/BUGS.md` |
 | **Session handoff** (read it at session start) | `docs/HANDOFF.md` |
-| **Changelog / audit log** | `docs/CHANGELOG.md` — the documentation set's history (1.0.0 the baseline, 1.1.0 this session's second pass) / `docs/AUDIT-LOG.md` — the reconciliation audits, the first of them 2026-09-17T19:30:00Z |
+| **Changelog / audit log** | `docs/CHANGELOG.md` — what each version of the documentation set changed, newest first; the top entry is where things stand (1.1.1: pull request #3 merged, the BUG-027 fix in production, the documents reconciled to it) / `docs/AUDIT-LOG.md` — the reconciliation audits, newest first |
 | **Phase 1 decisions (D1–D16)** | `docs/PHASE1_DESIGN.md` |
 | **Design system** | `docs/DESIGN_SYSTEM.md` |
 | **Testing** | `docs/TESTING.md`: frameworks, how to run, inventory, coverage |
