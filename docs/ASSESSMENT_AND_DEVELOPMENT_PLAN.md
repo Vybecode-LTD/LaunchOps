@@ -16,7 +16,8 @@ few seconds of clock skew could let a stolen, already-rotated token through inst
 whole token family. The database now makes the comparison itself
 (`r.used_at < NOW() - $2::interval AS reused`), and a test that monkeypatches the application clock
 five seconds slow — failing against the old code, passing against the fix — holds it in place. It is
-BUG-027 in `docs/BUGS.md`, and it sits uncommitted in the working tree pending the owner's go-ahead.
+BUG-027 in `docs/BUGS.md`. It is committed on the local branch `fix/refresh-token-clock-skew`
+(`35d24c5`), which is not pushed and not merged, so the fix is not yet in production.
 
 | Phase | Status |
 |---|---|

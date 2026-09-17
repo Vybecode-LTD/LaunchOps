@@ -7,8 +7,8 @@ import "./styles/base.css";
 import "./styles/print.css";
 import { App } from "./app/App";
 
-// index.html applies the saved theme before first paint; repeat it here for
-// environments whose content security policy blocks that inline script (the desktop app).
+// public/theme-init.js applies the saved theme before first paint; repeat it here for
+// environments that don't run it (the desktop app serves its own document).
 try {
   const saved = localStorage.getItem("launchops_theme");
   if (saved === "light" || saved === "dark") document.documentElement.setAttribute("data-theme", saved);
