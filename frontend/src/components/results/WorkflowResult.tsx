@@ -82,6 +82,11 @@ function Competitors({ content }: { content: Dict }) {
   const competitors = dicts(content.competitors);
   if (!competitors.length) return <GenericResult content={content} />;
   const sorted = [...competitors].sort((a, b) => (numberFrom(b.threat_level) ?? -1) - (numberFrom(a.threat_level) ?? -1));
+  // Research does not always turn these up. A column no competitor fills is left out rather
+  // than rendered as a header over blank cells.
+  const columns = ([["pricing", "Pricing"], ["audience", "Audience"]] as const).filter(([key]) =>
+    sorted.some((c) => text(c[key])),
+  );
   return (
     <div className={styles.doc}>
       <Section title="Competitors" count={competitors.length}>
@@ -91,8 +96,11 @@ function Competitors({ content }: { content: Dict }) {
               <tr>
                 <th className="placard">Competitor</th>
                 <th className="placard">Threat</th>
-                <th className="placard">Pricing</th>
-                <th className="placard">Audience</th>
+                {columns.map(([key, label]) => (
+                  <th key={key} className="placard">
+                    {label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -105,8 +113,9 @@ function Competitors({ content }: { content: Dict }) {
                   <td>
                     <Threat value={c.threat_level} />
                   </td>
-                  <td>{text(c.pricing)}</td>
-                  <td>{text(c.audience)}</td>
+                  {columns.map(([key]) => (
+                    <td key={key}>{text(c[key]) || <span className={styles.muted}>Not found</span>}</td>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -118,20 +127,26 @@ function Competitors({ content }: { content: Dict }) {
           {sorted.map((c, i) => (
             <Card key={i} title={text(c.name) || "Unnamed"} sub={<ExternalLink href={c.url} />} aside={<Threat value={c.threat_level} />}>
               {text(c.overview) && <p className={styles.cardText}>{text(c.overview)}</p>}
-              <div className={styles.twoCol}>
-                <div>
-                  <div className="placard" style={{ marginBottom: 6 }}>
-                    Strengths
-                  </div>
-                  <Bullets items={strings(c.strengths)} />
+              {(strings(c.strengths).length > 0 || strings(c.weaknesses).length > 0) && (
+                <div className={styles.twoCol}>
+                  {strings(c.strengths).length > 0 && (
+                    <div>
+                      <div className="placard" style={{ marginBottom: 6 }}>
+                        Strengths
+                      </div>
+                      <Bullets items={strings(c.strengths)} />
+                    </div>
+                  )}
+                  {strings(c.weaknesses).length > 0 && (
+                    <div>
+                      <div className="placard" style={{ marginBottom: 6 }}>
+                        Weaknesses
+                      </div>
+                      <Bullets items={strings(c.weaknesses)} />
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <div className="placard" style={{ marginBottom: 6 }}>
-                    Weaknesses
-                  </div>
-                  <Bullets items={strings(c.weaknesses)} />
-                </div>
-              </div>
+              )}
               {strings(c.features).length > 0 && <Chips items={strings(c.features)} />}
               {text(c.differentiation) && (
                 <KeyValues rows={[["How we differ", text(c.differentiation)]]} />
