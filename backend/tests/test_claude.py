@@ -265,6 +265,16 @@ async def test_a_result_is_stored_in_the_shape_results_always_had(anthropic_api)
     assert result["social_versions"] == {"linkedin": "Post"}
 
 
+async def test_an_answer_split_across_text_blocks_is_joined_exactly(anthropic_api):
+    # Citations once split an answer mid-JSON, and joining the pieces with anything at all broke it
+    written = json.dumps(SUMMARY)
+    anthropic_api.responses.append(_message([
+        {"type": "text", "text": written[:20]}, {"type": "text", "text": written[20:]},
+    ]))
+
+    assert await _generate() == SUMMARY
+
+
 async def test_a_cut_off_answer_is_not_a_result(anthropic_api, caplog):
     caplog.set_level(logging.WARNING, logger="services.claude")
     anthropic_api.responses.append(_message([{"type": "text", "text": '{"summary": "Plugin pri'}], stop_reason="max_tokens"))

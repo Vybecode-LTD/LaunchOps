@@ -8,6 +8,17 @@
 
 All of this work is on `main`: merged from pull request #1 (merge commit `24eff91`) on 2026-09-17, after CI passed.
 
+One later fix is not on `main` yet. Reconciling the documentation at session end turned up an
+intermittent failure in the refresh-token tests, and behind it a real defect: `POST /api/auth/refresh`
+decided whether a refresh token was a replay by comparing the application's clock with a `used_at`
+timestamp PostgreSQL had written. In production the app and the database are separate services, so a
+few seconds of clock skew could let a stolen, already-rotated token through instead of revoking the
+whole token family. The database now makes the comparison itself
+(`r.used_at < NOW() - $2::interval AS reused`), and a test that monkeypatches the application clock
+five seconds slow — failing against the old code, passing against the fix — holds it in place. It is
+BUG-027 in `docs/BUGS.md`. It is committed on the local branch `fix/refresh-token-clock-skew`
+(`35d24c5`), which is open as pull request #3 and not yet merged, so the fix is not yet in production.
+
 | Phase | Status |
 |---|---|
 | 0 — Stabilise | Complete. |
@@ -122,7 +133,7 @@ Exit criteria:
 | Gate | Status |
 |---|---|
 | Backend lint (ruff) | Passing; CI runs it. |
-| Backend tests | 548 passed; 98.3% coverage of application code (gate 95%). |
+| Backend tests | 550 passed; 98.3% coverage of application code (gate 95%). |
 | Frontend lint and type check | Passing: ESLint with zero warnings, strict TypeScript. |
 | Frontend tests (Vitest) | 601 passed in 49 files; 99.2% line coverage (gate 95%). |
 | Browser tests (Playwright) | 69 passed: 3 smoke, 12 golden path, and axe WCAG 2.2 A/AA scans of 27 screens in both themes. |
@@ -141,10 +152,13 @@ Exit criteria:
    - a research operation on Sonnet 5: 3 web searches, the strict submit tool, 6 verified sources, cache reads
    - a non-research operation on Opus 5, with the server-side fallback beta
 
-   launchops.run is added as the custom domain and its DNS is verified. Railway was still issuing its certificate at the time of writing.
+   launchops.run is the custom domain and is **live over HTTPS**: the certificate was issued 2026-09-17 16:51 UTC and is valid to
+   2026-12-16. Re-adding the domain to clear a stalled first attempt gave it a new CNAME target, `xesm2hmr.up.railway.app`, and
+   Spaceship still points at the old `5rlc9k25.up.railway.app` (traffic and the certificate work; `docs/ROADMAP.md` T-3).
 
-   Still to do:
-   - once https://launchops.run answers, sign up with the `ADMIN_EMAIL` address and decide whether registration stays open
+   Still to do (the full list, with IDs, is `docs/ROADMAP.md` → Active, T-1 to T-8):
+   - delete the account `guard-check@example.com` and "Guard check's organisation", created on the live site by a sign-up probe
+     after the admin account already existed (T-1), and confirm who holds the admin account and whether registration stays open (T-2)
    - consider turning on Wait for CI in the service's source settings, so only commits that pass CI deploy
    - optionally set the `MAIL_*` settings, turn on database backups, and delete the detached empty volume `postgres-volume-qVKY`
 3. Phase 2 follow-up: brand kernel (D15), result history (D16), billing settings.

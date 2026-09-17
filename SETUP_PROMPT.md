@@ -9,6 +9,8 @@ Paste the block below at the start of a session.
 ```
 Read CLAUDE.md completely, then docs/HANDOFF.md if it exists, then SOURCE_MAP.md.
 Then read docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md, section "Progress", to see which phase is active.
+docs/ROADMAP.md has the open tasks and the decisions waiting on me; docs/BUGS.md has every bug fixed
+so far, each with the test that failed before the fix.
 
 My environment:
 - Windows 11. Always use `python -m pip` and `python -m uvicorn`, never bare `pip` or `uvicorn`.

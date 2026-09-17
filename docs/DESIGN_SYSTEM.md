@@ -16,8 +16,10 @@ three theme states resolve to a complete set:
 2. `:root[data-theme="dark"] { … }` — an explicit Dark choice.
 
 The account menu and the command palette switch between System, Light and Dark. The choice is stored in
-`localStorage` under `launchops_theme` and applied before first paint (inline script in `index.html`,
-repeated in `main.tsx` for the desktop app, whose CSP blocks inline scripts).
+`localStorage` under `launchops_theme` and applied before first paint by `frontend/public/theme-init.js`,
+loaded from `index.html` as `<script src="/theme-init.js">`. It is a file rather than an inline script so
+the Content Security Policy can forbid inline scripts outright. `main.tsx` repeats the same few lines for
+environments that don't run it.
 
 **Rule:** a component never sets a colour inside a `[data-theme]` or media block. If a component needs
 a different value in dark mode, add or reuse a token.
