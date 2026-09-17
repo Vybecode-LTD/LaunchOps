@@ -92,6 +92,10 @@ a.figure:hover {
 
 .tableWrap {
   overflow-x: auto;
+  /* Without containment the table's intrinsic width leaks into the page's own
+     scrollWidth, so the whole page scrolls sideways on a phone even though the
+     table is clipped here. See e2e/responsive.spec.ts. */
+  contain: content;
 }
 
 .table {
