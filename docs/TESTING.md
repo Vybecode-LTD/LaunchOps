@@ -188,6 +188,12 @@ Runs on every push to `main` and on every pull request. A newer run on the same 
 | Secret scan | ubuntu-latest. Checks out the full history (`fetch-depth: 0`), downloads gitleaks 8.30.1 and its checksums file, verifies the archive with `sha256sum --check`, then runs `./gitleaks git --redact --verbose .` over every commit |
 | Frontend lint, types, tests and build | ubuntu-latest, Node 24. In order: `npm ci`, `npm audit --audit-level=high` (fails on high or critical advisories), `npm run lint`, `npm run typecheck`, `npm run coverage` (fails below 95% lines), `npm run build`, `npx playwright install --with-deps chromium`, `npm run e2e` |
 
+Secret scan findings that were reviewed and aren't secrets:
+
+- **They go in `.gitleaksignore`** at the repo root, one fingerprint per finding (`commit:file:rule:line`). An inline `gitleaks:allow` comment can't clear them: the scan covers every commit, so a comment added in a later commit leaves the finding in the earlier one. Only the listed fingerprints are skipped, so any new finding is still reported.
+- **A fingerprint names its commit.** A finding keeps its fingerprint after its pull request is merged only if the pull request is merged with a merge commit. Squash and rebase merges change commit hashes, so the entries stop matching and the scan reports those findings again.
+- **Listed now:** two launch plan item keys in `frontend/src/lib/domain/checklist.test.ts` (lines 11 and 23: `key: "Pre-Launch_0"`, `key: "Pre-Launch_15"`), flagged by the `generic-api-key` rule in commit `d7752c3`.
+
 Not in CI: mypy, `ruff format --check`, branch or diff coverage.
 
 Other workflow files:
@@ -505,9 +511,13 @@ Tooling enforces the totals at the 95% deploy gate, which covers the 85% PR gate
 
 ## 6. Known gaps and debt
 
-1. **No test calls the real Anthropic API.**
-   - The request shapes are tested against a fake transport only (`test_claude.py`): structured outputs, the strict `submit_result` tool with `eager_input_streaming`, top-level `cache_control` and web search. Every other test fakes `generate_result`.
-   - A manual smoke run against the real API with a key is still needed before the first deploy.
+1. **No automated test calls the real Anthropic API.**
+   - The automated suites check the request shapes against a fake transport only (`test_claude.py`): structured outputs, the strict `submit_result` tool with `eager_input_streaming`, top-level `cache_control`, web search and the server-side fallback opt-in. Every other test fakes `generate_result`.
+   - **Checked by hand on 2026-09-17:** a one-off manual smoke test ran `services.claude.generate_result` against the live API with the production key (`railway run --service launchops`). All three calls returned valid results, for about $0.10 in total:
+     - a non-research operation on `claude-sonnet-5` (structured response format);
+     - a research operation on `claude-sonnet-5`: 3 web searches, the strict `submit_result` tool with `eager_input_streaming`, top-level `cache_control` (about 15,000 cache-read tokens), and 6 sources kept after verification;
+     - a non-research operation on `claude-opus-5` with the server-side fallback beta header.
+   - The request shapes are confirmed against the live API, but nothing checks them automatically: the manual check covers the code as it was on 2026-09-17.
 
 2. **Branch coverage is below statements and lines, and nothing gates it.**
    - Frontend: branches 89.97% (statements 97.03%, functions 96.47%, lines 99.19%). Only lines are gated.

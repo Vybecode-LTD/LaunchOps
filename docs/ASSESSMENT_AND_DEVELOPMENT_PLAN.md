@@ -6,7 +6,7 @@
 
 ## Progress (updated 2026-09-17)
 
-All of this work is uncommitted on `main`, waiting for the owner's review.
+All of this work is on `main`: merged from pull request #1 (merge commit `24eff91`) on 2026-09-17, after CI passed.
 
 | Phase | Status |
 |---|---|
@@ -130,18 +130,25 @@ Exit criteria:
 
 ### Next
 
-1. The owner reviews the working tree; then it's committed on a branch.
-2. Decisions for the owner:
+1. Decisions for the owner:
    - section 8
    - the brand kernel questions in `docs/PHASE1_DESIGN.md` D15
    - whether organisation owners should also be able to create reset links (D8)
-3. Finish the deployment. It's live on Railway (2026-09-17): project "Launch Ops" has `launchops` (this working tree, uploaded with `railway up`; the worker runs inside it) and `Postgres`, and answers at https://launchops-production-0457.up.railway.app. `DATABASE_URL`, `JWT_SECRET`, `FIELD_ENCRYPTION_KEY`, `APP_URL` and `ADMIN_EMAIL` are set. Still to do:
-   - set `ANTHROPIC_API_KEY`, then run one research and one non-research operation against the real API
-   - add launchops.run as the custom domain, then sign up with the `ADMIN_EMAIL` address and decide whether registration stays open
-   - commit the working tree, then connect the `launchops` service to the GitHub repository so pushes deploy
+2. Finish the deployment. It's live on Railway (2026-09-17): project "Launch Ops" has `launchops` (built from `main` of `Vybecode-LTD/LaunchOps`, deploying every push; the worker runs inside it) and `Postgres`, and answers at https://launchops-production-0457.up.railway.app. `DATABASE_URL`, `JWT_SECRET`, `FIELD_ENCRYPTION_KEY`, `APP_URL`, `ADMIN_EMAIL` and `ANTHROPIC_API_KEY` are set.
+
+   **Live smoke test (2026-09-17):** `generate_result` was run against the real API with the deployment's key, and all three calls returned valid results (about $0.10 in total):
+   - a non-research operation on Sonnet 5 (response format)
+   - a research operation on Sonnet 5: 3 web searches, the strict submit tool, 6 verified sources, cache reads
+   - a non-research operation on Opus 5, with the server-side fallback beta
+
+   launchops.run is added as the custom domain and its DNS is verified. Railway was still issuing its certificate at the time of writing.
+
+   Still to do:
+   - once https://launchops.run answers, sign up with the `ADMIN_EMAIL` address and decide whether registration stays open
+   - consider turning on Wait for CI in the service's source settings, so only commits that pass CI deploy
    - optionally set the `MAIL_*` settings, turn on database backups, and delete the detached empty volume `postgres-volume-qVKY`
-4. Phase 2 follow-up: brand kernel (D15), result history (D16), billing settings.
-5. Phase 3: real actions.
+3. Phase 2 follow-up: brand kernel (D15), result history (D16), billing settings.
+4. Phase 3: real actions.
 
 ---
 
