@@ -12,6 +12,7 @@ for the design system, `docs/DESIGN_SYSTEM.md`; for findings and the roadmap, `d
 | `.dockerignore` | Keeps `.env` files, `node_modules`, build output, tests and docs out of the image build context. |
 | `.github/workflows/ci.yml` | CI, three jobs. Backend: ruff, `pip-audit` of the production dependencies, pytest against a Postgres 18 service (coverage gate 95%). Secret scan: gitleaks over the full git history. Frontend: `npm audit` (high and critical), lint, typecheck, Vitest coverage, build, Playwright. |
 | `.github/workflows/test-pipeline.yml` | Untracked generic template; not wired to this repo. |
+| `.gitleaksignore` | Reviewed gitleaks findings that aren't secrets, by exact fingerprint (commit, file, rule, line). |
 | `package.json` | Tauri CLI only (`npm run tauri:dev` / `tauri:build`). |
 | `src-tauri/` | Desktop shell: a webview onto `https://launchops.run`. |
 | `docs/` | Assessment and development plan, design system, testing guide. |
