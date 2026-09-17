@@ -1,8 +1,10 @@
 """Authentication service — password hashing and JWT tokens."""
 
 from datetime import datetime, timedelta, timezone
+
 import bcrypt
 import jwt
+
 from config import get_settings
 
 
@@ -19,11 +21,13 @@ def verify_password(password: str, password_hash: str) -> bool:
 def create_token(user_id: str, email: str) -> str:
     """Create a JWT token for a user."""
     settings = get_settings()
+    now = datetime.now(timezone.utc)
     payload = {
         "sub": user_id,
         "email": email,
-        "exp": datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expiration_hours),
-        "iat": datetime.now(timezone.utc),
+        "exp": now + timedelta(minutes=settings.access_token_minutes),
+        # To the microsecond, so a token issued just before a password change can be told from one issued just after
+        "iat": now.timestamp(),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 

@@ -1,0 +1,420 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.period {
+  font-size: var(--text-20);
+  font-weight: 620;
+  font-stretch: var(--stretch-display);
+  font-variant-numeric: tabular-nums;
+  min-width: 200px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+/* ─── Month ─── */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.weekday {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-sunken);
+}
+
+/* The cell is the drop zone; its button (select / double-click to add) fills it,
+   and entry chips sit above the button. */
+.day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 112px;
+  min-width: 0;
+  padding: 36px 6px 8px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.day:nth-child(7n) {
+  border-right: 0;
+}
+
+.outside {
+  background: var(--surface-sunken);
+}
+
+.dayButton {
+  position: absolute;
+  inset: 0;
+  /* Buttons centre their content vertically unless laid out explicitly. */
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dayButton:hover {
+  background: var(--surface-hover);
+}
+
+.dayButton:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: -2px;
+}
+
+.dayButton[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px var(--signal);
+}
+
+.dayNumber {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-12);
+  color: var(--ink-2);
+}
+
+.outside .dayNumber {
+  color: var(--ink-3);
+}
+
+.today .dayNumber {
+  background: var(--signal);
+  color: var(--signal-fg);
+  font-weight: 600;
+}
+
+.more {
+  position: relative;
+  font-size: 11px;
+  color: var(--ink-3);
+  padding-left: 5px;
+  pointer-events: none;
+}
+
+/* ─── Week ─── */
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.weekDay {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 440px;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.weekDay:last-child {
+  border-right: 0;
+}
+
+.weekHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 8px 8px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface-sunken);
+  text-align: left;
+  cursor: pointer;
+}
+
+.weekHeader:hover {
+  background: var(--surface-hover);
+}
+
+.weekHeader:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: -2px;
+}
+
+.weekHeader[aria-pressed="true"] {
+  box-shadow: inset 0 -2px 0 var(--signal);
+}
+
+.weekEntries {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+/* ─── Entries (shared) ─── */
+
+.entry {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: var(--surface-sunken);
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ink);
+  cursor: grab;
+  user-select: none;
+}
+
+.entry:hover {
+  background: var(--surface-hover);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.entry:active {
+  cursor: grabbing;
+}
+
+.entryTitle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.entryText {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.entryMeta {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink-3);
+}
+
+.detailed {
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-12);
+}
+
+.detailed .entryTitle {
+  align-items: flex-start;
+}
+
+.detailed .entryTitle > svg,
+.detailed .dot {
+  margin-top: 4px;
+}
+
+/* The week has room for detail: titles wrap to three lines instead of truncating. */
+.detailed .entryText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-weight: 560;
+}
+
+.detailed .entryMeta {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.launchEntry {
+  background: var(--primary-bg);
+  color: var(--primary-fg);
+  font-weight: 600;
+}
+
+.launchEntry:hover {
+  background: var(--primary-bg);
+  box-shadow: none;
+}
+
+.launchEntry .entryMeta {
+  color: inherit;
+  opacity: 0.72;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.dragging {
+  opacity: 0.4;
+}
+
+.dropTarget {
+  background: var(--signal-soft);
+}
+
+.dropTarget .dayButton,
+.dropTarget .dayButton:hover {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--signal);
+}
+
+.dropTarget .weekHeader {
+  box-shadow: inset 0 -2px 0 var(--signal);
+}
+
+.dropTarget.weekDay {
+  box-shadow: inset 0 0 0 2px var(--signal);
+}
+
+.dragHint {
+  display: inline;
+}
+
+/* Touch screens can't drag entries; they reschedule from the agenda instead. */
+@media (pointer: coarse) {
+  .dragHint {
+    display: none;
+  }
+}
+
+/* ─── Agenda ─── */
+
+.agenda {
+  position: sticky;
+  top: calc(var(--topbar-height) + var(--space-5));
+}
+
+.agendaList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agendaItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px var(--space-4) 10px var(--space-5);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-13);
+}
+
+.agendaItem:first-child {
+  border-top: 0;
+}
+
+.agendaMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agendaMeta {
+  font-size: var(--text-12);
+  color: var(--ink-3);
+}
+
+.agendaActions {
+  display: flex;
+  gap: 2px;
+  margin-top: -4px;
+}
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .agenda {
+    position: static;
+  }
+}
+
+@media (max-width: 900px) {
+  .week {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .weekDay {
+    min-height: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .weekDay:last-child {
+    border-bottom: 0;
+  }
+
+  .weekEntries:empty {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .day {
+    min-height: 64px;
+  }
+
+  .day .entry,
+  .more {
+    display: none;
+  }
+
+  .hasEntries::after {
+    content: "";
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--signal);
+    pointer-events: none;
+  }
+}

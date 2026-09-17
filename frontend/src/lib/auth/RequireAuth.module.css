@@ -1,0 +1,15 @@
+.splash {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  background: var(--ground);
+}
+
+.message {
+  color: var(--ink-2);
+  max-width: 44ch;
+  text-align: center;
+}

@@ -1,0 +1,137 @@
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.headline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.figure,
+.budget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.cost {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-30);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.budgetLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.budgetAmount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-17);
+  font-weight: 560;
+}
+
+.budgetText {
+  font-size: var(--text-13);
+  color: var(--ink-2);
+}
+
+/* Stat tiles: hairlines between them come from the grid gap showing the line colour. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-15);
+}
+
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.amount {
+  max-width: 220px;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Wide tables scroll inside their panel on narrow screens instead of widening the page. */
+.tableScroll {
+  overflow-x: auto;
+}
+
+.tableScroll tbody th {
+  background: transparent;
+  font-weight: 560;
+  text-align: left;
+  white-space: normal;
+  min-width: 160px;
+  /* Long names widen the column (the table scrolls) rather than breaking an email address mid-word. */
+  overflow-wrap: break-word;
+}
+
+.tableScroll tbody tr:last-child th {
+  border-bottom: 0;
+}
+
+.tableScroll .numeric {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tableScroll th.numeric {
+  font-family: var(--font-sans);
+}
+
+.unpriced {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: var(--text-11);
+  color: var(--ink-3);
+}
+
+@media (max-width: 700px) {
+  .headline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .amount {
+    max-width: none;
+  }
+}

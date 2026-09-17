@@ -1,15 +1,25 @@
 """Pydantic models for VybeCod.ing Launch Ops API."""
 
 from __future__ import annotations
-from datetime import datetime, date
+
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from enum import Enum
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import Literal
 from uuid import uuid4
+
+from pydantic import BaseModel, Field, field_validator
 
 
 def new_id() -> str:
     return str(uuid4())
+
+
+def _not_blank(value: str | None) -> str | None:
+    """Reject a null or whitespace-only name (validators only run when it was sent)."""
+    if value is None or not value.strip():
+        raise ValueError("name must not be empty")
+    return value
 
 
 # ─── Auth ───
@@ -23,6 +33,41 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     email: str
+    password: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: str
+
+
+class NewPassword(BaseModel):
+    password: str
+
+
+# ─── Organisations ───
+
+Role = Literal["owner", "approver", "editor", "viewer"]
+
+
+class OrganisationUpdate(BaseModel):
+    name: str
+
+
+class MemberRoleUpdate(BaseModel):
+    role: Role
+
+
+class InvitationCreate(BaseModel):
+    email: str
+    role: Role
+
+
+class BudgetUpdate(BaseModel):
+    monthly_ai_budget_usd: Decimal | None = Field(ge=0, max_digits=12, decimal_places=2)
+
+
+class InvitationRegistration(BaseModel):
+    name: str = ""
     password: str
 
 
@@ -65,6 +110,9 @@ class TaskStatus(str, Enum):
     FAILED = "failed"
 
 
+ProjectType = Literal["product", "service", "persona"]
+
+
 # ─── Products ───
 
 
@@ -86,18 +134,30 @@ class ProductCreate(BaseModel):
     color: str = "#00f0ff"
     description: str = ""
     keywords: list[str] = []
+    project_type: ProjectType = "product"
+    launch_date: date | None = None
+    brand_id: str | None = None
 
 
 class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    tagline: Optional[str] = None
-    url: Optional[str] = None
-    color: Optional[str] = None
-    status: Optional[ProductStatus] = None
-    description: Optional[str] = None
-    keywords: Optional[list[str]] = None
-    email_settings: Optional[dict] = None
-    company_details: Optional[dict] = None
+    name: str | None = None
+    tagline: str | None = None
+    url: str | None = None
+    color: str | None = None
+    status: ProductStatus | None = None
+    description: str | None = None
+    keywords: list[str] | None = None
+    email_settings: dict | None = None
+    company_details: dict | None = None
+    project_type: ProjectType | None = None
+    # An explicit null clears these (see routers/products.py NULLABLE_FIELDS)
+    launch_date: date | None = None
+    brand_id: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def name_not_blank(cls, v: str | None) -> str | None:
+        return _not_blank(v)
 
 
 class Product(BaseModel):
@@ -109,13 +169,13 @@ class Product(BaseModel):
     status: ProductStatus = ProductStatus.PRE_LAUNCH
     description: str = ""
     keywords: list[str] = []
-    press_kit: Optional[dict] = None
+    press_kit: dict | None = None
     checklist: dict = {}
-    seo_result: Optional[dict] = None
+    seo_result: dict | None = None
     email_settings: dict = {}
     company_details: dict = {}
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ─── Queue / Results ───
@@ -129,12 +189,19 @@ class QueueItem(BaseModel):
     content: dict = {}
     preview: str = ""
     input_params: str = ""
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class QueueUpdate(BaseModel):
     status: QueueStatus
     notes: str = ""
+
+
+class EmailDraftUpdate(BaseModel):
+    recipient_name: str | None = None
+    recipient_email: str | None = None
+    subject: str | None = None
+    body: str | None = None
 
 
 # ─── Workflows ───
@@ -174,7 +241,7 @@ class PressReleaseRequest(BaseModel):
 
 
 class PressKit(BaseModel):
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     source_url: str
     boilerplate: str = ""
     key_features: list[str] = []
@@ -276,7 +343,7 @@ class Template(BaseModel):
     tags: list[str] = []
     content: str
     source_product: str = ""
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ─── Calendar ───
@@ -287,6 +354,23 @@ class CalendarEventCreate(BaseModel):
     product_id: str
     platform: str
     title: str
+
+
+# Alias: a field named `date` would otherwise shadow the type in its own annotation.
+EventDate = date
+
+
+class CalendarEventUpdate(BaseModel):
+    """Reschedule or edit an entry. Omitted (or null) fields are left unchanged."""
+    date: EventDate | None = None
+    product_id: str | None = None
+    platform: str | None = None
+    title: str | None = None
+
+    @field_validator("title")
+    @classmethod
+    def title_not_blank(cls, v: str | None) -> str | None:
+        return _not_blank(v)
 
 
 class CalendarEvent(BaseModel):
@@ -311,7 +395,7 @@ class Capture(BaseModel):
     id: str = Field(default_factory=new_id)
     text: str
     product_id: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ─── Settings ───
@@ -330,6 +414,9 @@ class BrandSettings(BaseModel):
     keywords: list[str] = []
     avoid: list[str] = []
     elevator: str = ""
+    # White-label header branding
+    company_name: str = ""
+    logo_url: str = ""
 
 
 class AgentPrefs(BaseModel):
@@ -344,3 +431,37 @@ class GlobalSettings(BaseModel):
     platforms: dict[str, PlatformConfig] = {}
     brand: BrandSettings = BrandSettings()
     prefs: AgentPrefs = AgentPrefs()
+
+
+# ─── Brands ───
+
+
+class BrandUpdate(BaseModel):
+    """Brand fields a client may set. Unknown keys (founders, id, user_id...) are ignored."""
+
+    name: str | None = None
+    tagline: str | None = None
+    tone: str | None = None
+    keywords: list[str] | None = None
+    avoid: list[str] | None = None
+    elevator: str | None = None
+    company_name: str | None = None
+    industry: str | None = None
+    location: str | None = None
+    founded: str | None = None
+    founder_name: str | None = None
+    founder_title: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    company_size: str | None = None
+    boilerplate: str | None = None
+    logo_url: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def name_not_blank(cls, v: str | None) -> str | None:
+        return _not_blank(v)
+
+
+class BrandCreate(BrandUpdate):
+    name: str

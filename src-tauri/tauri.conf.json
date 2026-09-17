@@ -4,12 +4,12 @@
   "version": "1.0.0",
   "identifier": "com.vybecoding.launchops",
   "build": {
-    "frontendDist": "https://launchops.vybecod.ing"
+    "frontendDist": "https://launchops.run"
   },
   "app": {
     "windows": [
       {
-        "title": "VybeCod.ing — Launch Operations",
+        "title": "LaunchOps",
         "width": 1280,
         "height": 860,
         "minWidth": 900,
@@ -19,12 +19,15 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' https://launchops.vybecod.ing https://api.anthropic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://launchops.vybecod.ing https://api.anthropic.com"
+      "csp": "default-src 'self' https://launchops.run; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://launchops.run"
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

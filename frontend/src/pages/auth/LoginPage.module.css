@@ -1,0 +1,208 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  background: var(--surface);
+}
+
+/* A page with only the form column (the invitation page). */
+.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* A link that does what a primary button would. */
+.primaryLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: var(--surface);
+  font-weight: 560;
+  text-decoration: none;
+}
+
+.primaryLink:hover {
+  background: var(--ink-2);
+}
+
+.formColumn {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-8) clamp(24px, 6vw, 88px);
+}
+
+.formWrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+  padding: var(--space-10) 0;
+  gap: var(--space-6);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title {
+  font-size: var(--text-30);
+  font-weight: 640;
+  font-stretch: var(--stretch-display);
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+.subtitle {
+  color: var(--ink-2);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.passwordWrap {
+  position: relative;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.passwordWrap input {
+  padding-right: 40px;
+}
+
+.switch {
+  font-size: var(--text-13);
+  color: var(--ink-2);
+}
+
+.switch a {
+  font-weight: 560;
+}
+
+.footer {
+  font-size: var(--text-12);
+  color: var(--ink-3);
+}
+
+/* ─── Brand panel ─── */
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-10);
+  padding: clamp(32px, 5vw, 64px);
+  background: var(--primary-bg);
+  color: var(--primary-fg);
+  overflow: hidden;
+}
+
+.panelEyebrow {
+  font-size: var(--text-11);
+  font-weight: 620;
+  font-stretch: var(--stretch-placard);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.statement {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  max-width: 520px;
+}
+
+.statementTitle {
+  font-size: clamp(28px, 3.4vw, 44px);
+  font-weight: 620;
+  font-stretch: var(--stretch-display);
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: var(--space-4);
+  padding: 14px 0;
+  border-top: 1px solid color-mix(in srgb, var(--primary-fg) 16%, transparent);
+  font-size: var(--text-14);
+  line-height: 1.5;
+}
+
+.factKey {
+  font-family: var(--font-mono);
+  font-size: var(--text-12);
+  opacity: 0.72;
+  padding-top: 2px;
+}
+
+.trajectory {
+  position: absolute;
+  right: -2%;
+  bottom: 0;
+  width: 78%;
+  max-width: 640px;
+  pointer-events: none;
+}
+
+.trajectory path,
+.trajectory line {
+  stroke: var(--primary-fg);
+}
+
+.trajectory text {
+  fill: var(--primary-fg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.apogee {
+  fill: var(--signal);
+}
+
+:global([data-theme="dark"]) .apogee {
+  fill: #2f3dda;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .apogee {
+    fill: #2f3dda;
+  }
+}
+
+@media (max-width: 900px) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel {
+    display: none;
+  }
+}

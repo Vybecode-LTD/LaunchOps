@@ -1,62 +1,127 @@
+---
+document: CLAUDE
+version: 0.2.0
+last-updated: 2026-09-17T00:00:00Z
+last-audit: 2026-09-14T00:00:00Z
+managed-by: session-orchestrator/memory-updater
+---
+
 # CLAUDE.md — VybeCod.ing Launch Ops
 
 ## What This Project Is
 
-VybeCod.ing Launch Ops is a **multi-product launch operations platform** — an internal tool that uses Claude AI to automate marketing, outreach, SEO, content generation, and launch coordination across multiple software products simultaneously.
+VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It uses Claude AI to automate marketing, outreach, SEO, content generation and launch coordination across many software products at once. It was built for the owner of VybeCod.ing, who runs many products at the same time without a marketing team. **AI output flows through human review.** Nothing goes out unless a person acts on it.
 
-It is built for **Pimpy**, who runs VybeCod.ing — a brand empowering non-technical creatives to build professional tools (flagship product: VybeCode DSP, a no-code audio plugin builder). Pimpy develops 6-10 software products at once and needs this platform to handle all launch operations without a marketing team.
+| | |
+|---|---|
+| **Positioning** | Being prepared for corporate partners who run portfolios of startups (multi-venture first). |
+| **Production domain** | https://launchops.run, which the owner is adding as the custom domain. The app was deployed on Railway on 2026-09-17 and answers at https://launchops-production-0457.up.railway.app. See [Deployment & CI](#deployment--ci). |
+| **Roadmap, findings, phase status** | `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`, section "Progress" |
+| **Phase 1 decisions (D1–D16)** | `docs/PHASE1_DESIGN.md` |
+| **Design system** | `docs/DESIGN_SYSTEM.md` |
+| **Testing** | `docs/TESTING.md`: frameworks, how to run, inventory, coverage |
+| **File-by-file map / session prompt** | `SOURCE_MAP.md` / `SETUP_PROMPT.md` |
 
-**This is an internal tool, not a public SaaS (yet).** Build it as a polished, production-grade internal app.
+---
+
+## Current State
+
+- **Phase:** Phases 0 (stabilise), 1 (foundation) and 2 (interface rebuild) are complete. Two Phase 1 items moved to Phase 2 follow-up: the brand kernel (D15) and a versioned result history (D16).
+- **Last completed task:** Phase 1 foundation:
+  - organisations and roles (Viewer → Editor → Approver → Owner) with role-aware controls and an organisation switcher
+  - invitations and member management
+  - activity log
+  - refresh-token sessions and password reset (platform mailer)
+  - durable PostgreSQL jobs with retries, cancel and time limits
+  - SSE live updates
+  - structured AI results with verified web sources
+  - prompt caching
+  - usage ledger with monthly budgets and a Settings → Usage page
+
+  Plus the rest of Phase 0: encrypted SMTP passwords, SSRF guard, startup guards, Alembic migrations, the daily email cap, deleted duplicate deploy files, CI security scans. Then, on 2026-09-17, the `ADMIN_EMAIL` setting and the Railway deployment.
+- **Active task:** none. All work is **uncommitted on `main`** until the owner reviews it. Don't commit without asking, and create a branch first.
+- **Next:**
+  - set `ANTHROPIC_API_KEY` on the `launchops` service and run a live smoke test against the real Anthropic API (tests only use a fake transport)
+  - add launchops.run as the custom domain, then sign up with the `ADMIN_EMAIL` address and decide whether registration stays open (Settings → Team & access)
+  - owner review, then commit on a branch, then connect `launchops` to GitHub (`Vybecode-LTD/LaunchOps`) so pushes deploy
+  - optional: `MAIL_*` settings, database backups, deleting the leftover volume `postgres-volume-qVKY`
+  - owner decisions: plan section 8; the brand kernel questions in D15; whether organisation owners should also create reset links (D8)
+  - Phase 2 follow-up: brand kernel, result history, billing settings
+  - Phase 3: real actions
+- **Open issues:** tracked as findings in `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`. `docs/BUGS.md` has not been created yet.
+- **Doc version:** 0.2.0
+
+**Tests (2026-09-17)**
+
+| Suite | Result | Coverage |
+|---|---|---|
+| Backend pytest | 548 passed | 98.31% of application code (tests excluded). `backend/.coveragerc` enforces the 95% deploy gate (`fail_under = 95`; omits `tests/`, `.venv/` and `venv/`) whenever coverage is collected (`python -m pytest --cov`, as CI runs it). |
+| Frontend Vitest | 49 files, 601 passed | 99.19% lines (statements 97.03%, branches 89.97%, functions 96.47%). `frontend/vitest.config.ts` enforces 95% lines (`coverage.thresholds`) in `npm run coverage`. |
+| Playwright (chromium) | 69 passed (3 smoke, 12 golden path, 54 accessibility: 27 screens × 2 themes) | n/a |
 
 ---
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| **Backend** | Python 3.12, FastAPI, Pydantic v2 |
-| **Database** | PostgreSQL (Railway, via asyncpg) |
-| **AI Engine** | Anthropic Claude API (claude-sonnet-4-20250514) with web search tool |
-| **Frontend** | React 18, Vite, inline styles (no Tailwind/CSS framework) |
-| **Deployment** | Railway PRO (Docker) |
+|---|---|
+| **Backend** | Python 3.12, FastAPI, Pydantic v2, asyncpg (hand-rolled query helpers in `backend/database.py`), PyJWT + bcrypt auth, cryptography (Fernet field encryption), httpx (scraper) |
+| **Database** | PostgreSQL (Railway in production). Schema changes are Alembic migrations in hand-written SQL (`backend/migrations/versions/`, currently `0001`–`0007`), applied at startup by `run_migrations()` in `backend/database.py`. `SETUP_SQL` is gone. `DATABASE_URL` may include `?sslmode=disable` for a local Postgres. |
+| **Jobs and live updates** | Durable jobs in PostgreSQL (`backend/services/jobs.py`: `FOR UPDATE SKIP LOCKED`, leases, heartbeats). Live updates are SSE over `LISTEN/NOTIFY` (`backend/services/events.py`). |
+| **AI** | The official Anthropic Python SDK (`anthropic` 1.6 on `httpx2`) in `backend/services/claude.py`. `CLAUDE_MODEL` defaults to `claude-sonnet-5` (Sonnet 4 reached end of life on 15 June 2026). Market analysis and pricing use `CLAUDE_REPORT_MODEL` (default `claude-opus-5`). Research operations use the web search tool. There is no `SANDBOX_MODE`. |
+| **Frontend** | React 19, TypeScript ~6.0 (strict, `noUncheckedIndexedAccess`), Vite 8, React Router 7 (data router, lazy routes), TanStack Query 5, Radix UI (`radix-ui` package), cmdk (command palette), lucide-react icons, react-markdown + remark-gfm. Fonts are bundled via `@fontsource-variable` (Mona Sans, JetBrains Mono). |
+| **Styling** | CSS Modules + CSS variable design tokens. No Tailwind or CSS framework. |
+| **Backend tests** | pytest + pytest-asyncio + pytest-cov against a real Postgres test database. Claude, the scraper and SMTP are faked (`test_claude.py` runs the real SDK against a fake Messages API), and an autouse guard fails any test that would reach the network. |
+| **Frontend tests** | Vitest 5 + Testing Library + jsdom + MSW 2. Playwright 1.61 (chromium) + @axe-core/playwright 4.13 for browser tests and WCAG 2.2 A/AA scans. |
+| **Lint** | Backend: ruff, passing, and CI runs it. Frontend: ESLint 9 with typescript-eslint, react-hooks, react-refresh and jsx-a11y, at zero warnings. |
+| **Deploy** | Railway (Docker). See [Deployment & CI](#deployment--ci). |
 
 ---
 
 ## Project Structure
 
 ```
-vybecoding-launchops/
-├── CLAUDE.md                          ← You are here
-├── SETUP_PROMPT.md                    ← Starting prompt for Claude Code
-├── SOURCE_MAP.md                      ← What each file does
-├── .gitignore
+LaunchOps/
+├── CLAUDE.md                  ← you are here
+├── SETUP_PROMPT.md            ← session-start prompt
+├── SOURCE_MAP.md              ← file-by-file map
+├── Dockerfile, railway.toml   ← production image + Railway config
+├── .claude/launch.json        ← preview servers: "backend" (port 8765), "frontend" (port 5173)
+├── .github/workflows/         ← ci.yml (backend, secrets, frontend), build-desktop.yml (Tauri installers on v* tags),
+│                                test-pipeline.yml (untracked generic template, not wired to this repo)
+├── src-tauri/                 ← desktop webview pointing at https://launchops.run
 ├── backend/
-│   ├── main.py                        # FastAPI app factory, CORS, router registration
-│   ├── config.py                      # Pydantic settings from env vars
-│   ├── database.py                    # Supabase client + CRUD helpers + SQL schema
-│   ├── models.py                      # 25+ Pydantic models for all endpoints
-│   ├── requirements.txt               # Python dependencies
-│   ├── Dockerfile                     # Railway-ready container
-│   ├── railway.toml                   # Railway deploy config
-│   ├── .env.example                   # Env var template
-│   ├── routers/
-│   │   ├── __init__.py
-│   │   ├── products.py                # Product CRUD + checklist
-│   │   ├── workflows.py              # AI engine: all 13 workflows + press kit + SEO + repurpose + pricing
-│   │   ├── queue.py                   # Approval queue management
-│   │   └── extras.py                  # Templates, calendar, captures, settings
-│   └── services/
-│       ├── __init__.py
-│       ├── claude.py                  # Claude API wrapper + SANDBOX_MODE toggle + all system prompts
-│       └── scraper.py                 # HTML metadata parser for press kit & SEO
+│   ├── main.py                # app factory, startup (settings guards, migrations, job worker), auth middleware, routers, /health, SPA fallback (unknown /api/* → 404 JSON)
+│   ├── worker.py              # standalone job worker: python -m worker
+│   ├── config.py              # Pydantic settings from env vars; JWT_SECRET startup guard
+│   ├── database.py            # asyncpg pool, query helpers, app_config get/set, run_migrations()
+│   ├── models.py              # Pydantic request/response models
+│   ├── alembic.ini, migrations/   # Alembic; hand-written SQL migrations in migrations/versions/ (0001–0007)
+│   ├── routers/               # auth.py, products.py, workflows.py, queue.py, extras.py, organisations.py, events.py (SSE)
+│   ├── services/              # claude.py, results.py (result models), usage.py + pricing.py (ledger), jobs.py, events.py,
+│   │                          #   access.py (organisation roles), audit.py (activity log), mailer.py (platform email),
+│   │                          #   email.py (Outbox SMTP), scraper.py, auth.py, field_crypto.py, ratelimit.py
+│   ├── tests/                 # pytest suite; conftest.py holds the test-database rules
+│   └── requirements.txt, requirements-dev.txt, pytest.ini, .coveragerc, .env.example
 ├── frontend/
-│   ├── package.json                   # Vite + React dependencies
-│   ├── vite.config.js                 # Dev server with /api proxy to backend
-│   ├── index.html                     # HTML entry
-│   └── src/
-│       ├── main.jsx                   # React mount
-│       ├── App.jsx                    # Full application (~900 lines, single-file MVP)
-│       └── api.js                     # Centralized API helper for all backend calls
+│   ├── src/app/               # App, routes, query client, router
+│   ├── src/styles/            # tokens.css, base.css, print.css
+│   ├── src/lib/               # api/ (client, endpoints, types, sse), auth/ (incl. organisation roles), queries/ + hooks/,
+│   │                          #   live/ (live updates), operations/ provider,
+│   │                          #   domain/ (operations catalogue, projects: readiness + launch state, checklist,
+│   │                          #   dates, exporters, channels, queue, reports, sources, usage, values, chart, order)
+│   ├── src/components/        # ui primitives, shell, access (role-aware controls), project, operations/RunSheet,
+│   │                          #   results renderers, review, outbox
+│   ├── src/pages/             # auth (sign in, password reset, invitation), portfolio, project/*, review, outbox,
+│   │                          #   calendar, library, settings/*
+│   ├── src/test/              # fakeApi.ts (shared fake backend), renderApp, roles, app-level tests
+│   ├── e2e/                   # smoke, golden, a11y specs; support/ (fakeBackend, sample workspace); capture.mjs (screenshots)
+│   └── vite / vitest / playwright / eslint / tsconfig.* configs
+└── docs/
+    ├── ASSESSMENT_AND_DEVELOPMENT_PLAN.md   # findings, phased plan, Progress
+    ├── PHASE1_DESIGN.md                     # Phase 1 decisions (D1–D16) and why
+    ├── DESIGN_SYSTEM.md                     # full design system reference
+    └── TESTING.md                           # frameworks, how to run, inventory, coverage
 ```
 
 ---
@@ -64,105 +129,166 @@ vybecoding-launchops/
 ## Architecture
 
 ```
-React Frontend (Vite)
-    ↓ fetch via api.js
-FastAPI Backend
-    ├── CRUD → Supabase (products, queue, templates, calendar, captures, settings)
-    ├── AI Workflows → Claude API (with web_search tool)
-    │   └── Background tasks: API returns task_id immediately, Claude runs async,
-    │       results land in approval queue when done
-    └── URL Scraping → httpx + custom HTML parser (for press kit & SEO)
+React SPA ── frontend/src/lib/api (15-minute access token in localStorage "launchops_token", X-Org-Id header;
+             refresh token in an HttpOnly cookie scoped to /api/auth)
+    ↓ /api/*
+FastAPI (backend/main.py: auth middleware on /api/*; startup applies migrations and starts the job worker)
+    ├── CRUD ─────────────────────→ PostgreSQL via asyncpg (backend/database.py), scoped to the organisation
+    ├── 12 background workflows ──→ durable job → worker → Claude → result lands in Review
+    ├── 5 synchronous reports ────→ Claude → stored on the project
+    ├── live updates ─────────────→ GET /api/events (SSE), fed by PostgreSQL LISTEN/NOTIFY
+    └── URL scraping ─────────────→ httpx + HTMLParser behind the SSRF guard (press kit, press release, SEO)
+Every Claude API response ──→ ai_usage ledger (estimated cost; optional monthly budget per organisation)
 ```
 
-**Key pattern:** ALL AI-generated content flows through the **approval queue**. Nothing goes out without human review. Workflows run as FastAPI `BackgroundTasks`.
+**API base:**
+- **Production:** relative `/api`. The image serves the SPA from `static/`.
+- **`VITE_API_BASE`:** optional absolute base URL.
+- **Dev:** Vite proxies `/api` to `LAUNCHOPS_API_URL`, set in `frontend/.env.local` (default `http://localhost:8000`).
+
+### Operations (`frontend/src/lib/domain/operations.ts`)
+
+There are 18 operations. **The catalogue's descriptions must stay true to backend behaviour.**
+
+| Kind | # | Operations | Behaviour |
+|---|---|---|---|
+| Background workflow | 12 | competitor, trend, announcement, social posts, ad copy, blog, cold outreach, partnerships, podcasts, Reddit, directories, launch platforms | `POST /api/workflows/launch` saves a running result and a durable job in one transaction, then returns. A worker runs the job: inside the web process by default (`WORKER_ENABLED`), or `python -m worker`. The job survives restarts. Failures a retry might fix get 3 attempts (after 30 s, then 2 min). An Editor can cancel it (`POST /api/queue/{id}/cancel`), and each attempt stops after `JOB_TIMEOUT_MINUTES` (15). The result lands in Review. |
+| Synchronous report | 5 | market analysis, pricing, press kit, press release, SEO | Stored on the project and stamped with `generated_at`. Market analysis and pricing use `CLAUDE_REPORT_MODEL`. If the AI call fails, the API returns 503/502/504 with a readable reason and never overwrites a saved report. |
+| Tool | 1 | repurpose | Returns platform-adapted copy directly. Not stored. |
+
+### Key behaviours
+
+- **Queue-first AI:** background workflow results land in Review (the approval queue). Nothing goes out without human review.
+- **Organisations:**
+  - `X-Org-Id` selects the organisation (without it, the API uses the user's first). Another organisation's things answer 404, and too low a role answers 403.
+  - Roles build on each other: Viewer → Editor → Approver → Owner. Controls follow the member's role.
+  - Settings, projects, results, the Outbox, the calendar, the library and company profiles (rows in the `brands` table) belong to the organisation. Settings are no longer per user.
+  - Platform admin (`users.role = 'admin'`) is separate from organisation roles. The first account created becomes the platform admin; with `ADMIN_EMAIL` set, only that address can create it. The registration toggle is platform-wide, in the `app_config` table.
+- **Sessions:** 15-minute access tokens plus rotating refresh tokens in an HttpOnly cookie scoped to `/api/auth`. There are forgot and reset password pages, and admins create one-time reset links. Reset and invitation emails go through the platform mailer (`MAIL_*`).
+- **Approving never sends email.** For cold outreach, partnerships and announcement results, it copies the contacts into Outbox drafts before the request answers. The Outbox sends only after an explicit confirmation that lists the recipients and the sender. `MAX_EMAILS_PER_DAY` limits sends per account in any 24 hours; 0 switches sending off.
+- **SMTP passwords** are write-only (the API returns `smtp_password_set`, never the password) and encrypted at rest with `FIELD_ENCRYPTION_KEY`.
+- **Live updates:** `GET /api/events` (SSE, read with fetch so the token stays in a header) refreshes Review and the Outbox. Polling slows to 30 s while connected.
+- **Stalled operations:** the activity indicator and Review flag operations running over 60 minutes as possibly stuck.
+- **Usage and budgets:** every Claude API response goes in the `ai_usage` ledger with an estimated cost, including $10 per 1,000 web searches. An optional monthly budget per organisation gives 429 once reached. Owners see both in Settings → Usage.
+- **Calendar:** month and week views. Dragging reschedules entries (`PATCH /api/calendar/{id}`) and launch dates (`PATCH /api/products/{id}`), and every move can be undone. The day agenda is the keyboard alternative.
+- **Dates** the user picks are local `YYYY-MM-DD` keys and are never converted through UTC.
+- **JSONB reorders object keys**, so the frontend restores the canonical field order for AI results (`frontend/src/lib/domain/order.ts`).
+- **Destructive actions** can be undone for 6 s, or need typed confirmation (project delete).
+
+### Claude integration (`backend/services/claude.py`, `backend/services/results.py`)
+
+- `generate_result(prompt, user_message, result_type, ...)` is the only entry point. Every request streams.
+- Every operation has a Pydantic result model (`results.py`) and is validated before it's stored.
+- Operations without web search use structured outputs (`output_config.format`). Web research ends with a strict `submit_result` tool, gets one reminder if it doesn't submit, and keeps only the `sources` its searches actually returned.
+- The system prompt has three parts (`Prompt`). The instructions and the brand context (`build_brand_context()`) are cached; the run details and today's date aren't.
+- Prompts: `WORKFLOW_PROMPTS` covers the 12 background workflows. Press kit, press release, SEO, repurpose, pricing and market analysis each have their own `*_INSTRUCTIONS`.
+- `pause_turn` resumes, and each call has a 10-minute deadline, retries and resumes included.
+- Every API response is recorded in the `ai_usage` ledger (`services/usage.py`; costs in `services/pricing.py`).
+- The frontend still renders `raw_response` for results stored before structured outputs.
+
+### Template matching
+
+Templates carry `tags` (e.g. `["outreach", "email"]`). `GET /api/templates/for-workflow/{workflow_id}` returns the organisation's templates whose tags overlap with that workflow's tags. The workflow-to-tags map is in `backend/routers/extras.py`. The operation run sheet (`frontend/src/components/operations/RunSheet.tsx`) shows these templates as suggestions.
+
+### URL scraping (`backend/services/scraper.py`)
+
+A custom `HTMLParser` subclass (`MetadataParser`) extracts the title, meta description, OG tags, Twitter Card tags, canonical URL, JSON-LD, headings (h1–h3) and body text. The page text sent to the AI excludes inline scripts and styles; JSON-LD is still collected separately. Press kit, press release and SEO analysis use it. The SSRF guard allows public addresses only, checks every redirect and pins the connection to the checked address. It accepts HTML only and reads at most 2 MB.
 
 ---
 
-## MVP Features (10)
+## Screens
 
-1. **Product Hub** — Create/manage multiple products, each with its own dashboard
-2. **Quick Capture** — One-liner input that gets queued for later expansion
-3. **Press Kit Creator** — Feed a URL → scrape → Claude generates complete press kit
-4. **AI Workflows** (13) — Flat list: competitor analysis, trend reports, press targets, cold outreach, partnerships, social posts, ad copy, blog drafts, announcements, Reddit communities, directories, launch platforms, podcasts
-5. **Cross-Platform Repurposer** — Write once → Claude adapts for Twitter, Instagram, LinkedIn, Reddit, TikTok, Facebook
-6. **Approval Queue** — Review/approve/reject all AI outputs before use
-7. **Launch Checklist** — Merged pre-launch (15 items) + launch day (11 timed items) + post-launch (7 items)
-8. **Pricing Advisor** — Claude analyzes competitors and suggests pricing tiers
-9. **Template Library** — Save reusable content patterns with tag-based matching to workflows
-10. **Dynamic Content Calendar** — Click any day → editable task list per day
-11. **SEO Optimizer** — Analyze URL metadata → generate optimized tags + JSON-LD + full head block with manual injection guide + CMS OAuth placeholder
-
----
-
-## Critical Implementation Details
-
-### Claude API Integration (`services/claude.py`)
-
-- **SANDBOX_MODE toggle** at the top of the file. When `True`, returns mock data. When `False`, calls the real API.
-- Every Claude call gets **brand context injected** via `build_brand_context()` — brand voice, product details, and agent preferences from settings.
-- All 13 workflow prompts are stored in the `WORKFLOW_PROMPTS` dict. Each has a system prompt template with `{brand_context}` placeholder and optional tools.
-- Specialized prompts exist for press kit, SEO, repurpose, and pricing.
-- Claude responses are expected as **structured JSON**. The `_parse_json_response()` helper handles markdown fence stripping.
-
-### Template Matching
-
-Templates have `tags` (e.g., `["outreach", "email"]`). Workflows have matching tags. The `/api/templates/for-workflow/{id}` endpoint returns templates whose tags overlap with the workflow's tags. This powers the contextual template suggestions in the UI.
-
-### URL Scraping (`services/scraper.py`)
-
-Custom `HTMLParser` subclass that extracts: title, meta description, OG tags, Twitter Card tags, canonical URL, JSON-LD, headings (h1-h3), and body text. Used by both press kit generation and SEO analysis.
-
-### Frontend State
-
-The React app currently uses local state (useState). It has mock data for demo purposes. The `api.js` module is ready — all functions match the backend endpoints. **The main task is wiring App.jsx to use api.js instead of local mock state.**
-
----
-
-## Development Commands
-
-### Backend
-```bash
-cd backend
-python -m pip install -r requirements.txt
-cp .env.example .env
-# Fill in .env with real keys
-python -m uvicorn main:app --reload --port 8000
-# API docs: http://localhost:8000/docs
-```
-
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-# Dev server: http://localhost:5173 (proxies /api to :8000)
-```
-
-### Database Setup
-Run the SQL from `database.py` (the `SETUP_SQL` variable) in the Supabase SQL editor to create all tables.
+| Screen | Contents |
+|---|---|
+| Portfolio | Summary strip, launch board, needs attention, next 14 days |
+| Project | Overview · Operations (the run sheet states each operation's contract) · Reports (with a Sources section; export to print/PDF, Markdown, AI prompt) · Review · Outbox · Launch plan (33 items + custom items) · Settings |
+| Review | Results from all projects; J/K keys move between items; cancel running operations; research results end with a Sources section; updates live |
+| Outbox | Email drafts; sends only after confirmation; updates live |
+| Calendar | Month and week views; drag to reschedule, with Undo |
+| Library | Templates, ideas |
+| Settings | General/white-label, voice & AI, companies, channels, organisation, activity (Owner), usage and budget (Owner), team & access (platform admins only) |
+| Sign-in | Sign in, forgot password, reset password, accept an invitation or register through one |
+| Shell | Organisation switcher, command palette (Ctrl/Cmd+K), capture dialog, activity indicator (flags operations running over 60 minutes as possibly stuck) |
 
 ---
 
 ## Design System
 
-- **Background:** `#08080d`
-- **Card background:** `rgba(255,255,255,0.03)` with `1px solid rgba(255,255,255,0.06)` border
-- **Accent colors per module:** Cyan `#00f0ff` (research), Orange `#ff6b35` (outreach), Purple `#a855f7` (content), Green `#22c55e` (opportunity)
-- **Fonts:** Space Mono (headings), JetBrains Mono (labels/code), Inter (body)
-- **Status colors:** Pending `#ffaa00`, Approved `#22c55e`, Rejected `#ef4444`, Running `#00f0ff`
+Full reference: `docs/DESIGN_SYSTEM.md`.
+
+- **Themes:** light first, with a dark theme. The dark theme redefines **tokens only, never components**.
+- **Colour:** primary buttons are monochrome. There is one accent, "signal": `#2f3dda` light / `#8d97ff` dark. Semantic ok/warn/crit colours are only for state.
+- **Type:**
+  - Mona Sans for body text.
+  - Display text uses `font-stretch: 112%`.
+  - Condensed uppercase "placard" labels use 82%.
+  - JetBrains Mono for numbers, with tabular figures.
+- **Tertiary text** `--ink-3`: `#686875` light / `#8e8ea0` dark, at least 4.6:1 contrast on every surface.
+- **Contrast** is enforced in both themes by `frontend/e2e/a11y.spec.ts`.
+
+---
+
+## Development Commands (Windows)
+
+On the dev machine, port 8000 is taken by a background service, so the local backend runs on **8765**. `.claude/launch.json` defines matching "backend" (8765) and "frontend" (5173) preview servers.
+
+Full testing guide (frameworks, how to run, inventory, coverage): `docs/TESTING.md`.
+
+### Backend
+```bash
+cd backend
+python -m venv .venv                               # then use .venv\Scripts\python.exe as "python" below
+python -m pip install -r requirements-dev.txt
+# copy .env.example to .env; fill in DATABASE_URL, JWT_SECRET, FIELD_ENCRYPTION_KEY, ANTHROPIC_API_KEY
+python -m uvicorn main:app --reload --port 8765    # applies migrations at startup; API docs at http://localhost:8765/docs only with DEBUG=true
+python -m worker                                   # optional standalone job worker (the web process runs one unless WORKER_ENABLED=false)
+python -m ruff check .
+python -m pytest                                   # needs PostgreSQL 13 or newer (developed and tested on 18)
+python -m pytest --cov                             # with the 95% coverage gate, as CI runs it
+```
+
+The test database name must contain `test`. `TEST_DATABASE_URL` overrides the local default set in `backend/tests/conftest.py`.
+
+### Frontend
+```bash
+cd frontend
+npm install
+# create frontend/.env.local containing: LAUNCHOPS_API_URL=http://localhost:8765
+npm run dev                        # http://localhost:5173, proxies /api
+npm run check                      # lint + typecheck + unit/component tests (no coverage gate)
+npm run coverage                   # fails below 95% lines
+npx playwright install chromium    # once; npm run e2e needs it
+npm run e2e                        # builds, serves on :4173, runs smoke, golden-path and accessibility tests; no backend needed
+```
+
+This machine can't download Chromium through `npx playwright install chromium`; see the Playwright notes in `docs/TESTING.md`.
 
 ---
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `ANTHROPIC_API_KEY` | Claude API key |
-| `CLAUDE_MODEL` | Model ID (default: `claude-sonnet-4-20250514`) |
-| `DATABASE_URL` | PostgreSQL connection string (Railway provides this) |
-| `SECRET_KEY` | App secret for sessions |
-| `CORS_ORIGINS` | Comma-separated allowed origins |
-| `DEBUG` | `true` / `false` |
+| Variable | Scope | Description |
+|---|---|---|
+| `DATABASE_URL` | backend | **Required.** PostgreSQL connection string (Railway provides it). Add `?sslmode=disable` for a local Postgres. |
+| `JWT_SECRET` | backend | **Required.** Signs sign-in tokens. Outside debug mode, startup refuses the old placeholder or anything shorter than 32 characters. Generate one with `python -c "import secrets; print(secrets.token_urlsafe(48))"`. |
+| `FIELD_ENCRYPTION_KEY` | backend | **Required** (unless `DEBUG=true`). Fernet key that encrypts secrets stored in the database, such as SMTP passwords. To rotate, list the new key first: `NEW,OLD`. The generate command is in `backend/.env.example`. |
+| `ANTHROPIC_API_KEY` | backend | **Required.** Claude API key. Without it, AI operations fail with a readable error. |
+| `ADMIN_EMAIL` | backend | **Recommended for any public deployment.** The first account created becomes the platform admin. When this is set and no account exists yet, registration from any other address is refused (403). Once the admin exists, registration works as before. |
+| `CLAUDE_MODEL` | backend | Model for every operation except market analysis and pricing (default `claude-sonnet-5`) |
+| `CLAUDE_REPORT_MODEL` | backend | Model for market analysis and pricing (default `claude-opus-5`) |
+| `CORS_ORIGINS` | backend | Comma-separated origins allowed to call the API from another site. Default empty: same origin only (production serves the SPA itself; dev uses the Vite proxy). |
+| `DEBUG` | backend | Default `false`. `true` serves API docs at `/docs` and tolerates a weak `JWT_SECRET`. Never in production. |
+| `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS` | backend | Access token lifetime (default 15 minutes) and refresh token lifetime (default 30 days) |
+| `APP_URL`, `MAIL_SMTP_HOST`, `MAIL_SMTP_PORT` (587), `MAIL_SMTP_USER`, `MAIL_SMTP_PASSWORD`, `MAIL_FROM_EMAIL`, `MAIL_FROM_NAME` (LaunchOps), `MAIL_USE_TLS` (true) | backend | Platform mailer for password reset links and invitations. `APP_URL` is the base for links in emails. Unset: nothing is emailed; admins create reset links and owners share invitation links themselves. |
+| `WORKER_ENABLED` | backend | Default `true`: the job worker runs inside the web process. Set `false` when a separate service runs `python -m worker`. |
+| `WORKER_CONCURRENCY`, `JOB_TIMEOUT_MINUTES` | backend | Jobs one worker runs at once (default 3); time limit per attempt (default 15 minutes) |
+| `RATE_LIMIT_ENABLED` | backend | Default `true`: rate limits on sign-in, registration, password resets and AI operations |
+| `AI_OPERATIONS_PER_HOUR`, `MAX_CONCURRENT_TASKS` | backend | Per account: AI operations per hour (default 60) and background operations running at once (default 5) |
+| `MAX_EMAILS_PER_DAY` | backend | Outbox sends per account in any 24 hours (default 20); 0 switches sending off |
+| `SECRET_KEY` | backend | Unused; kept so existing `.env` files still load |
+| `TEST_DATABASE_URL` | backend tests | Overrides the local test database default |
+| `LAUNCHOPS_API_URL` | frontend | Dev proxy target only (`frontend/.env.local`) |
+| `VITE_API_BASE` | frontend | Optional absolute API base |
 
 ---
 
@@ -172,12 +298,42 @@ The developer cannot configure pip/python in system PATH on Windows. Always use 
 
 ---
 
-## Railway Deployment
+## Conventions
 
-The backend deploys via Dockerfile. Set all env vars in Railway dashboard. The frontend builds to static files and can be served from a separate Railway service with nginx/caddy, or combined into the backend service serving static files.
+- Never write into OneDrive or the Documents/Desktop folders.
+- Bug fixes need a failing test first. Keep ESLint at zero warnings. Update docs at the point of change.
+- Don't commit without asking the owner, and create a branch first.
+- Keep the operation descriptions in `frontend/src/lib/domain/operations.ts` true to backend behaviour.
+- Launch plan phase names and item order are part of the stored data format (`frontend/src/lib/domain/checklist.ts`). Never rename or reorder them.
+
+---
+
+## Deployment & CI
+
+- **Railway:** project "Launch Ops", environment `production`, with exactly two services, both in US East:
+  - `launchops`: built from the root `Dockerfile` and root `railway.toml`. The Dockerfile builds `frontend/dist` with Node 24, then Python 3.12 serves the API and the SPA from `static/`. `railway.toml` sets the `/health` healthcheck. The job worker runs inside this service; to split it out, run `python -m worker` as a second service and set `WORKER_ENABLED=false` here.
+  - `Postgres`: the Railway Postgres 18 template, with a volume.
+  - Startup applies pending migrations; a failed migration stops the app from starting.
+  - Variables on `launchops`: `DATABASE_URL` (references `${{Postgres.DATABASE_URL}}` over the private network), `JWT_SECRET` and `FIELD_ENCRYPTION_KEY` (generated), `APP_URL=https://launchops.run`, `ADMIN_EMAIL`. Not set yet: `ANTHROPIC_API_KEY` (the owner sets it) and `MAIL_*` (optional).
+  - Source: `launchops` isn't connected to GitHub. It runs the uncommitted working tree, uploaded with `railway up`. After the work is committed, connect it to `Vybecode-LTD/LaunchOps` so pushes deploy.
+  - The old `backend`, `frontend` and `src-tauri` services have been removed. A detached empty volume, `postgres-volume-qVKY`, is left over and can be deleted in the dashboard.
+- **Status (2026-09-17):** deployed. `launchops` answers at https://launchops-production-0457.up.railway.app, and the owner is adding launchops.run as its custom domain. Verified live:
+  - `/health` answers ok, and the interface loads
+  - unauthenticated API calls get 401
+  - a first registration from another address gets 403, so the database and migrations work
+  - security headers, including HSTS, are sent
+- **Desktop:** `src-tauri/` is a webview pointing at https://launchops.run. `.github/workflows/build-desktop.yml` builds installers on `v*` tags.
+- **CI:** `.github/workflows/ci.yml` has three jobs:
+  - Backend: ruff, pip-audit, then pytest with a `postgres:18` service and the 95% coverage gate.
+  - Secrets: gitleaks over the full git history.
+  - Frontend: npm audit (fails on high or critical), lint, typecheck, Vitest coverage, build, Playwright.
 
 ---
 
 ## What Needs To Happen Next
 
-See `SETUP_PROMPT.md` for the exact sequence of tasks.
+The **"Progress"** section of `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` has the active phase, the open findings and the next items. The open owner questions on the brand kernel (D15) and reset links (D8) are in `docs/PHASE1_DESIGN.md`. Every session ends with **"perform handoff"**.
+
+---
+
+Last-verified: 2026-09-17 · HEAD `97a0706` plus the uncommitted working tree

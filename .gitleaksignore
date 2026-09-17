@@ -1,0 +1,7 @@
+# Reviewed gitleaks findings that aren't secrets. Each line is one finding's fingerprint
+# (commit:file:rule:line), so only that exact finding is ignored; anything new is still reported.
+
+# Launch plan item keys ("Pre-Launch_0", "Pre-Launch_15") in test expectations match the
+# generic API key rule. They're keys of the stored launch plan format (lib/domain/checklist.ts).
+d7752c36480f4d437f9e3536a5ba4c3154ee6d9d:frontend/src/lib/domain/checklist.test.ts:generic-api-key:11
+d7752c36480f4d437f9e3536a5ba4c3154ee6d9d:frontend/src/lib/domain/checklist.test.ts:generic-api-key:23

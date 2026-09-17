@@ -1,0 +1,176 @@
+/*
+ * LaunchOps design tokens.
+ *
+ * Light is the base palette. Dark redefines tokens only — never components —
+ * under both the OS preference (unless the user picked light) and an explicit
+ * data-theme="dark", so every theme state resolves to a complete set.
+ */
+
+:root {
+  /* Ground and surfaces: cool neutrals biased slightly toward the signal hue. */
+  --ground: #f3f3f6;
+  --surface: #ffffff;
+  --surface-sunken: #f7f7fa;
+  --surface-hover: #f1f1f5;
+  --surface-overlay: #ffffff;
+  --line: #e3e3ea;
+  --line-strong: #cdcdd8;
+
+  /* Ink */
+  --ink: #121218;
+  --ink-2: #4b4b59;
+  --ink-3: #686875;
+  --ink-disabled: #a9a9b6;
+
+  /* Signal: the one accent. Live, selected, focused, linked. */
+  --signal: #2f3dda;
+  --signal-hover: #2632bd;
+  --signal-soft: #ebedfd;
+  --signal-ink: #2330b0;
+  /* Text and icons placed on a solid --signal or --crit fill. */
+  --signal-fg: #ffffff;
+  --crit-fg: #ffffff;
+
+  /* Primary actions are monochrome. */
+  --primary-bg: #16161d;
+  --primary-fg: #ffffff;
+  --primary-hover: #2b2b35;
+
+  /* Semantic state (never used as decoration). */
+  --ok: #1b7a47;
+  --ok-soft: #e4f3ea;
+  --warn: #975a00;
+  --warn-soft: #fbf0dc;
+  --crit: #bb2f27;
+  --crit-soft: #fae8e6;
+  --neutral-soft: #ededf2;
+
+  /* Data viz: one-hue ordinal ramp (validated: dataviz validate_palette --ordinal). */
+  --viz-1: #98a0f0;
+  --viz-2: #5f6ce4;
+  --viz-3: #2f3dda;
+
+  /* Elevation: overlays only. Panels use hairlines. */
+  --shadow-overlay: 0 1px 2px rgb(18 18 24 / 0.06), 0 12px 32px -8px rgb(18 18 24 / 0.18);
+  --shadow-toast: 0 2px 6px rgb(18 18 24 / 0.08), 0 16px 40px -12px rgb(18 18 24 / 0.28);
+  --scrim: rgb(18 18 24 / 0.32);
+
+  /* Type */
+  --font-sans: "Mona Sans Variable", "Mona Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --text-11: 0.6875rem;
+  --text-12: 0.75rem;
+  --text-13: 0.8125rem;
+  --text-14: 0.875rem;
+  --text-15: 0.9375rem;
+  --text-17: 1.0625rem;
+  --text-20: 1.25rem;
+  --text-24: 1.5rem;
+  --text-30: 1.875rem;
+  --text-40: 2.5rem;
+
+  --stretch-placard: 82%;
+  --stretch-display: 112%;
+
+  /* Space (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-14: 56px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  --rail-width: 244px;
+  --topbar-height: 56px;
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0c0c10;
+    --surface: #141419;
+    --surface-sunken: #1a1a21;
+    --surface-hover: #1e1e26;
+    --surface-overlay: #1a1a21;
+    --line: #25252e;
+    --line-strong: #363642;
+    --ink: #ececf1;
+    --ink-2: #a8a8b7;
+    --ink-3: #8e8ea0;
+    --ink-disabled: #52525f;
+    --signal: #8d97ff;
+    --signal-hover: #a5adff;
+    --signal-soft: #1c1f4b;
+    --signal-ink: #bac0ff;
+    --signal-fg: #0c0c10;
+    --crit-fg: #0c0c10;
+    --primary-bg: #ececf1;
+    --primary-fg: #0c0c10;
+    --primary-hover: #d5d5de;
+    --ok: #55c78d;
+    --ok-soft: #10291c;
+    --warn: #eda84c;
+    --warn-soft: #2e220f;
+    --crit: #f27d73;
+    --crit-soft: #331715;
+    --neutral-soft: #23232c;
+    --viz-1: #39409a;
+    --viz-2: #5b66e0;
+    --viz-3: #8d97ff;
+    --shadow-overlay: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 40px -8px rgb(0 0 0 / 0.6);
+    --shadow-toast: 0 2px 6px rgb(0 0 0 / 0.4), 0 20px 48px -12px rgb(0 0 0 / 0.7);
+    --scrim: rgb(0 0 0 / 0.55);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #0c0c10;
+  --surface: #141419;
+  --surface-sunken: #1a1a21;
+  --surface-hover: #1e1e26;
+  --surface-overlay: #1a1a21;
+  --line: #25252e;
+  --line-strong: #363642;
+  --ink: #ececf1;
+  --ink-2: #a8a8b7;
+  --ink-3: #8e8ea0;
+  --ink-disabled: #52525f;
+  --signal: #8d97ff;
+  --signal-hover: #a5adff;
+  --signal-soft: #1c1f4b;
+  --signal-ink: #bac0ff;
+  --signal-fg: #0c0c10;
+  --crit-fg: #0c0c10;
+  --primary-bg: #ececf1;
+  --primary-fg: #0c0c10;
+  --primary-hover: #d5d5de;
+  --ok: #55c78d;
+  --ok-soft: #10291c;
+  --warn: #eda84c;
+  --warn-soft: #2e220f;
+  --crit: #f27d73;
+  --crit-soft: #331715;
+  --neutral-soft: #23232c;
+  --viz-1: #39409a;
+  --viz-2: #5b66e0;
+  --viz-3: #8d97ff;
+  --shadow-overlay: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 40px -8px rgb(0 0 0 / 0.6);
+  --shadow-toast: 0 2px 6px rgb(0 0 0 / 0.4), 0 20px 48px -12px rgb(0 0 0 / 0.7);
+  --scrim: rgb(0 0 0 / 0.55);
+  color-scheme: dark;
+}
