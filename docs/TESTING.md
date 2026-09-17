@@ -192,7 +192,7 @@ Secret scan findings that were reviewed and aren't secrets:
 
 - **They go in `.gitleaksignore`** at the repo root, one fingerprint per finding (`commit:file:rule:line`). An inline `gitleaks:allow` comment can't clear them: the scan covers every commit, so a comment added in a later commit leaves the finding in the earlier one. Only the listed fingerprints are skipped, so any new finding is still reported.
 - **A fingerprint names its commit.** A finding keeps its fingerprint after its pull request is merged only if the pull request is merged with a merge commit. Squash and rebase merges change commit hashes, so the entries stop matching and the scan reports those findings again.
-- **Listed now:** two launch plan item keys in `frontend/src/lib/domain/checklist.test.ts` (lines 11 and 23: `key: "Pre-Launch_0"`, `key: "Pre-Launch_15"`), flagged by the `generic-api-key` rule in commit `d7752c3`.
+- **Listed now:** the keys of the first and sixteenth pre-launch items in `frontend/src/lib/domain/checklist.test.ts` (lines 11 and 23), flagged by the `generic-api-key` rule in commit `d7752c3`. `.gitleaksignore` also lists this line's earlier wording from commit `4f433ee`, which quoted those two keys in the test's own syntax and matched the same rule. Rewording the line can't clear that finding, because the scan covers every commit.
 
 Not in CI: mypy, `ruff format --check`, branch or diff coverage.
 
