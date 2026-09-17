@@ -1,8 +1,8 @@
 ---
 document: TESTING
-version: 1.1.1
-last-updated: 2026-09-17T20:10:00Z
-last-audit: 2026-09-17T19:30:00Z
+version: 1.1.2
+last-updated: 2026-09-17T21:24:00Z
+last-audit: 2026-09-17T20:45:00Z
 managed-by: session-orchestrator/test-doc-manager
 ---
 
@@ -96,6 +96,8 @@ Requirements:
 - **The database name must contain `test`.** `tests/conftest.py` checks the URL path and stops the run (`pytest.exit`) if it doesn't. Every test empties all app tables, so never point the suite at a real database.
 - **The database user must be allowed to create databases.** `test_migrations.py` creates and drops scratch databases named `launchops_test_migrations_*` on the same server.
 - **Default DSN:** `DEFAULT_TEST_DSN` in `backend/tests/conftest.py`, currently `postgresql://postgres@127.0.0.1:56432/launchops_test?sslmode=disable` (port 56432). Set `TEST_DATABASE_URL` to use a different server. CI sets `postgresql://postgres@localhost:5432/launchops_test?sslmode=disable` for its `postgres:18` service.
+- **At session start, nothing is usually listening on 56432** — or on 56433. Both are scratch clusters that earlier sessions created and then stopped cleanly, so `python -m pytest` fails to connect before any of the guidance here applies. Their data directories sit under an **earlier** session's scratchpad: `%LOCALAPPDATA%\Temp\claude\C--DEV-LaunchOps\<session-id>\scratchpad\pgdata` (port 56432, holding `launchops_test` beside the `launchops` dev database) and `...\scratchpad\pgdata2` (port 56433, holding `launchops_test`). **Neither path is durable** — they live in a temp folder and can be cleaned up at any time. The always-on service on port **5432 is not a substitute**: its `postgres` user needs a password that is recorded nowhere in this project (`psql` there answers `fe_sendauth: no password supplied`).
+- **Starting a stopped cluster** uses PostgreSQL 18's `pg_ctl` (`C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe`), with `-D` at the data directory, `-l` at a log file **outside the repository and outside OneDrive** — this session's scratchpad — and `-o "-p <port>"` at the port: `& "C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe" -D "<scratchpad>\pgdata2" -l "<scratchpad>\pg.log" -o "-p 56433" start`. If the scratch directories have been cleaned, `initdb` a fresh cluster in the **current** session's scratchpad (never `Documents`, `Desktop` or anywhere else OneDrive syncs) and create a database whose **name contains `test`**, owned by a user allowed to create databases, as the two notes above require. Both clusters were restarted this way on 2026-09-17, and the 19:0x run against 56433 through `TEST_DATABASE_URL` was green: 550 passed, 98.31% coverage.
 - **Two pytest runs must never share a test database.** Every test empties all app tables, and `test_migrations.py` creates and drops databases on the same server, so a second run on the same cluster fights the first. On 2026-09-17 a second agent's run against this machine's default cluster produced deadlocks and foreign-key violations that read like real failures and were not. Give the second run its own server through `TEST_DATABASE_URL`: the 2026-09-17 19:0x run used a fresh scratch cluster on port 56433, while `conftest.py`'s default stays on 56432.
 
 ```powershell

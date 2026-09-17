@@ -1,8 +1,8 @@
 ---
 document: CLAUDE
-version: 1.1.1
-last-updated: 2026-09-17T20:15:00Z
-last-audit: 2026-09-17T20:05:00Z
+version: 1.1.2
+last-updated: 2026-09-17T21:24:00Z
+last-audit: 2026-09-17T20:45:00Z
 managed-by: session-orchestrator/memory-updater
 ---
 
@@ -20,7 +20,7 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
 | **Findings, phased plan, phase status** | `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`, section "Progress" |
 | **Bugs** | `docs/BUGS.md` |
 | **Session handoff** (read it at session start) | `docs/HANDOFF.md` |
-| **Changelog / audit log** | `docs/CHANGELOG.md` — what each version of the documentation set changed, newest first; the top entry is where things stand (1.1.1: pull request #3 merged, the BUG-027 fix in production, the documents reconciled to it) / `docs/AUDIT-LOG.md` — the reconciliation audits, newest first |
+| **Changelog / audit log** | `docs/CHANGELOG.md` — what each version of the documentation set changed, newest first; the top entry is where things stand (1.1.2: the stale `bc6143c` current-state claims corrected after pull request #4, T-2 and T-3 settled, T-4 retitled, a third audit) / `docs/AUDIT-LOG.md` — the reconciliation audits, newest first |
 | **Phase 1 decisions (D1–D16)** | `docs/PHASE1_DESIGN.md` |
 | **Design system** | `docs/DESIGN_SYSTEM.md` |
 | **Testing** | `docs/TESTING.md`: frameworks, how to run, inventory, coverage |
@@ -43,18 +43,16 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
   - usage ledger with monthly budgets and a Settings → Usage page
 
   Plus the rest of Phase 0: encrypted SMTP passwords, SSRF guard, startup guards, Alembic migrations, the daily email cap, deleted duplicate deploy files, CI security scans. Then, on 2026-09-17: the `ADMIN_EMAIL` setting, the Railway deployment, pull request #1 (branch `feature/launchops-v2-foundation`: `d7752c3` the v2 work, `4ecbcc4` `.gitleaksignore`), merged into `main` as `24eff91` after all CI checks passed, and pull request #2 (documentation: `4f433ee`, `b0beeaf`), merged as `f143f1c`. After that, `ANTHROPIC_API_KEY` was set on Railway, a live smoke test passed, and **launchops.run went live over HTTPS**.
-- **Active task:** none. **`main` is at `bc6143c`, and that is what production runs.** This session's work merged as **pull request #3** (branch `fix/refresh-token-clock-skew`, six commits: `35d24c5` the BUG-027 refresh-token fix, `584cff6` the text-block regression test, `7c1f1cb` the session-end documents, `39ff28b` the design-system correction, `ee4932a` the reconciliation fixes, `c486949` the branch-state notes), after all three CI jobs passed: backend lint and tests (550 tests, the 95% coverage gate, against a `postgres:18` service), frontend lint/typecheck/Vitest/build/Playwright, and the gitleaks secret scan. It was merged with a **merge commit, not a squash**, so the `.gitleaksignore` fingerprints still resolve. Railway deployed `bc6143c` at 2026-09-17T19:47:08Z, so **the BUG-027 refresh-token fix is now in production.** Only `.github/workflows/test-pipeline.yml` remains deliberately untracked.
-- **Next** (priority order; the first four are owner-only account, DNS and console work, not code — full list in `docs/ROADMAP.md` → Active):
+- **Active task:** none. **`main` is at `0ce65dd`, the merge of pull request #4** (branch `docs/record-the-merge`, two commits: `9f7e930` recording the merge, the deployment and a second audit, `6a54c04` pointing the changelog row at the newest entry) — documentation only: it touched `CLAUDE.md` and `docs/` alone, no application code, no tests, no CI config. So **`bc6143c` is still the last commit that changed application code, and what production runs is unchanged in behaviour.** This session's work merged as **pull request #3** (branch `fix/refresh-token-clock-skew`, six commits: `35d24c5` the BUG-027 refresh-token fix, `584cff6` the text-block regression test, `7c1f1cb` the session-end documents, `39ff28b` the design-system correction, `ee4932a` the reconciliation fixes, `c486949` the branch-state notes), after all three CI jobs passed: backend lint and tests (550 tests, the 95% coverage gate, against a `postgres:18` service), frontend lint/typecheck/Vitest/build/Playwright, and the gitleaks secret scan. It was merged with a **merge commit, not a squash**, so the `.gitleaksignore` fingerprints still resolve. Railway deployed `bc6143c` at 2026-09-17T19:47:08Z, so **the BUG-027 refresh-token fix is now in production.** Only `.github/workflows/test-pipeline.yml` remains deliberately untracked.
+- **Next** (priority order; the first two are owner-only account and console work, not code — full list in `docs/ROADMAP.md` → Active):
   - delete the stray account `guard-check@example.com` and "Guard check's organisation" (Settings → Team & access): a sign-up probe created it on the live site
-  - confirm who holds the first (admin) account, and decide whether open registration stays on
-  - update the Spaceship CNAME for launchops.run to `xesm2hmr.up.railway.app` (it still points at the old `5rlc9k25.up.railway.app`, which works)
-  - delete the Railway project token that was pasted into chat, and issue a new one when needed
+  - **rotate the Railway project token again.** The token that was pasted into chat was deleted and a new one issued, but the replacement was pasted into chat too, so it is exposed the same way and has to be replaced. Issue the next one somewhere the value cannot reach a transcript: `railway login` in the owner's own shell, never a token passed through a tool call or a shell argument.
   - optional: turn on Wait for CI in the `launchops` service's source settings, turn on database backups, delete the leftover volume `postgres-volume-qVKY`, set `MAIL_*`
   - owner decisions: plan section 8; the brand kernel questions in D15; whether organisation owners should also create reset links (D8)
   - Phase 2 follow-up: brand kernel, result history, billing settings
   - Phase 3: real actions
 - **Open bugs:** none. The record is `docs/BUGS.md` (27 bugs, all fixed, each with a test that failed first; two known limitations). Remaining findings and phase status are in `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`.
-- **Doc version:** 1.1.1 — this is the `version:` in this file's frontmatter, not a separate number. All seven managed documents carry that one shared version and are raised together.
+- **Doc version:** 1.1.2 — this is the `version:` in this file's frontmatter, not a separate number. All seven managed documents carry that one shared version and are raised together.
 
 **Tests (2026-09-17)**
 
@@ -259,7 +257,7 @@ python -m pytest                                   # needs PostgreSQL 13 or newe
 python -m pytest --cov                             # with the 95% coverage gate, as CI runs it
 ```
 
-The test database name must contain `test`. `TEST_DATABASE_URL` overrides the local default set in `backend/tests/conftest.py` (`postgresql://postgres@127.0.0.1:56432/launchops_test`). **Never let two pytest runs share one test database** — two suites against the same cluster deadlock and raise foreign-key errors that read like real failures. This session finished against a scratch cluster on port **56433**, pointed at with `TEST_DATABASE_URL`.
+The test database name must contain `test`. `TEST_DATABASE_URL` overrides the local default set in `backend/tests/conftest.py` (`postgresql://postgres@127.0.0.1:56432/launchops_test?sslmode=disable`). Nothing is listening on **56432** at session start — it is a scratch cluster an earlier session created and stopped, so `python -m pytest` fails until it is started again, and the always-on server on 5432 is no substitute, because its `postgres` user needs a password nobody recorded. **Never let two pytest runs share one test database** — two suites against the same cluster deadlock and raise foreign-key errors that read like real failures. This session finished against a scratch cluster on port **56433**, pointed at with `TEST_DATABASE_URL`.
 
 ### Frontend
 ```bash
@@ -285,7 +283,7 @@ This machine can't download Chromium through `npx playwright install chromium`; 
 | `JWT_SECRET` | backend | **Required.** Signs sign-in tokens. Outside debug mode, startup refuses the old placeholder or anything shorter than 32 characters. Generate one with `python -c "import secrets; print(secrets.token_urlsafe(48))"`. |
 | `FIELD_ENCRYPTION_KEY` | backend | **Required** (unless `DEBUG=true`). Fernet key that encrypts secrets stored in the database, such as SMTP passwords. To rotate, list the new key first: `NEW,OLD`. The generate command is in `backend/.env.example`. |
 | `ANTHROPIC_API_KEY` | backend | **Required.** Claude API key. Without it, AI operations fail with a readable error. |
-| `ADMIN_EMAIL` | backend | **Recommended for any public deployment.** The first account created becomes the platform admin. When this is set and no account exists yet, registration from any other address is refused (403). Once the admin exists, registration works as before. |
+| `ADMIN_EMAIL` | backend | **Recommended for any public deployment.** The first account created becomes the platform admin. When this is set and no account exists yet, registration from any other address is refused (403). Once the admin exists, registration works as before. In production it is `color8studios@gmail.com`, confirmed on 2026-09-17 as the holder of the platform admin account (`users.role = 'admin'`). **Open registration deliberately stays on:** the platform-wide switch in `app_config` is unchanged and enabled, so anyone who reaches launchops.run can register and create an organisation. That is an owner decision with the residual risk accepted; `ADMIN_EMAIL` still protects the admin account itself. |
 | `CLAUDE_MODEL` | backend | Model for every operation except market analysis and pricing (default `claude-sonnet-5`) |
 | `CLAUDE_REPORT_MODEL` | backend | Model for market analysis and pricing (default `claude-opus-5`) |
 | `CORS_ORIGINS` | backend | Comma-separated origins allowed to call the API from another site. Default empty: same origin only (production serves the SPA itself; dev uses the Vite proxy). |
@@ -330,9 +328,9 @@ The developer cannot configure pip/python in system PATH on Windows. Always use 
   - Variables on `launchops`: `DATABASE_URL` (references `${{Postgres.DATABASE_URL}}` over the private network), `JWT_SECRET` and `FIELD_ENCRYPTION_KEY` (generated), `APP_URL=https://launchops.run`, `ADMIN_EMAIL`, `ANTHROPIC_API_KEY`. Not set yet: `MAIL_*` (optional).
   - Source: `launchops` is connected to GitHub `Vybecode-LTD/LaunchOps`, branch `main`, so every push to `main` deploys. Turning on Wait for CI in the service's source settings is suggested, so a deploy waits for CI to pass.
   - Domain: launchops.run is the custom domain of `launchops` (port 8080), **live over HTTPS**. DNS is at Spaceship, with the apex CNAME flattened to Railway's edge; no CAA or AAAA record is in the way. The first certificate attempt stalled at "polling authorizations" for about 3.5 hours with correct DNS; removing and re-adding the domain cleared it, and the certificate was issued 2026-09-17 16:51 UTC, valid to 2026-12-16.
-  - **Loose end:** re-adding the domain gave it a new CNAME target, `xesm2hmr.up.railway.app`, and Spaceship still points at the old `5rlc9k25.up.railway.app`. Traffic and the certificate work, but the record should be updated.
+  - **DNS target (settled 2026-09-17):** re-adding the domain gave it a new CNAME target, `xesm2hmr.up.railway.app`, and the Spaceship record now points there. Checked against public DNS (Google `8.8.8.8`): a flattened apex exposes no CNAME to read, so the check is by address — `launchops.run` → `69.46.46.46`, identical to `xesm2hmr.up.railway.app` → `69.46.46.46` and no longer the old `5rlc9k25.up.railway.app` → `69.46.46.62`.
   - The old `backend`, `frontend` and `src-tauri` services have been removed. A detached empty volume, `postgres-volume-qVKY`, is left over and can be deleted in the dashboard.
-- **Status (2026-09-17):** live. `launchops` answers at https://launchops.run over HTTPS and at https://launchops-production-0457.up.railway.app. Production runs `bc6143c` (the pull request #3 merge), deployed successfully at 2026-09-17T19:47:08Z; the previous deployment, `f143f1c`, is being removed. Verified against https://launchops.run after that deploy:
+- **Status (2026-09-17):** live. `launchops` answers at https://launchops.run over HTTPS and at https://launchops-production-0457.up.railway.app. The last code-bearing deployment is `bc6143c` (the pull request #3 merge), deployed successfully at 2026-09-17T19:47:08Z; the previous deployment, `f143f1c`, is being removed. `main` has since moved to `0ce65dd` (the pull request #4 merge, documentation only), and **whether Railway has deployed that was not confirmed in the dashboard** — every push to `main` deploys, so a deploy is expected, but it carries no code change either way. Verified against https://launchops.run after the `bc6143c` deploy, and re-confirmed at 2026-09-17T20:36Z:
   - `GET /health` answers 200 `{"status":"ok"}`, and the interface loads
   - unauthenticated API calls get 401: `POST /api/auth/refresh` with no cookie answers `{"detail":"Your session has ended. Sign in again."}`, and `GET /api/auth/me` with no token answers 401
   - security headers, including HSTS (`max-age=31536000; includeSubDomains`)
@@ -353,8 +351,8 @@ The developer cannot configure pip/python in system PATH on Windows. Always use 
 
 ## What Needs To Happen Next
 
-`docs/ROADMAP.md` is the task list: **Active** (T-1 to T-8, the owner-only follow-ups), **Blocked / needs the owner** (B-1 to B-12), **Decided** (B-13, the session-end merge, done 2026-09-17) and **Next up**. `docs/HANDOFF.md` is the last session's handoff — read it at session start. The **"Progress"** section of `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` has the phase status, the findings and the reasoning; the open owner questions on the brand kernel (D15) and reset links (D8) are in `docs/PHASE1_DESIGN.md`. Every session ends with **"perform handoff"**.
+`docs/ROADMAP.md` is the task list: **Active** (T-1 to T-8, the owner-only follow-ups — two were settled on 2026-09-17: T-2, the admin account and the registration policy, and T-3, the Spaceship CNAME; T-4 stays open at P1, because the token issued to replace the exposed one was exposed the same way), **Blocked / needs the owner** (B-1 to B-12), **Decided** (B-13, the session-end merge, done 2026-09-17) and **Next up**. `docs/HANDOFF.md` is the last session's handoff — read it at session start. The **"Progress"** section of `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` has the phase status, the findings and the reasoning; the open owner questions on the brand kernel (D15) and reset links (D8) are in `docs/PHASE1_DESIGN.md`. Every session ends with **"perform handoff"**.
 
 ---
 
-Last-verified: 2026-09-17 · production `bc6143c` (`main`, the pull request #3 merge, deployed 19:47:08Z) · as of the 2026-09-17T20:05:00Z documentation audit the post-merge documentation updates were still uncommitted, on branch `docs/record-the-merge`; confirm with `git status`. `.github/workflows/test-pipeline.yml` stays untracked by design
+Last-verified: 2026-09-17 · `main` at `0ce65dd` (the pull request #4 merge, documentation only) · the last application-code commit is `bc6143c` (the pull request #3 merge, deployed 19:47:08Z) · the post-merge documentation updates that the 2026-09-17T20:05:00Z audit found uncommitted on `docs/record-the-merge` are now merged, and the working tree is clean apart from `.github/workflows/test-pipeline.yml`; confirm with `git status`. That file stays untracked by design

@@ -1,8 +1,8 @@
 ---
 document: ROADMAP
-version: 1.1.1
-last-updated: 2026-09-17T20:10:00Z
-last-audit: 2026-09-17T20:05:00Z
+version: 1.1.2
+last-updated: 2026-09-17T21:24:00Z
+last-audit: 2026-09-17T20:45:00Z
 managed-by: session-orchestrator/roadmap-manager
 ---
 
@@ -137,9 +137,9 @@ account, DNS and Railway housekeeping that only the owner can do.
 | # | Task | Priority | Status | Notes |
 |---|---|---|---|---|
 | T-1 | Delete the account `guard-check@example.com` and "Guard check's organisation" | P1 | Next | A verification probe created it after the admin account existed. Platform admin removes it in Settings → Team & access. Never probe registration against the live site again. |
-| T-2 | Confirm who holds the first (admin) account, and decide whether open registration stays on | P1 | Next | `ADMIN_EMAIL` now restricts who can create the first account; the registration switch is platform-wide. |
-| T-3 | Update the Spaceship CNAME for `launchops.run` to `xesm2hmr.up.railway.app` | P1 | Next | Re-adding the domain to fix a stalled certificate produced a new target. Traffic and the certificate work today, but the record still points at the old `5rlc9k25.up.railway.app`. |
-| T-4 | Delete the Railway project token that was pasted into chat, and issue a new one when needed | P1 | Next | Treat it as exposed. |
+| T-2 | Confirm who holds the first (admin) account, and decide whether open registration stays on | P1 | Done 2026-09-17 | Both halves confirmed by the owner. The platform admin (`users.role = 'admin'`, and the `ADMIN_EMAIL` holder) is **`color8studios@gmail.com`**. **Open registration stays on** — a deliberate decision, not an oversight: the platform-wide switch in `app_config` is unchanged and remains enabled. `ADMIN_EMAIL` already protects the first (admin) account, so the accepted residual risk is that anyone who reaches `launchops.run` can self-register and create their own organisation. |
+| T-3 | Update the Spaceship CNAME for `launchops.run` to `xesm2hmr.up.railway.app` | P1 | Done 2026-09-17 | Re-adding the domain to fix a stalled certificate had produced a new target; the Spaceship record now points at `xesm2hmr.up.railway.app`, and the change was verified independently against public DNS (Google `8.8.8.8`) the same day. Verification was by **address comparison**, because the flattened apex exposes no CNAME to read directly: `launchops.run` answers with an A record of `69.46.46.46`, **identical to** `xesm2hmr.up.railway.app` (`69.46.46.46`) and **different from** the old `5rlc9k25.up.railway.app` (`69.46.46.62`). |
+| T-4 | Rotate the currently-exposed Railway project token | P1 | Next | **Still open — it has now happened twice.** The exposed token was deleted and a replacement issued, which is the action this row originally asked for; the replacement was then pasted into chat as well, exposing it by exactly the same mechanism. **The current token must be rotated again.** A pasted secret lands in the conversation transcript and in the session log under `.claude/projects/`, so rotation is the only remedy — deleting the message does not undo it. The practice that prevents a third time: the owner authenticates in their own shell (`railway login`, or exporting the variable themselves) so the value never enters a transcript, a tool call or a shell argument. The stake here is specific — CI runs **gitleaks over the full git history**, so a token that ever reaches a commit fails the build and stays in the history permanently. |
 | T-5 | Turn on Wait for CI in the `launchops` service source settings | P3 | Next | Optional. Only commits that pass CI would deploy; the service deploys on every push to `main` today. |
 | T-6 | Turn on Postgres backups | P3 | Next | Optional today because there is no real data yet; required before a partner uses the app. |
 | T-7 | Delete the detached empty volume `postgres-volume-qVKY` | P3 | Next | Optional tidy-up. |

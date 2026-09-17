@@ -154,11 +154,19 @@ Exit criteria:
 
    launchops.run is the custom domain and is **live over HTTPS**: the certificate was issued 2026-09-17 16:51 UTC and is valid to
    2026-12-16. Re-adding the domain to clear a stalled first attempt gave it a new CNAME target, `xesm2hmr.up.railway.app`, and
-   Spaceship still points at the old `5rlc9k25.up.railway.app` (traffic and the certificate work; `docs/ROADMAP.md` T-3).
+   the Spaceship record now points there (`docs/ROADMAP.md` T-3, done 2026-09-17). Verified against public DNS (Google `8.8.8.8`):
+   a flattened apex exposes no CNAME to read, so the check is by address — `launchops.run` → `69.46.46.46`, identical to
+   `xesm2hmr.up.railway.app` and no longer the old `5rlc9k25.up.railway.app` → `69.46.46.62`.
 
    Still to do (the full list, with IDs, is `docs/ROADMAP.md` → Active, T-1 to T-8):
    - delete the account `guard-check@example.com` and "Guard check's organisation", created on the live site by a sign-up probe
-     after the admin account already existed (T-1), and confirm who holds the admin account and whether registration stays open (T-2)
+     after the admin account already existed (T-1)
+   - rotate the Railway project token again (T-4). The exposed token was deleted and a replacement issued, but the replacement was
+     pasted into chat too, so it is exposed the same way. The owner does this deliberately — `railway login` will not authorise on
+     this machine — and rotates at the end of every session, which bounds it. A token must never reach a commit: CI runs gitleaks
+     over the full git history
+   - **done 2026-09-17:** the admin account and the registration policy (T-2 — the platform admin is `color8studios@gmail.com`,
+     and open registration deliberately stays on), and the Spaceship CNAME (T-3)
    - consider turning on Wait for CI in the service's source settings, so only commits that pass CI deploy
    - optionally set the `MAIL_*` settings, turn on database backups, and delete the detached empty volume `postgres-volume-qVKY`
 3. Phase 2 follow-up: brand kernel (D15), result history (D16), billing settings.

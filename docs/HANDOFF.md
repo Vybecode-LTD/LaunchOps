@@ -1,8 +1,8 @@
 ---
 document: HANDOFF
-version: 1.1.1
-last-updated: 2026-09-17T20:10:00Z
-last-audit: 2026-09-17T20:05:00Z
+version: 1.1.2
+last-updated: 2026-09-17T21:24:00Z
+last-audit: 2026-09-17T20:45:00Z
 managed-by: session-orchestrator/handoff-builder
 ---
 
@@ -12,10 +12,10 @@ managed-by: session-orchestrator/handoff-builder
 
 - **Phases 0 (stabilise), 1 (foundation) and 2 (interface rebuild) are complete.** Phase 3 (real actions) is next and not started.
 - **Live in production** on Railway at **https://launchops.run** (HTTPS, certificate issued 2026-09-17, valid to 2026-12-16). First ever deployment of this app.
-- `main` is at **`bc6143c`** and is what production runs. Every push to `main` deploys.
+- `main` is at **`0ce65dd`**, the merge of pull request #4 (branch `docs/record-the-merge`, two commits: `9f7e930` recording the merge, the deployment and a second audit, `6a54c04` pointing the changelog row at the newest entry). Pull request #4 was **documentation only** — `git diff --name-only bc6143c..0ce65dd` touches only `CLAUDE.md` and files under `docs/`, no application code — so **`bc6143c` remains the last commit that changed application code**, and production's behaviour is unchanged. Whether Railway deployed `0ce65dd` was **not confirmed** this session (no dashboard check was made; the token in use is itself exposed and awaiting rotation, T-4), and it carries no code change either way. Every push to `main` deploys.
 - **This session's work is merged and live.** Pull request #3 (branch `fix/refresh-token-clock-skew`) merged as merge commit **`bc6143c`** after all three CI jobs passed — backend (550 tests, 95% coverage gate, `postgres:18` service), frontend (lint, typecheck, Vitest, build, Playwright) and the gitleaks secret scan. Six commits: `35d24c5` the BUG-027 fix, `584cff6` a regression test, `7c1f1cb` the session-end documents, `39ff28b` the design-system correction, `ee4932a` the reconciliation fixes, `c486949` the branch-state notes. Railway deployed `bc6143c` at **19:47:08Z**; the previous deployment (`f143f1c`) is being removed. **The BUG-027 security fix is in production.**
 - **Verified live after the deploy:** `GET /health` → 200 `{"status":"ok"}` · `POST /api/auth/refresh` with no cookie → 401 `{"detail":"Your session has ended. Sign in again."}` · `GET /api/auth/me` with no token → 401 · HSTS present.
-- Everything in pull request #3 is committed, merged and deployed. As of the 2026-09-17T20:05:00Z documentation audit the only working-tree changes were the post-merge documentation updates themselves — uncommitted, on branch `docs/record-the-merge`, which carries no commits of its own yet; confirm with `git status`. `.github/workflows/test-pipeline.yml` is permanently untracked.
+- **Everything is committed and merged.** The post-merge documentation updates that the 2026-09-17T20:05:00Z audit found uncommitted on `docs/record-the-merge` — a branch that then carried no commits of its own — were committed there and merged as pull request #4 (`0ce65dd`). The working tree is now clean apart from `.github/workflows/test-pipeline.yml`, which is permanently untracked; confirm with `git status`.
 - **All quality gates green:** backend 550 passed / 98.31% coverage, frontend 601 passed in 49 files / 99.19% lines, Playwright 69 passed, ruff + ESLint clean, pip-audit and npm advisories clear, gitleaks passing in CI.
 
 ## Start here — confirm a green baseline
@@ -37,12 +37,12 @@ Full detail: the **Progress** section of `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.m
 
 ## Next steps — priority order
 
-All four P1 items are account/DNS/console housekeeping, not code — nothing this session touched moved them. IDs are from `docs/ROADMAP.md` → Active.
+**Two of the four P1 items are now closed** — T-2 and T-3, both settled on 2026-09-17. The two still open, **T-1 and T-4**, remain account and console housekeeping rather than code, and **T-4 is the only open item with a security consequence**. IDs are from `docs/ROADMAP.md` → Active.
 
 1. **T-1 — Delete `guard-check@example.com`** and "Guard check's organisation" on the live site. A verification probe created it after the admin account already existed. Platform admin removes it in **Settings → Team & access**.
-2. **T-2 — Confirm who holds the first (admin) account**, and decide whether open registration stays on (the switch is platform-wide, in `app_config`).
-3. **T-3 — Update the Spaceship CNAME** for `launchops.run` to **`xesm2hmr.up.railway.app`**. Re-adding the domain to clear a stalled certificate produced a new target; DNS still points at the old `5rlc9k25.up.railway.app`. Traffic and the certificate work today anyway.
-4. **T-4 — Delete the Railway project token** that was pasted into chat. Treat it as exposed; issue a new one when needed.
+2. **T-4 — Rotate the Railway project token again: the current one is exposed.** This has now happened twice. The first token was pasted into chat, then deleted and replaced — and **the replacement was pasted into chat as well**, so the token in use today is exposed and must be rotated again. The owner pastes it deliberately, because `railway login` will not authorise on this machine, and rotates at the end of every session, which bounds the exposure — an informed, settled decision, recorded here as context rather than a fault. The hard line: **a token must never reach a commit**, because CI runs gitleaks over the full git history. Never write a token value into a file, a document or a commit message.
+3. **T-2 — DONE (2026-09-17).** The platform admin — `users.role = 'admin'`, and the holder of `ADMIN_EMAIL` — is **`color8studios@gmail.com`**. **Open registration deliberately stays on:** the platform-wide switch in `app_config` is unchanged and enabled, an owner decision with the residual risk accepted.
+4. **T-3 — DONE (2026-09-17), independently verified.** The Spaceship record now points at **`xesm2hmr.up.railway.app`**, the target that re-adding the domain produced. The apex is CNAME-flattened, so there is no CNAME to read and the check is by address: against public DNS (Google `8.8.8.8`), `launchops.run` resolves to **`69.46.46.46`** — identical to `xesm2hmr.up.railway.app`, and different from the old `5rlc9k25.up.railway.app` at `69.46.46.62`.
 5. **T-5 to T-8 (P3, optional):** turn on Wait for CI on the `launchops` service; turn on Postgres backups; delete the detached empty volume `postgres-volume-qVKY`; set `MAIL_*`.
 6. Then **Phase 2 follow-up** — brand kernel (D15), result history (D16), billing settings — then **Phase 3: real actions**.
 
@@ -57,7 +57,7 @@ Nothing below moves without a decision; each is written up with its working defa
 
 ## Warnings — do not learn these the hard way
 
-- **These documents go stale the moment work merges.** It happened twice today: five documents were committed a minute after being written while still calling the work uncommitted, then the same lines needed correcting when the pull request opened and again when it merged. Read anything describing the working tree, a branch or a pull request **against its `last-updated`**, and re-check it with `git log` before you trust it.
+- **These documents go stale the moment work merges.** It happened three times today: five documents were committed a minute after being written while still calling the work uncommitted, then the same lines needed correcting when the pull request opened and again when it merged — and then the documentation merge itself (pull request #4, `0ce65dd`) left six current-state claims across two documents still naming `bc6143c` as the head of `main`. It is the same failure recurring. Read anything describing the working tree, a branch or a pull request **against its `last-updated`**, and re-check it with `git log` before you trust it.
 - **Frontend failures seen under heavy parallel load are suspect.** An `npm run check` during this session reported 4 failures while the backend suite and several documentation agents were competing for the machine; a clean re-run passed 601/601 and CI passed the frontend job too. **Re-run alone before believing a red frontend.**
 - **Never run sign-up or registration probes against the live site.** One did this session and created a real account (T-1).
 - **Never run two pytest suites against the same test database.** That is what produced this session's deadlocks and foreign-key violations; a second run corrupts the first one's fixtures.
@@ -73,7 +73,7 @@ Nothing below moves without a decision; each is written up with its working defa
 | What | Where |
 |---|---|
 | Production | Railway project **"Launch Ops"**, environment production, US East — services **`launchops`** (root `Dockerfile`, worker in-process) and **`Postgres`** (Postgres 18 + volume). Also reachable at `https://launchops-production-0457.up.railway.app` |
-| Repo | GitHub **`Vybecode-LTD/LaunchOps`**, branch `main` at `bc6143c`, deploys on every push |
+| Repo | GitHub **`Vybecode-LTD/LaunchOps`**, branch `main` at `0ce65dd`, deploys on every push |
 | Set in Railway | `DATABASE_URL`, `JWT_SECRET`, `FIELD_ENCRYPTION_KEY`, `APP_URL`, `ADMIN_EMAIL`, `ANTHROPIC_API_KEY`. `MAIL_*` deliberately unset — nothing is emailed; links are shared by hand |
 | `CLAUDE.md` | The project in one file: what it is, current state, stack, architecture, the 18 operations, screens, commands, environment variables, conventions, deployment and CI. Read it first |
 | `docs/ROADMAP.md` | Milestones, Active tasks (T-1…T-8), Blocked (B-1…B-12), Next up, Backlog |
