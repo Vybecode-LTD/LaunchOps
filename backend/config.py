@@ -1,5 +1,6 @@
 """Configuration management for VybeCod.ing Launch Ops."""
 
+from decimal import Decimal
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -64,6 +65,9 @@ class Settings(BaseSettings):
     ai_operations_per_hour: int = 60
     max_concurrent_tasks: int = 5
     max_emails_per_day: int = 20
+    # Applies to any organisation that has not set a budget of its own, so a self-registered
+    # account cannot spend without limit on the deployment's API key. 0 means no default cap.
+    default_monthly_ai_budget_usd: Decimal = Decimal(25)
 
 
 def check_startup_settings(settings: Settings) -> None:

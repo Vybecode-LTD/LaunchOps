@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import pytest
 
+import config
 import database
 from services import pricing
 from services.claude import UsageContext
@@ -166,3 +167,56 @@ async def test_calls_to_models_without_a_price_are_counted_separately(client, ow
     usage = (await client.get("/api/organisation/usage", headers=owner.headers)).json()
 
     assert (usage["total"]["calls"], usage["total"]["unpriced_calls"], usage["total"]["cost_usd"]) == (1, 1, 0.0)
+
+
+async def test_an_organisation_without_its_own_budget_is_capped_by_the_platform_default(client, owner, fake_ai, run_jobs, monkeypatch):
+    """Registration creates an organisation with no budget of its own, and every deployment bills AI to one
+    API key. Without a platform default, anyone who signs up could spend on that key without limit, so the
+    default applies until an owner deliberately sets their own."""
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(2))
+    await _usage_row(owner.org_id, owner.user["id"], owner.product["id"], "trend", "claude-sonnet-5", 2.5)
+
+    launch = await client.post("/api/workflows/launch", headers=owner.headers,
+                               json={"product_id": owner.product["id"], "workflow_id": "trend"})
+
+    month = datetime.now(UTC).strftime("%B")
+    message = f"Olivia's organisation has used the default AI budget for {month} ($2.00). An owner can set a higher budget in Settings → Usage."
+    assert (launch.status_code, launch.json()) == (429, {"detail": message})
+
+
+async def test_an_organisations_own_budget_wins_over_the_platform_default(client, owner, fake_ai, run_jobs, monkeypatch):
+    """The default is a floor for organisations that never set one, not a ceiling on those that did."""
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(2))
+    await client.put("/api/organisation/budget", headers=owner.headers, json={"monthly_ai_budget_usd": 50})
+    await _usage_row(owner.org_id, owner.user["id"], owner.product["id"], "trend", "claude-sonnet-5", 2.5)
+
+    launch = await client.post("/api/workflows/launch", headers=owner.headers,
+                               json={"product_id": owner.product["id"], "workflow_id": "trend"})
+
+    assert launch.status_code == 200
+
+
+async def test_a_zero_platform_default_leaves_an_organisation_uncapped(client, owner, fake_ai, run_jobs, monkeypatch):
+    """A deployment that wants no default cap sets the value to 0, the same way MAX_EMAILS_PER_DAY switches
+    sending off. That is the deliberate opt-out; it is never what an unconfigured deployment gets."""
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(0))
+    await _usage_row(owner.org_id, owner.user["id"], owner.product["id"], "trend", "claude-sonnet-5", 500)
+
+    launch = await client.post("/api/workflows/launch", headers=owner.headers,
+                               json={"product_id": owner.product["id"], "workflow_id": "trend"})
+
+    assert launch.status_code == 200
+
+
+async def test_clearing_a_budget_falls_back_to_the_platform_default(client, owner, fake_ai, run_jobs, monkeypatch):
+    """Clearing a budget means "no budget of our own", not "unlimited" — otherwise clearing it would be a
+    one-click way to uncap an organisation on a shared API key."""
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(2))
+    await client.put("/api/organisation/budget", headers=owner.headers, json={"monthly_ai_budget_usd": 50})
+    await client.put("/api/organisation/budget", headers=owner.headers, json={"monthly_ai_budget_usd": None})
+    await _usage_row(owner.org_id, owner.user["id"], owner.product["id"], "trend", "claude-sonnet-5", 2.5)
+
+    launch = await client.post("/api/workflows/launch", headers=owner.headers,
+                               json={"product_id": owner.product["id"], "workflow_id": "trend"})
+
+    assert launch.status_code == 429

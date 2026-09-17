@@ -8,6 +8,7 @@ from decimal import Decimal
 import asyncpg
 from fastapi import HTTPException
 
+from config import get_settings
 from database import DATABASE_UNAVAILABLE_ERRORS, get_pool
 from services import pricing
 
@@ -54,20 +55,30 @@ def _next_month(start: datetime) -> datetime:
 
 
 async def ensure_within_budget(org_id: str, org_name: str) -> None:
-    """429 when the organisation has a monthly budget and this month's cost has reached it."""
+    """429 when this month's cost has reached the organisation's budget, or the platform default.
+
+    An organisation created by registration has no budget of its own, and every deployment bills AI to
+    one API key, so without a default anyone who signs up could spend on that key without limit. The
+    organisation's own budget always wins; the default only covers those that never set one.
+    """
     pool = await get_pool()
     budget = await pool.fetchval("SELECT monthly_ai_budget_usd FROM organisations WHERE id = $1", uuid.UUID(org_id))
-    if budget is None:
-        return
+    its_own = budget is not None
+    if not its_own:
+        budget = get_settings().default_monthly_ai_budget_usd
+        if budget <= 0:
+            return
     start = _month_start(datetime.now(UTC).date())
     spent = await pool.fetchval(
         "SELECT COALESCE(SUM(cost_usd), 0) FROM ai_usage WHERE org_id = $1 AND created_at >= $2 AND created_at < $3",
         uuid.UUID(org_id), start, _next_month(start),
     )
     if spent >= budget:
+        which = "its AI budget" if its_own else "the default AI budget"
+        advice = "raise it" if its_own else "set a higher budget"
         raise HTTPException(
             429,
-            f"{org_name} has used its AI budget for {start:%B} (${budget:,.2f}). An owner can raise it in Settings → Usage.",
+            f"{org_name} has used {which} for {start:%B} (${budget:,.2f}). An owner can {advice} in Settings → Usage.",
         )
 
 
