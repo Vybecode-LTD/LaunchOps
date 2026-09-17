@@ -196,13 +196,17 @@ async def refresh_session(request: Request, response: Response):
     pool = await get_pool()
     async with pool.acquire() as conn, conn.transaction():
         row = await conn.fetchrow(
-            "SELECT r.id, r.user_id, r.family_id, r.expires_at, r.used_at, r.revoked_at, u.email, u.name, u.role, u.enabled "
+            "SELECT r.id, r.user_id, r.family_id, r.expires_at, r.used_at, r.revoked_at, u.email, u.name, u.role, u.enabled, "
+            # The database compares its own NOW() with the used_at it wrote itself: this app runs on
+            # another machine, and a few seconds of clock skew must not decide whether a replay is caught.
+            "r.used_at < NOW() - $2::interval AS reused "
             "FROM refresh_tokens r JOIN users u ON u.id = r.user_id WHERE r.token_hash = $1 FOR UPDATE OF r",
             _hash(token),
+            REUSE_GRACE,
         )
         if not row or row["revoked_at"] or row["expires_at"] <= now or not row["enabled"]:
             return _session_ended(request)
-        if row["used_at"] and now - row["used_at"] > REUSE_GRACE:
+        if row["reused"]:
             # A rotated token came back: someone else has a copy. End every session from that sign-in.
             await conn.execute(
                 "UPDATE refresh_tokens SET revoked_at = NOW() WHERE family_id = $1 AND revoked_at IS NULL", row["family_id"],

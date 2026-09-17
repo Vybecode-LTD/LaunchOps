@@ -97,6 +97,27 @@ async def test_reusing_an_old_refresh_token_ends_every_session_from_that_sign_in
     assert (await client.post("/api/auth/refresh")).json() == SESSION_ENDED, "the real user's newer token is revoked too"
 
 
+async def test_a_reused_token_is_caught_even_if_the_app_clock_lags_the_database(client, register, monkeypatch):
+    """The app and the database keep their own clocks, and in production they are separate machines.
+    A few seconds of skew must not decide whether a stolen token is caught."""
+    await register("ana@example.com")
+    stolen = client.cookies.get(REFRESH_COOKIE)
+    assert (await client.post("/api/auth/refresh")).status_code == 200
+    monkeypatch.setattr(routers.auth, "REUSE_GRACE", timedelta(0))
+
+    class LaggingClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.now(tz) - timedelta(seconds=5)
+
+    monkeypatch.setattr(routers.auth, "datetime", LaggingClock)
+
+    async with _device(stolen) as attacker:
+        replayed = await attacker.post("/api/auth/refresh")
+
+    assert (replayed.status_code, replayed.json()) == (401, SESSION_ENDED)
+
+
 async def test_sessions_from_other_sign_ins_survive_a_revoked_one(client, register, monkeypatch):
     await register("ana@example.com")
     async with _device() as laptop:
