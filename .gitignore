@@ -187,3 +187,17 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+# Local-only env overrides (Vite convention)
+*.local
+
+# The Python template's `lib/` rule above would otherwise hide the frontend's
+# source folder (API client, hooks, domain logic).
+!frontend/src/lib/
+
+# Frontend test output
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+# Local-only Playwright config for machines that can't download the browser (docs/TESTING.md)
+frontend/playwright.local-browser.config.ts

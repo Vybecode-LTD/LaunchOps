@@ -2,16 +2,33 @@
 
 Uses asyncpg for async PostgreSQL access. Drop-in replacement for the
 previous Supabase client — same 5 helper functions, same signatures.
+The schema is managed by Alembic migrations (backend/migrations), which run_migrations() applies.
 """
 
+import asyncio
 import json
 import ssl
 import uuid
 from datetime import date, datetime
+from pathlib import Path
+
 import asyncpg
+
 from config import get_settings
 
 _pool: asyncpg.Pool | None = None
+ALEMBIC_INI = Path(__file__).parent / "alembic.ini"
+
+# Errors that mean the database can't be reached right now (as opposed to a bad query).
+DATABASE_UNAVAILABLE_ERRORS = (
+    OSError,
+    TimeoutError,
+    asyncpg.exceptions.PostgresConnectionError,
+    asyncpg.exceptions.CannotConnectNowError,
+    asyncpg.exceptions.TooManyConnectionsError,
+    asyncpg.exceptions.InterfaceError,
+)
+DATABASE_UNAVAILABLE_MESSAGE = "LaunchOps can't reach its database right now. Try again in a moment."
 
 
 async def _init_connection(conn):
@@ -26,6 +43,22 @@ async def _init_connection(conn):
     )
 
 
+def _ssl_arg(dsn: str):
+    """Pick asyncpg's ssl argument for a DSN."""
+    # An explicit sslmode (e.g. local/CI Postgres with sslmode=disable) wins:
+    # ssl=None lets asyncpg honor the DSN.
+    if "sslmode=" in dsn:
+        return None
+    # Railway private networking uses WireGuard — no SSL needed.
+    if ".railway.internal" in dsn:
+        return False
+    # For public URLs, use SSL with no cert verification.
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
 async def get_pool() -> asyncpg.Pool:
     """Get or create the connection pool."""
     global _pool
@@ -33,17 +66,8 @@ async def get_pool() -> asyncpg.Pool:
         settings = get_settings()
         if not settings.database_url:
             raise RuntimeError("DATABASE_URL must be set in environment")
-        # Railway private networking uses WireGuard — no SSL needed.
-        # For public URLs (local dev), use SSL with no cert verification.
         dsn = settings.database_url
-        is_internal = ".railway.internal" in dsn
-        if is_internal:
-            ssl_arg = False
-        else:
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            ssl_arg = ctx
+        ssl_arg = _ssl_arg(dsn)
 
         _pool = await asyncpg.create_pool(
             dsn, min_size=2, max_size=10,
@@ -61,27 +85,59 @@ async def close_pool():
         _pool = None
 
 
-# ─── JSON encoder helper ───
+# ─── Migrations ───
 
-def _prep_value(value):
-    """Prepare a value for asyncpg: coerce UUIDs/datetimes.
 
-    Note: dicts/lists pass through as-is because the JSON codec
-    (set up in _init_connection) handles JSONB encoding.
-    """
+def alembic_config(database_url: str | None = None):
+    """Alembic configuration for this app; database_url defaults to DATABASE_URL."""
+    from alembic.config import Config
+
+    config = Config(str(ALEMBIC_INI))
+    config.attributes["database_url"] = database_url or get_settings().database_url
+    config.attributes["configure_logger"] = False
+    return config
+
+
+async def run_migrations(database_url: str | None = None) -> None:
+    """Apply every migration the database doesn't have yet (the same as: python -m alembic upgrade head)."""
+    from alembic import command
+
+    # Alembic runs its own event loop, so it gets a thread of its own
+    await asyncio.to_thread(command.upgrade, alembic_config(database_url), "head")
+
+
+# ─── Value preparation ───
+
+TIMESTAMP_TYPES = {"timestamp with time zone", "timestamp without time zone"}
+# Column name → data type, per table, read from the catalog once per process (the schema only changes
+# through migrations, which run before the app serves requests).
+_column_types: dict[str, dict[str, str]] = {}
+
+
+async def _types_of(pool: asyncpg.Pool, table: str) -> dict[str, str]:
+    if table not in _column_types:
+        rows = await pool.fetch(
+            "SELECT column_name, data_type FROM information_schema.columns "
+            "WHERE table_schema = current_schema() AND table_name = $1",
+            table,
+        )
+        _column_types[table] = {row["column_name"]: row["data_type"] for row in rows}
+    return _column_types[table]
+
+
+def _prep_value(value, data_type: str | None):
+    """Prepare a value for its column. asyncpg needs date and datetime objects for date and timestamp
+    columns, so ISO strings bound for those are parsed; everything else passes through unchanged
+    (UUID strings are fine for UUID columns, and the JSON codec set up in _init_connection encodes
+    dicts and lists)."""
     if isinstance(value, str):
-        # Convert UUID strings
-        if len(value) == 36:
-            try:
-                return uuid.UUID(value)
-            except ValueError:
-                pass
-        # Convert ISO datetime strings
-        if "T" in value and len(value) > 18:
-            try:
+        try:
+            if data_type in TIMESTAMP_TYPES:
                 return datetime.fromisoformat(value)
-            except ValueError:
-                pass
+            if data_type == "date":
+                return date.fromisoformat(value)
+        except ValueError:
+            pass  # not ISO: asyncpg reports the bad value
     return value
 
 
@@ -91,9 +147,7 @@ def _row_to_dict(row: asyncpg.Record) -> dict:
     for k, v in dict(row).items():
         if isinstance(v, uuid.UUID):
             d[k] = str(v)
-        elif isinstance(v, datetime):
-            d[k] = v.isoformat()
-        elif isinstance(v, date):
+        elif isinstance(v, (datetime, date)):
             d[k] = v.isoformat()
         else:
             d[k] = v
@@ -108,13 +162,13 @@ def _row_to_dict(row: asyncpg.Record) -> dict:
 async def insert(table: str, data: dict) -> dict:
     """Insert a row and return it."""
     pool = await get_pool()
-    # Filter out None values and encode JSONB
+    types = await _types_of(pool, table)
     cols = []
     vals = []
     placeholders = []
     for i, (k, v) in enumerate(data.items(), 1):
         cols.append(f'"{k}"')
-        vals.append(_prep_value(v))
+        vals.append(_prep_value(v, types.get(k)))
         placeholders.append(f"${i}")
 
     query = f'INSERT INTO {table} ({", ".join(cols)}) VALUES ({", ".join(placeholders)}) RETURNING *'
@@ -141,21 +195,27 @@ async def select(table: str, filters: dict | None = None, order: str = "created_
 
 
 async def select_one(table: str, id_value, id_col: str = "id") -> dict | None:
-    """Select a single row by ID."""
+    """Select a single row by ID (None when no row matches)."""
     pool = await get_pool()
     query = f'SELECT * FROM {table} WHERE "{id_col}" = $1'
-    row = await pool.fetchrow(query, id_value)
+    try:
+        row = await pool.fetchrow(query, id_value)
+    except asyncpg.DataError:
+        # The value isn't valid for the column's type (e.g. a malformed UUID in a URL),
+        # so no row can match — "not found" rather than a 500
+        return None
     return _row_to_dict(row) if row else None
 
 
 async def update(table: str, id_value, data: dict, id_col: str = "id") -> dict:
     """Update a row by ID."""
     pool = await get_pool()
+    types = await _types_of(pool, table)
     sets = []
     vals = []
     for i, (k, v) in enumerate(data.items(), 1):
         sets.append(f'"{k}" = ${i}')
-        vals.append(_prep_value(v))
+        vals.append(_prep_value(v, types.get(k)))
     vals.append(id_value)
 
     query = f'UPDATE {table} SET {", ".join(sets)} WHERE "{id_col}" = ${len(vals)} RETURNING *'
@@ -170,199 +230,17 @@ async def delete(table: str, id_value, id_col: str = "id") -> bool:
     return True
 
 
-# ─── Schema setup SQL (run automatically on startup) ───
-
-SETUP_SQL = """
--- Products
-CREATE TABLE IF NOT EXISTS products (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    tagline TEXT DEFAULT '',
-    url TEXT DEFAULT '',
-    color TEXT DEFAULT '#00f0ff',
-    status TEXT DEFAULT 'pre_launch',
-    description TEXT DEFAULT '',
-    keywords JSONB DEFAULT '[]',
-    press_kit JSONB,
-    checklist JSONB DEFAULT '{}',
-    seo_result JSONB,
-    email_settings JSONB DEFAULT '{}',
-    company_details JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Queue (approval items)
-CREATE TABLE IF NOT EXISTS queue (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    product_id UUID REFERENCES products(id) ON DELETE CASCADE,
-    workflow_id TEXT NOT NULL,
-    status TEXT DEFAULT 'pending',
-    content JSONB DEFAULT '{}',
-    preview TEXT DEFAULT '',
-    input_params TEXT DEFAULT '',
-    notes TEXT DEFAULT '',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Templates
-CREATE TABLE IF NOT EXISTS templates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    type TEXT NOT NULL,
-    tags JSONB DEFAULT '[]',
-    content TEXT NOT NULL,
-    source_product TEXT DEFAULT '',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Calendar events
-CREATE TABLE IF NOT EXISTS calendar_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    date DATE NOT NULL,
-    product_id UUID REFERENCES products(id) ON DELETE CASCADE,
-    product_name TEXT DEFAULT '',
-    platform TEXT DEFAULT '',
-    title TEXT NOT NULL,
-    color TEXT DEFAULT '#00f0ff'
-);
-
--- Quick captures
-CREATE TABLE IF NOT EXISTS captures (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    text TEXT NOT NULL,
-    product_id UUID REFERENCES products(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Global settings (single row)
-CREATE TABLE IF NOT EXISTS settings (
-    id INTEGER PRIMARY KEY DEFAULT 1,
-    platforms JSONB DEFAULT '{}',
-    brand JSONB DEFAULT '{}',
-    prefs JSONB DEFAULT '{}',
-    registration_enabled BOOLEAN DEFAULT true,
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Insert default settings row
-INSERT INTO settings (id) VALUES (1) ON CONFLICT DO NOTHING;
-
--- Users
-CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    name TEXT DEFAULT '',
-    role TEXT DEFAULT 'user',
-    enabled BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Migrations (safe to re-run)
-ALTER TABLE products ADD COLUMN IF NOT EXISTS email_settings JSONB DEFAULT '{}';
-ALTER TABLE products ADD COLUMN IF NOT EXISTS press_release JSONB;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS company_details JSONB DEFAULT '{}';
-ALTER TABLE products ADD COLUMN IF NOT EXISTS pricing_result JSONB;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS market_analysis JSONB;
-
--- Multi-tenant: add user_id to all content tables
-ALTER TABLE products ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE queue ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE captures ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE templates ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
-
--- Per-user settings
-ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE settings DROP CONSTRAINT IF EXISTS settings_pkey;
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'settings_user_unique') THEN
-    ALTER TABLE settings ADD CONSTRAINT settings_user_unique UNIQUE (user_id);
-  END IF;
-END $$;
-
--- Email queue
-CREATE TABLE IF NOT EXISTS email_queue (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    product_id UUID REFERENCES products(id) ON DELETE CASCADE,
-    source_queue_id UUID REFERENCES queue(id) ON DELETE SET NULL,
-    recipient_name TEXT DEFAULT '',
-    recipient_email TEXT NOT NULL,
-    subject TEXT NOT NULL,
-    body TEXT NOT NULL,
-    status TEXT DEFAULT 'pending',
-    error TEXT DEFAULT '',
-    sent_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_email_queue_product ON email_queue(product_id);
-CREATE INDEX IF NOT EXISTS idx_email_queue_status ON email_queue(status);
-ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT true;
-ALTER TABLE settings ADD COLUMN IF NOT EXISTS registration_enabled BOOLEAN DEFAULT true;
-
-ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
-
--- Brands table
-CREATE TABLE IF NOT EXISTS brands (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL DEFAULT '',
-    tagline TEXT DEFAULT '',
-    tone TEXT DEFAULT 'professional',
-    keywords JSONB DEFAULT '[]',
-    avoid JSONB DEFAULT '[]',
-    elevator TEXT DEFAULT '',
-    company_name TEXT DEFAULT '',
-    industry TEXT DEFAULT '',
-    location TEXT DEFAULT '',
-    founded TEXT DEFAULT '',
-    founder_name TEXT DEFAULT '',
-    founder_title TEXT DEFAULT '',
-    phone TEXT DEFAULT '',
-    email TEXT DEFAULT '',
-    company_size TEXT DEFAULT '',
-    boilerplate TEXT DEFAULT '',
-    logo_url TEXT DEFAULT '',
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_brands_user ON brands(user_id);
-ALTER TABLE products ADD COLUMN IF NOT EXISTS brand_id UUID REFERENCES brands(id) ON DELETE SET NULL;
-
--- Indexes
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_queue_product ON queue(product_id);
-CREATE INDEX IF NOT EXISTS idx_queue_status ON queue(status);
-CREATE INDEX IF NOT EXISTS idx_calendar_date ON calendar_events(date);
-CREATE INDEX IF NOT EXISTS idx_captures_product ON captures(product_id);
-CREATE INDEX IF NOT EXISTS idx_products_user ON products(user_id);
-CREATE INDEX IF NOT EXISTS idx_queue_user ON queue(user_id);
-CREATE INDEX IF NOT EXISTS idx_captures_user ON captures(user_id);
-CREATE INDEX IF NOT EXISTS idx_calendar_user ON calendar_events(user_id);
-CREATE INDEX IF NOT EXISTS idx_templates_user ON templates(user_id);
-CREATE INDEX IF NOT EXISTS idx_email_queue_user ON email_queue(user_id);
-"""
+async def get_config(key: str, default=None):
+    """Read a global app_config value (decoded JSON), or default when unset."""
+    row = await select_one("app_config", key, id_col="key")
+    return row["value"] if row else default
 
 
-async def run_setup():
-    """Run the schema setup SQL. Safe to call multiple times."""
-    import logging
-    logger = logging.getLogger(__name__)
+async def set_config(key: str, value) -> None:
+    """Create or replace a global app_config value."""
     pool = await get_pool()
-    try:
-        await pool.execute(SETUP_SQL)
-        logger.info("Database setup completed successfully")
-    except Exception as e:
-        logger.error(f"Database setup failed: {e}")
-        # Try executing statements individually as fallback
-        for stmt in SETUP_SQL.split(";"):
-            stmt = stmt.strip()
-            if not stmt or stmt.startswith("--"):
-                continue
-            try:
-                await pool.execute(stmt + ";")
-            except Exception as se:
-                logger.warning(f"Statement skipped: {str(se)[:100]}")
+    await pool.execute(
+        "INSERT INTO app_config (key, value, updated_at) VALUES ($1, $2, NOW()) "
+        "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
+        key, value,
+    )

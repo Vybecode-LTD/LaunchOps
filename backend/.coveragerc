@@ -1,0 +1,12 @@
+# Coverage of application code only. fail_under is the deploy gate from the project constitution (95% of lines); the PR gate is 85%.
+[run]
+source = .
+omit =
+    tests/*
+    .venv/*
+    venv/*
+
+[report]
+fail_under = 95
+skip_covered = true
+show_missing = true

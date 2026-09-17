@@ -1,0 +1,19 @@
+/* Stands in for a control the user's role doesn't allow. */
+.roleNote {
+  margin: 0;
+  font-size: var(--text-13);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/*
+ * Disables every control in a form while leaving its layout alone: the fieldset takes no box,
+ * so its children keep the gaps of the container around it.
+ */
+.viewOnly {
+  display: contents;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

@@ -1,0 +1,157 @@
+.tabs {
+  margin-bottom: var(--space-6);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 860px;
+}
+
+.lede {
+  font-size: var(--text-13);
+  color: var(--ink-2);
+  max-width: 72ch;
+  line-height: 1.55;
+}
+
+.logoPreview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  min-height: 56px;
+}
+
+.logoPreview img {
+  max-height: 32px;
+  max-width: 200px;
+  object-fit: contain;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 12px var(--space-5);
+  border-top: 1px solid var(--line);
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowTitle {
+  font-size: var(--text-14);
+  font-weight: 560;
+}
+
+.rowMeta {
+  font-size: var(--text-12);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.handle {
+  width: 180px;
+}
+
+.companies {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.company {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.companyName {
+  font-size: var(--text-15);
+  font-weight: 620;
+}
+
+.companyMeta {
+  font-size: var(--text-13);
+  color: var(--ink-2);
+}
+
+.companyActions {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-13);
+}
+
+.table th {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-sunken);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.formSection:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+@media (max-width: 700px) {
+  .row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .handle {
+    width: 100%;
+  }
+}
