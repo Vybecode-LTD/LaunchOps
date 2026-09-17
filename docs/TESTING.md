@@ -1,8 +1,8 @@
 ---
 document: TESTING
-version: 0.2.0
-last-updated: 2026-09-17T00:00:00Z
-last-audit: 2026-09-17T00:00:00Z
+version: 1.1.0
+last-updated: 2026-09-17T19:40:00Z
+last-audit: 2026-09-17T19:30:00Z
 managed-by: session-orchestrator/test-doc-manager
 ---
 
@@ -15,11 +15,11 @@ Per-file counts were taken from the test files on 2026-09-17 (`pytest --collect-
 
 | Suite | Location | Runner | Latest run, 2026-09-16/17 |
 |---|---|---|---|
-| Backend API, database, jobs and AI client | `backend/tests/` | pytest | 548 collected, 548 passed |
+| Backend API, database, jobs and AI client | `backend/tests/` | pytest | 550 collected, 550 passed |
 | Frontend units, components, whole app | `frontend/src/**/*.test.ts(x)` | Vitest (jsdom) | 49 files, 601 passed |
 | Browser, production build | `frontend/e2e/*.spec.ts` | Playwright (Chromium) | 69 passed |
 
-**Total: 1,218 tests, all passed. There are no xfails or skips.**
+**Total: 1,220 tests, all passed. There are no xfails or skips.**
 
 The other gates passed in the same runs: `ruff check .`, `npm run lint` (zero warnings) and `npm run typecheck`. pip-audit found no known vulnerabilities, and npm's advisory service found none in 614 installed package versions (checked from Python; see section 2).
 
@@ -96,6 +96,7 @@ Requirements:
 - **The database name must contain `test`.** `tests/conftest.py` checks the URL path and stops the run (`pytest.exit`) if it doesn't. Every test empties all app tables, so never point the suite at a real database.
 - **The database user must be allowed to create databases.** `test_migrations.py` creates and drops scratch databases named `launchops_test_migrations_*` on the same server.
 - **Default DSN:** `DEFAULT_TEST_DSN` in `backend/tests/conftest.py`, currently `postgresql://postgres@127.0.0.1:56432/launchops_test?sslmode=disable` (port 56432). Set `TEST_DATABASE_URL` to use a different server. CI sets `postgresql://postgres@localhost:5432/launchops_test?sslmode=disable` for its `postgres:18` service.
+- **Two pytest runs must never share a test database.** Every test empties all app tables, and `test_migrations.py` creates and drops databases on the same server, so a second run on the same cluster fights the first. On 2026-09-17 a second agent's run against this machine's default cluster produced deadlocks and foreign-key violations that read like real failures and were not. Give the second run its own server through `TEST_DATABASE_URL`: the 2026-09-17 19:0x run used a fresh scratch cluster on port 56433, while `conftest.py`'s default stays on 56432.
 
 ```powershell
 cd backend
@@ -323,7 +324,7 @@ Three scans can't run on this development machine the way CI runs them:
 
 How the totals reconcile with the latest runs:
 
-- **Backend:** 322 plain tests + 226 cases from 31 parametrized tests = 548. The largest expansions are in `test_organisations.py` (59 cases), `test_workflows.py` (51), `test_results.py` (36) and `test_scraper.py` (23).
+- **Backend:** 324 plain tests + 226 cases from 31 parametrized tests = 550. The largest expansions are in `test_organisations.py` (59 cases), `test_workflows.py` (51), `test_results.py` (36) and `test_scraper.py` (23).
 - **Vitest:** 508 plain tests + 93 cases from 6 `it.each` tables = 601. The tables: `endpoints.test.ts` 58, `results.test.tsx` 12 + 12 + 5 + 3, `fakeApi.test.ts` 3. `npx vitest list` shows 514, because it lists each `it.each` once.
 - **Playwright:** 3 + 12 + 27 × 2 = 69.
 
@@ -333,7 +334,7 @@ How the totals reconcile with the latest runs:
 |---|---|---|---|
 | `conftest.py` | — | — | Fixtures, not tests. Test-database guard and environment; schema built once per run; selector event loop on Windows; `client`, `register`, `auth`, `create_product`, `make_queue_item`, `make_email`, `make_event`, `smtp_config`, `fake_smtp`, `fake_ai`, `run_jobs`, `mailer`; autouse `_no_network` guard and 4-round bcrypt |
 | `test_auth.py` | 26 | 26 | Register, login and `/me` (email normalisation, first user is admin, validation). The `ADMIN_EMAIL` guard: while no account exists, registering from any other address answers 403 and creates nothing; the administrator's address (matched case-insensitively and trimmed) becomes the platform admin; after that, others register as ordinary users. Token required on `/api` routes; public `/health`. Admin-only routes; admin creates, updates and deletes users (not self). Cross-user project list and transfer with all related rows; a transferred project stops using the previous owner's brand. Registration toggle in `app_config`: survives restarts, isn't stored on user settings rows, missing means enabled, a legacy value is carried over (B8). Disabled users rejected immediately (B9). A deleted account's token doesn't sign in a new account with the same email (B16). A database error while authenticating isn't reported as a bad token (B17) |
-| `test_claude.py` | 33 | 40 | The Claude client: the real Anthropic SDK against a fake Messages API at the HTTP transport. `generate_result()` streams a request with the result type as its response format when there's no web search. Web research uses the web search tool (the basic one on other models), submits through the strict `submit_result` tool (`eager_input_streaming`) and sets top-level `cache_control`; research that ends without a submission is reminded once, then fails; the last submission in a turn wins; cut-off or non-JSON submissions (2) aren't used. Only sources the searches returned are kept. The three-part system prompt caches its stable parts. `pause_turn` resumes send the whole turn so far, and endless pausing is stopped. Errors carry a `retryable` flag: missing key, refusal, rejected requests (4), overload retried, provider errors that outlast the retries (3), mid-stream errors and drops, unreachable provider, timeouts and the whole-call deadline. Every response is recorded in the organisation's usage ledger, and a failed ledger write doesn't lose the answer. Default models are current generation; models that can decline opt in to server-side fallbacks (2) |
+| `test_claude.py` | 34 | 41 | The Claude client: the real Anthropic SDK against a fake Messages API at the HTTP transport. `generate_result()` streams a request with the result type as its response format when there's no web search; an answer that citations split across several text blocks is joined exactly, because anything between the pieces, even a newline, would corrupt the JSON. Web research uses the web search tool (the basic one on other models), submits through the strict `submit_result` tool (`eager_input_streaming`) and sets top-level `cache_control`; research that ends without a submission is reminded once, then fails; the last submission in a turn wins; cut-off or non-JSON submissions (2) aren't used. Only sources the searches returned are kept. The three-part system prompt caches its stable parts. `pause_turn` resumes send the whole turn so far, and endless pausing is stopped. Errors carry a `retryable` flag: missing key, refusal, rejected requests (4), overload retried, provider errors that outlast the retries (3), mid-stream errors and drops, unreachable provider, timeouts and the whole-call deadline. Every response is recorded in the organisation's usage ledger, and a failed ledger write doesn't lose the answer. Default models are current generation; models that can decline opt in to server-side fallbacks (2) |
 | `test_database.py` | 10 | 10 | SSL argument chosen from the DSN (B13); a real pool connects without SSL; `select_one` returns `None` for IDs that cannot exist. Restarts add no `settings` rows (formerly a strict xfail). UUID-shaped and ISO datetime text is stored as text; ISO strings become dates and datetimes for date columns |
 | `test_email.py` | 11 | 16 | Sending through a project's SMTP server with a recording `smtplib`: STARTTLS with the server certificate verified (or switched off), only the draft recipient, header line breaks can't add recipients, one-line subjects, invalid recipient addresses not sent (4), the connection closed when sending fails, incomplete settings (3) and unreachable servers reported. Contacts found in structured entries and free text; none in content that isn't an object |
 | `test_events.py` | 7 | 7 | Live updates over PostgreSQL LISTEN/NOTIFY: members receive only their organisation's events; the listening connection closes with the last subscriber; operations publish their progress, failures, retries and deletions; the stream sends events and keeps the connection alive; the stream needs a signed-in member; the events endpoint streams Server-Sent Events |
@@ -352,11 +353,11 @@ How the totals reconcile with the latest runs:
 | `test_results.py` | 6 | 40 | Structured AI results: every operation has a result type; the schema check catches what structured outputs wouldn't keep (a positive control); each of the 18 result schemas stays within what structured outputs accept, with closed objects and every field required (18); web research results list `sources` last, and other results have none (18); results reject fields they don't have; SEO structured data is stored as an object when it's JSON |
 | `test_scraper.py` | 15 | 36 | The real scraper on a fake network (fake DNS, `httpx.MockTransport`). `MetadataParser`: head metadata, headings, JSON-LD and body text; body text leaves out inline scripts and styles (bug fix); incomplete markup is tolerated (4). `scrape_url`: follows redirects with the bot User-Agent, connects to the address it checked (so a second DNS answer can't redirect it), caps headings at 20, reports HTTP errors, connection failures and unknown websites. Only public web pages (F-6): 19 addresses refused before any request, such as non-web schemes, credentials in the URL, loopback, private, link-local and cloud metadata addresses, internal hostnames and DNS answers that mix public and private addresses; no redirects into private networks; at most five redirects; at most 2 MB read; web pages only |
 | `test_security.py` | 15 | 22 | Hardening (F-7): outside debug mode, startup refuses a weak JWT secret (3) and a missing or invalid encryption key (2); debug mode starts with a development secret; API docs only in debug mode; cross-origin calls only from configured origins; security headers, and HSTS on HTTPS responses; rate limits on sign-in per account and per address, account creation per address, and AI operations per account; a cap on running operations per account; new passwords must be 8 to 72 bytes (5), including admin-created accounts; unknown accounts get the same password check, so response time doesn't reveal which emails have accounts |
-| `test_sessions.py` | 13 | 14 | Sessions: signing in sets a refresh cookie scripts can't read, secure over HTTPS; access tokens last 15 minutes and expired ones are refused; refreshing rotates the cookie and issues a new access token; two tabs refreshing at once both stay signed in; refreshing without a cookie, with an expired refresh token or for a disabled account ends the session; reusing an old refresh token ends every session from that sign-in, and other sign-ins survive; signing out revokes the refresh token; session routes need no access token (2) |
+| `test_sessions.py` | 14 | 15 | Sessions: signing in sets a refresh cookie scripts can't read, secure over HTTPS; access tokens last 15 minutes and expired ones are refused; refreshing rotates the cookie and issues a new access token; two tabs refreshing at once both stay signed in; refreshing without a cookie, with an expired refresh token or for a disabled account ends the session; reusing an old refresh token ends every session from that sign-in, and other sign-ins survive; a replayed token is still caught when the application's clock runs five seconds behind the database's, because the comparison is made in SQL against the `used_at` the database wrote; signing out revokes the refresh token; session routes need no access token (2) |
 | `test_tenancy.py` | 9 | 9 | Isolation between two users' own organisations for products, queue, templates, captures, calendar (including not leaking a foreign project's name and color), brands and email queue (no SMTP call). Seven AI endpoints answer 404 for another organisation's product, without calling Claude or the scraper |
 | `test_usage.py` | 10 | 13 | AI usage ledger, costs and budgets: costs follow the published prices (4 models); a model without a known price costs nothing and says so; web searches cost $10 per 1,000 on top of tokens; operations record who used what for which project; owners set a monthly budget; operations stop once this month's budget is used, and last month's spending doesn't count; owners see the month's usage by operation, project, member and model, and earlier months; calls to models without a price are counted separately |
 | `test_workflows.py` | 35 | 78 | A background workflow result lands in the queue (pending, or failed with the readable AI error); unknown workflows are rejected, or fail if one reaches the job; a workflow for a deleted project fails. Operations ask for their structured result type with the right model and tools, and search the web only when their prompt needs it (12 workflows, 6 synchronous endpoints); market analysis gets room for a long report; the scraped page and notes go in the run details, not the cached parts of the three-part prompt (F-10). Startup fails operations a restart interrupted (F-9). Press kit generated and stored; press kit, press release and SEO report unreachable URLs. Repurpose. Social posts for the connected platforms. Press release contacts and notes. Market analysis is given the pricing to build on (4). Competitor preview text (B11) and previews of unexpected answers. Server-set `generated_at` and `source_url` on 5 report endpoints (B12). On 6 synchronous endpoints: AI configuration error 503 with the reason, provider error 502, timeout 504, refusal 422. A failed report keeps the saved one. Missing or foreign projects |
-| **Total** | **353** | **548** | 548 passed |
+| **Total** | **355** | **550** | 550 passed |
 
 ### Frontend units: `frontend/src/lib/` and `frontend/src/app/` (Vitest)
 
@@ -456,7 +457,7 @@ How the totals reconcile with the latest runs:
 
 ### Backend (pytest-cov, statement coverage of application code)
 
-**98.31%**: 3,311 statements, 56 missed. `backend/.coveragerc` leaves out the tests and virtual environments, and the run fails below 95%.
+**98.31%**: 3,316 statements, 56 missed. `backend/.coveragerc` leaves out the tests and virtual environments, and the run fails below 95%.
 
 Application modules below 95%:
 
@@ -467,13 +468,13 @@ Application modules below 95%:
 | `services/audit.py` | 92.86% | Shortening quoted text over 80 characters in activity summaries |
 | `worker.py` | 93.10% | The `python worker.py` entry point (`__main__`) |
 
-Between 95% and 100%: `routers/organisations.py` 95.38%, `main.py` 95.83%, `routers/queue.py` 96.02%, `services/usage.py` 96.43%, `database.py` 97.66%, `services/scraper.py` 97.71%, `services/access.py` 98.25%, `routers/auth.py` 98.29% and `services/claude.py` 98.33%.
+Between 95% and 100%: `routers/organisations.py` 95.38%, `main.py` 95.83%, `routers/queue.py` 96.02%, `services/usage.py` 96.43%, `database.py` 97.66%, `services/scraper.py` 97.71%, `services/access.py` 98.25%, `routers/auth.py` 98.31% and `services/claude.py` 98.33%.
 
 Everything else is at 100%: `config.py`, `models.py`, `routers/events.py`, `routers/extras.py`, `routers/products.py`, `routers/workflows.py`, `services/auth.py`, `services/email.py`, `services/events.py`, `services/field_crypto.py`, `services/jobs.py`, `services/mailer.py`, `services/pricing.py`, `services/results.py` and the seven migrations `0001`–`0007`.
 
 The modules that were weakest on 2026-09-14 are now covered: `services/email.py` from 54.55% to 100%, `services/claude.py` from 57.69% to 98.33%, and `routers/workflows.py` from 82.73% to 100%.
 
-Per-module figures come from the run's `backend/.coverage` (written 2026-09-16 23:45), read with `python -m coverage report --no-skip-covered --precision=2`. The default report rounds to whole percentages.
+Per-module figures come from the run's `backend/.coverage` (written 2026-09-16 23:45), read with `python -m coverage report --no-skip-covered --precision=2`. The default report rounds to whole percentages. Only `routers/auth.py` was re-measured in the 2026-09-17 19:0x run (296 statements, 5 missed, 98.31%); every other module keeps the earlier run's figure.
 
 ### Frontend (Vitest, V8)
 
@@ -494,7 +495,10 @@ Per-module figures come from the run's `backend/.coverage` (written 2026-09-16 2
 |---|---|---|---|---|---|
 | 2026-09-14, earlier | 151 passed, 2 xfailed | 92% with tests; 85% application code (1,522 statements, 228 missed) | 165 in 15 files | 82.17 / 71.45 / 77.47 / 86.43 | 54 passed |
 | 2026-09-14, later | 162 passed, 2 xfailed | 90.84% application code (1,528 statements, 140 missed) | 168 in 16 files | 82.31 / 71.56 / 77.87 / 86.47 | 54 passed |
-| 2026-09-16/17 (latest) | 548 passed | 98.31% application code (3,311 statements, 56 missed) | 601 in 49 files | 97.03 / 89.97 / 96.47 / 99.19 | 69 passed |
+| 2026-09-16/17 | 548 passed | 98.31% application code (3,311 statements, 56 missed) | 601 in 49 files | 97.03 / 89.97 / 96.47 / 99.19 | 69 passed |
+| 2026-09-17 19:0x (latest) | 550 passed in 164.63 s | 98.31% application code (3,316 statements, 56 missed) | 601 in 49 files | 97.03 / 89.97 / 96.47 / 99.19 | 69 passed |
+
+The 2026-09-17 19:0x run was backend only, on a fresh scratch cluster (port 56433): it added `test_claude.py::test_an_answer_split_across_text_blocks_is_joined_exactly` and `test_sessions.py::test_a_reused_token_is_caught_even_if_the_app_clock_lags_the_database`. The Vitest and Playwright figures are carried over unchanged from 2026-09-16/17.
 
 ### Against the constitution's gates
 
@@ -503,7 +507,7 @@ Per-module figures come from the run's `backend/.coverage` (written 2026-09-16 2
 | PR | 85% line | Met: 98.31% | Met: 99.19% lines |
 | Deploy | 95% | Met: 98.31%. Enforced by `fail_under = 95` | Met for lines: 99.19%, enforced by `thresholds.lines = 95`. Branches are at 89.97% and not gated |
 | New code | 95% | Not measured (no diff coverage) | Not measured |
-| Security-critical (auth/payment/data) | 95% | Met for `routers/auth.py` (98.29%), `services/auth.py` (100%), `services/access.py` (98.25%), `services/field_crypto.py` (100%) and `database.py` (97.66%). Below it: `services/ratelimit.py` (90.74%) and `services/audit.py` (92.86%) | Not recorded per file |
+| Security-critical (auth/payment/data) | 95% | Met for `routers/auth.py` (98.31%), `services/auth.py` (100%), `services/access.py` (98.25%), `services/field_crypto.py` (100%) and `database.py` (97.66%). Below it: `services/ratelimit.py` (90.74%) and `services/audit.py` (92.86%) | Not recorded per file |
 
 Tooling enforces the totals at the 95% deploy gate, which covers the 85% PR gate: backend statements via `.coveragerc`, frontend lines via `vitest.config.ts`. Per-module figures, branch coverage and function coverage are not enforced.
 

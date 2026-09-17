@@ -1,8 +1,8 @@
 ---
 document: CLAUDE
-version: 0.2.0
-last-updated: 2026-09-17T00:00:00Z
-last-audit: 2026-09-14T00:00:00Z
+version: 1.1.0
+last-updated: 2026-09-17T19:40:00Z
+last-audit: 2026-09-17T19:30:00Z
 managed-by: session-orchestrator/memory-updater
 ---
 
@@ -15,8 +15,12 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
 | | |
 |---|---|
 | **Positioning** | Being prepared for corporate partners who run portfolios of startups (multi-venture first). |
-| **Production domain** | https://launchops.run, the custom domain of the Railway deployment. Railway verified the domain on 2026-09-17, but its HTTPS certificate was still being issued. The app also answers at https://launchops-production-0457.up.railway.app. See [Deployment & CI](#deployment--ci). |
-| **Roadmap, findings, phase status** | `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`, section "Progress" |
+| **Production domain** | https://launchops.run — **live over HTTPS** since 2026-09-17 (certificate issued 16:51 UTC, valid to 2026-12-16). The app also answers at https://launchops-production-0457.up.railway.app. See [Deployment & CI](#deployment--ci). |
+| **Tasks, milestones, blocked-on-owner items** | `docs/ROADMAP.md` |
+| **Findings, phased plan, phase status** | `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`, section "Progress" |
+| **Bugs** | `docs/BUGS.md` |
+| **Session handoff** (read it at session start) | `docs/HANDOFF.md` |
+| **Changelog / audit log** | `docs/CHANGELOG.md` / `docs/AUDIT-LOG.md` — both new in the 2026-09-17 handoff. `AUDIT-LOG.md` is written; `CHANGELOG.md` was still to be created when this file was verified |
 | **Phase 1 decisions (D1–D16)** | `docs/PHASE1_DESIGN.md` |
 | **Design system** | `docs/DESIGN_SYSTEM.md` |
 | **Testing** | `docs/TESTING.md`: frameworks, how to run, inventory, coverage |
@@ -26,7 +30,7 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
 
 ## Current State
 
-- **Phase:** Phases 0 (stabilise), 1 (foundation) and 2 (interface rebuild) are complete. Two Phase 1 items moved to Phase 2 follow-up: the brand kernel (D15) and a versioned result history (D16).
+- **Phase:** Phases 0 (stabilise), 1 (foundation) and 2 (interface rebuild) are complete (milestones M0–M2 in `docs/ROADMAP.md`), and the app is live in production. **Phase 3 (real actions) is next and not started.** Two Phase 1 items moved to Phase 2 follow-up: the brand kernel (D15) and a versioned result history (D16).
 - **Last completed task:** Phase 1 foundation:
   - organisations and roles (Viewer → Editor → Approver → Owner) with role-aware controls and an organisation switcher
   - invitations and member management
@@ -38,23 +42,25 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
   - prompt caching
   - usage ledger with monthly budgets and a Settings → Usage page
 
-  Plus the rest of Phase 0: encrypted SMTP passwords, SSRF guard, startup guards, Alembic migrations, the daily email cap, deleted duplicate deploy files, CI security scans. Then, on 2026-09-17: the `ADMIN_EMAIL` setting, the Railway deployment, and pull request #1 (branch `feature/launchops-v2-foundation`: `d7752c3` the v2 work, `4ecbcc4` `.gitleaksignore`), merged into `main` as `24eff91` after all CI checks passed. After that, `ANTHROPIC_API_KEY` was set on Railway, a live smoke test passed, and launchops.run was added as the custom domain.
-- **Active task:** none. The v2 work is merged into `main`. Don't commit without asking, and create a branch first.
-- **Next:**
-  - once https://launchops.run answers over HTTPS, sign up with the `ADMIN_EMAIL` address and decide whether registration stays open (Settings → Team & access)
-  - suggested: turn on Wait for CI in the `launchops` service's source settings, so a push to `main` deploys only after CI passes
-  - optional: `MAIL_*` settings, database backups, deleting the leftover volume `postgres-volume-qVKY`
+  Plus the rest of Phase 0: encrypted SMTP passwords, SSRF guard, startup guards, Alembic migrations, the daily email cap, deleted duplicate deploy files, CI security scans. Then, on 2026-09-17: the `ADMIN_EMAIL` setting, the Railway deployment, pull request #1 (branch `feature/launchops-v2-foundation`: `d7752c3` the v2 work, `4ecbcc4` `.gitleaksignore`), merged into `main` as `24eff91` after all CI checks passed, and pull request #2 (documentation: `4f433ee`, `b0beeaf`), merged as `f143f1c`. After that, `ANTHROPIC_API_KEY` was set on Railway, a live smoke test passed, and **launchops.run went live over HTTPS**.
+- **Active task:** none. `main` is still at `f143f1c`, and that is what production runs. **This session's work is not committed.** Modified in the working tree: `backend/routers/auth.py` (the refresh-token replay fix), `backend/tests/test_sessions.py` and `backend/tests/test_claude.py` (a test each), this file, `SOURCE_MAP.md`, `SETUP_PROMPT.md`, `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` and `docs/TESTING.md`. Untracked: `docs/BUGS.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md`, `docs/AUDIT-LOG.md`, and the deliberately untracked `.github/workflows/test-pipeline.yml`. `docs/CHANGELOG.md` is the one managed document still to be created — check it landed. The owner has not decided whether to commit this batch. Don't commit without asking, and create a branch first — every push to `main` deploys to production.
+- **Next** (priority order; the first four are owner-only account, DNS and console work, not code — full list in `docs/ROADMAP.md` → Active):
+  - delete the stray account `guard-check@example.com` and "Guard check's organisation" (Settings → Team & access): a sign-up probe created it on the live site
+  - confirm who holds the first (admin) account, and decide whether open registration stays on
+  - update the Spaceship CNAME for launchops.run to `xesm2hmr.up.railway.app` (it still points at the old `5rlc9k25.up.railway.app`, which works)
+  - delete the Railway project token that was pasted into chat, and issue a new one when needed
+  - optional: turn on Wait for CI in the `launchops` service's source settings, turn on database backups, delete the leftover volume `postgres-volume-qVKY`, set `MAIL_*`
   - owner decisions: plan section 8; the brand kernel questions in D15; whether organisation owners should also create reset links (D8)
   - Phase 2 follow-up: brand kernel, result history, billing settings
   - Phase 3: real actions
-- **Open issues:** tracked as findings in `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`. `docs/BUGS.md` has not been created yet.
+- **Open bugs:** none. The record is `docs/BUGS.md` (27 bugs, all fixed, each with a test that failed first; two known limitations). Remaining findings and phase status are in `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`.
 - **Doc version:** 0.2.0
 
 **Tests (2026-09-17)**
 
 | Suite | Result | Coverage |
 |---|---|---|
-| Backend pytest | 548 passed | 98.31% of application code (tests excluded). `backend/.coveragerc` enforces the 95% deploy gate (`fail_under = 95`; omits `tests/`, `.venv/` and `venv/`) whenever coverage is collected (`python -m pytest --cov`, as CI runs it). |
+| Backend pytest | 550 passed | 98.31% of application code — 3,316 statements, 56 missed (tests excluded). `backend/.coveragerc` enforces the 95% deploy gate (`fail_under = 95`; omits `tests/`, `.venv/` and `venv/`) whenever coverage is collected (`python -m pytest --cov`, as CI runs it). |
 | Frontend Vitest | 49 files, 601 passed | 99.19% lines (statements 97.03%, branches 89.97%, functions 96.47%). `frontend/vitest.config.ts` enforces 95% lines (`coverage.thresholds`) in `npm run coverage`. |
 | Playwright (chromium) | 69 passed (3 smoke, 12 golden path, 54 accessibility: 27 screens × 2 themes) | n/a |
 
@@ -84,6 +90,7 @@ LaunchOps/
 ├── CLAUDE.md                  ← you are here
 ├── SETUP_PROMPT.md            ← session-start prompt
 ├── SOURCE_MAP.md              ← file-by-file map
+├── DEBUG_PROTOCOL.md          ← anti-loop debugging directive
 ├── Dockerfile, railway.toml   ← production image + Railway config
 ├── .claude/launch.json        ← preview servers: "backend" (port 8765), "frontend" (port 5173)
 ├── .github/workflows/         ← ci.yml (backend, secrets, frontend), build-desktop.yml (Tauri installers on v* tags),
@@ -116,8 +123,13 @@ LaunchOps/
 │   ├── src/test/              # fakeApi.ts (shared fake backend), renderApp, roles, app-level tests
 │   ├── e2e/                   # smoke, golden, a11y specs; support/ (fakeBackend, sample workspace); capture.mjs (screenshots)
 │   └── vite / vitest / playwright / eslint / tsconfig.* configs
-└── docs/
+└── docs/                      ← managed documents: versioned together, edited through their subagents
     ├── ASSESSMENT_AND_DEVELOPMENT_PLAN.md   # findings, phased plan, Progress
+    ├── ROADMAP.md                           # goals, milestones, active tasks, blocked on the owner
+    ├── BUGS.md                              # bug registry; open bugs first
+    ├── HANDOFF.md                           # session handoff; read it at session start
+    ├── CHANGELOG.md                         # released and unreleased changes (new, 2026-09-17 handoff)
+    ├── AUDIT-LOG.md                         # documentation audits (new, 2026-09-17 handoff)
     ├── PHASE1_DESIGN.md                     # Phase 1 decisions (D1–D16) and why
     ├── DESIGN_SYSTEM.md                     # full design system reference
     └── TESTING.md                           # frameworks, how to run, inventory, coverage
@@ -163,7 +175,7 @@ There are 18 operations. **The catalogue's descriptions must stay true to backen
   - Roles build on each other: Viewer → Editor → Approver → Owner. Controls follow the member's role.
   - Settings, projects, results, the Outbox, the calendar, the library and company profiles (rows in the `brands` table) belong to the organisation. Settings are no longer per user.
   - Platform admin (`users.role = 'admin'`) is separate from organisation roles. The first account created becomes the platform admin; with `ADMIN_EMAIL` set, only that address can create it. The registration toggle is platform-wide, in the `app_config` table.
-- **Sessions:** 15-minute access tokens plus rotating refresh tokens in an HttpOnly cookie scoped to `/api/auth`. There are forgot and reset password pages, and admins create one-time reset links. Reset and invitation emails go through the platform mailer (`MAIL_*`).
+- **Sessions:** 15-minute access tokens plus rotating refresh tokens in an HttpOnly cookie scoped to `/api/auth`. There are forgot and reset password pages, and admins create one-time reset links. Reset and invitation emails go through the platform mailer (`MAIL_*`). Whether a returning refresh token is a replay is decided by the database's own clock (`r.used_at < NOW() - $2::interval` in the refresh query), never the application's, because the two run as separate services and an app clock reading behind the database would accept a stolen, already-rotated token instead of revoking its whole family.
 - **Approving never sends email.** For cold outreach, partnerships and announcement results, it copies the contacts into Outbox drafts before the request answers. The Outbox sends only after an explicit confirmation that lists the recipients and the sender. `MAX_EMAILS_PER_DAY` limits sends per account in any 24 hours; 0 switches sending off.
 - **SMTP passwords** are write-only (the API returns `smtp_password_set`, never the password) and encrypted at rest with `FIELD_ENCRYPTION_KEY`.
 - **Live updates:** `GET /api/events` (SSE, read with fetch so the token stays in a header) refreshes Review and the Outbox. Polling slows to 30 s while connected.
@@ -247,7 +259,7 @@ python -m pytest                                   # needs PostgreSQL 13 or newe
 python -m pytest --cov                             # with the 95% coverage gate, as CI runs it
 ```
 
-The test database name must contain `test`. `TEST_DATABASE_URL` overrides the local default set in `backend/tests/conftest.py`.
+The test database name must contain `test`. `TEST_DATABASE_URL` overrides the local default set in `backend/tests/conftest.py` (`postgresql://postgres@127.0.0.1:56432/launchops_test`). **Never let two pytest runs share one test database** — two suites against the same cluster deadlock and raise foreign-key errors that read like real failures. This session finished against a scratch cluster on port **56433**, pointed at with `TEST_DATABASE_URL`.
 
 ### Frontend
 ```bash
@@ -301,6 +313,7 @@ The developer cannot configure pip/python in system PATH on Windows. Always use 
 ## Conventions
 
 - Never write into OneDrive or the Documents/Desktop folders.
+- **Never run sign-up or registration probes against the live site.** `ADMIN_EMAIL` only guards the *first* account; once the admin exists, a probe creates a real account. One did on 2026-09-17 (`guard-check@example.com`), and a person has to delete it by hand. Test registration locally or against the test suite.
 - Bug fixes need a failing test first. Keep ESLint at zero warnings. Update docs at the point of change.
 - Don't commit without asking the owner, and create a branch first. Every push to `main` deploys to production on Railway.
 - Keep the operation descriptions in `frontend/src/lib/domain/operations.ts` true to backend behaviour.
@@ -316,13 +329,14 @@ The developer cannot configure pip/python in system PATH on Windows. Always use 
   - Startup applies pending migrations; a failed migration stops the app from starting.
   - Variables on `launchops`: `DATABASE_URL` (references `${{Postgres.DATABASE_URL}}` over the private network), `JWT_SECRET` and `FIELD_ENCRYPTION_KEY` (generated), `APP_URL=https://launchops.run`, `ADMIN_EMAIL`, `ANTHROPIC_API_KEY`. Not set yet: `MAIL_*` (optional).
   - Source: `launchops` is connected to GitHub `Vybecode-LTD/LaunchOps`, branch `main`, so every push to `main` deploys. Turning on Wait for CI in the service's source settings is suggested, so a deploy waits for CI to pass.
-  - Domain: launchops.run is the custom domain of `launchops` (port 8080). DNS is at Spaceship, with the apex CNAME flattened to Railway's edge. Railway has verified the domain, and no CAA or AAAA record is in the way. The HTTPS certificate was still being issued on 2026-09-17.
+  - Domain: launchops.run is the custom domain of `launchops` (port 8080), **live over HTTPS**. DNS is at Spaceship, with the apex CNAME flattened to Railway's edge; no CAA or AAAA record is in the way. The first certificate attempt stalled at "polling authorizations" for about 3.5 hours with correct DNS; removing and re-adding the domain cleared it, and the certificate was issued 2026-09-17 16:51 UTC, valid to 2026-12-16.
+  - **Loose end:** re-adding the domain gave it a new CNAME target, `xesm2hmr.up.railway.app`, and Spaceship still points at the old `5rlc9k25.up.railway.app`. Traffic and the certificate work, but the record should be updated.
   - The old `backend`, `frontend` and `src-tauri` services have been removed. A detached empty volume, `postgres-volume-qVKY`, is left over and can be deleted in the dashboard.
-- **Status (2026-09-17):** the deployment that picked up `ANTHROPIC_API_KEY` is live. `launchops` answers at https://launchops-production-0457.up.railway.app; launchops.run is verified, but its HTTPS certificate was still being issued. Verified live on the deployment built from `24eff91`:
+- **Status (2026-09-17):** live. `launchops` answers at https://launchops.run over HTTPS and at https://launchops-production-0457.up.railway.app. Verified live on the deployment built from `24eff91` (the pull request after it, `f143f1c`, changed documentation only):
   - `/health` answers ok, and the interface loads
   - unauthenticated API calls get 401
-  - a first registration from another address gets 403, so the database and migrations work
-  - security headers, including HSTS, were checked on the first deployment, before GitHub was connected
+  - security headers, including HSTS
+  - the database and migrations work: before the admin account existed, registration from another address was refused with 403. A later sign-up probe — run once the admin existed, when the guard no longer applies — created the real account `guard-check@example.com`, which has to be deleted by hand. Don't probe registration against the live site.
 - **Live smoke test (2026-09-17):** passed with the deployment's key. `generate_result` made three calls against the real Anthropic API, all with valid results, for about $0.10 in total:
   - a non-research operation on Sonnet 5 (structured outputs)
   - a research operation on Sonnet 5: 3 web searches, the strict submit tool, 6 verified sources, cache reads of about 15,000 tokens
@@ -332,15 +346,15 @@ The developer cannot configure pip/python in system PATH on Windows. Always use 
 - **Desktop:** `src-tauri/` is a webview pointing at https://launchops.run. `.github/workflows/build-desktop.yml` builds installers on `v*` tags.
 - **CI:** `.github/workflows/ci.yml` has three jobs:
   - Backend: ruff, pip-audit, then pytest with a `postgres:18` service and the 95% coverage gate.
-  - Secrets: gitleaks over the full git history. `.gitleaksignore` lists two reviewed false positives (launch plan keys in `frontend/src/lib/domain/checklist.test.ts`) by exact fingerprint.
+  - Secrets: gitleaks over the full git history. `.gitleaksignore` lists three reviewed false positives by exact fingerprint: two launch plan keys in `frontend/src/lib/domain/checklist.test.ts` (commit `d7752c3`) and the earlier wording of the note about them in `docs/TESTING.md` (commit `4f433ee`).
   - Frontend: npm audit (fails on high or critical), lint, typecheck, Vitest coverage, build, Playwright.
 
 ---
 
 ## What Needs To Happen Next
 
-The **"Progress"** section of `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` has the active phase, the open findings and the next items. The open owner questions on the brand kernel (D15) and reset links (D8) are in `docs/PHASE1_DESIGN.md`. Every session ends with **"perform handoff"**.
+`docs/ROADMAP.md` is the task list: **Active** (T-1 to T-8, the owner-only follow-ups), **Blocked / needs the owner** (B-1 to B-13) and **Next up**. `docs/HANDOFF.md` is the last session's handoff — read it at session start. The **"Progress"** section of `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` has the phase status, the findings and the reasoning; the open owner questions on the brand kernel (D15) and reset links (D8) are in `docs/PHASE1_DESIGN.md`. Every session ends with **"perform handoff"**.
 
 ---
 
-Last-verified: 2026-09-17 · HEAD `24eff91`
+Last-verified: 2026-09-17 · HEAD `f143f1c` (production) · this session's fix, its tests and the handoff documents are still uncommitted in the working tree
