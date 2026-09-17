@@ -1,7 +1,7 @@
 ---
 document: TESTING
-version: 1.1.0
-last-updated: 2026-09-17T19:40:00Z
+version: 1.1.1
+last-updated: 2026-09-17T20:10:00Z
 last-audit: 2026-09-17T19:30:00Z
 managed-by: session-orchestrator/test-doc-manager
 ---

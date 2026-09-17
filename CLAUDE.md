@@ -1,8 +1,8 @@
 ---
 document: CLAUDE
-version: 1.1.0
-last-updated: 2026-09-17T19:40:00Z
-last-audit: 2026-09-17T19:30:00Z
+version: 1.1.1
+last-updated: 2026-09-17T20:10:00Z
+last-audit: 2026-09-17T20:05:00Z
 managed-by: session-orchestrator/memory-updater
 ---
 
@@ -20,7 +20,7 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
 | **Findings, phased plan, phase status** | `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`, section "Progress" |
 | **Bugs** | `docs/BUGS.md` |
 | **Session handoff** (read it at session start) | `docs/HANDOFF.md` |
-| **Changelog / audit log** | `docs/CHANGELOG.md` / `docs/AUDIT-LOG.md` — both new in the 2026-09-17 handoff. `AUDIT-LOG.md` is written; `CHANGELOG.md` was still to be created when this file was verified |
+| **Changelog / audit log** | `docs/CHANGELOG.md` — the documentation set's history (1.0.0 the baseline, 1.1.0 this session's second pass) / `docs/AUDIT-LOG.md` — the reconciliation audits, the first of them 2026-09-17T19:30:00Z |
 | **Phase 1 decisions (D1–D16)** | `docs/PHASE1_DESIGN.md` |
 | **Design system** | `docs/DESIGN_SYSTEM.md` |
 | **Testing** | `docs/TESTING.md`: frameworks, how to run, inventory, coverage |
@@ -43,7 +43,7 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
   - usage ledger with monthly budgets and a Settings → Usage page
 
   Plus the rest of Phase 0: encrypted SMTP passwords, SSRF guard, startup guards, Alembic migrations, the daily email cap, deleted duplicate deploy files, CI security scans. Then, on 2026-09-17: the `ADMIN_EMAIL` setting, the Railway deployment, pull request #1 (branch `feature/launchops-v2-foundation`: `d7752c3` the v2 work, `4ecbcc4` `.gitleaksignore`), merged into `main` as `24eff91` after all CI checks passed, and pull request #2 (documentation: `4f433ee`, `b0beeaf`), merged as `f143f1c`. After that, `ANTHROPIC_API_KEY` was set on Railway, a live smoke test passed, and **launchops.run went live over HTTPS**.
-- **Active task:** none. **`main` is still at `f143f1c`, and that is what production runs.** This session's work is on branch **`fix/refresh-token-clock-skew`**, pushed and open as **pull request #3**, not yet merged: `35d24c5` the BUG-027 refresh-token fix, `584cff6` the text-block regression test, `7c1f1cb` the session-end documents, `39ff28b` the design-system correction. Because it is unmerged, **the BUG-027 security fix is not in production.** Merging it with a merge commit (never a squash) once CI is green is B-13 in `docs/ROADMAP.md`. Only `.github/workflows/test-pipeline.yml` remains deliberately untracked.
+- **Active task:** none. **`main` is at `bc6143c`, and that is what production runs.** This session's work merged as **pull request #3** (branch `fix/refresh-token-clock-skew`, six commits: `35d24c5` the BUG-027 refresh-token fix, `584cff6` the text-block regression test, `7c1f1cb` the session-end documents, `39ff28b` the design-system correction, `ee4932a` the reconciliation fixes, `c486949` the branch-state notes), after all three CI jobs passed: backend lint and tests (550 tests, the 95% coverage gate, against a `postgres:18` service), frontend lint/typecheck/Vitest/build/Playwright, and the gitleaks secret scan. It was merged with a **merge commit, not a squash**, so the `.gitleaksignore` fingerprints still resolve. Railway deployed `bc6143c` at 2026-09-17T19:47:08Z, so **the BUG-027 refresh-token fix is now in production.** Only `.github/workflows/test-pipeline.yml` remains deliberately untracked.
 - **Next** (priority order; the first four are owner-only account, DNS and console work, not code — full list in `docs/ROADMAP.md` → Active):
   - delete the stray account `guard-check@example.com` and "Guard check's organisation" (Settings → Team & access): a sign-up probe created it on the live site
   - confirm who holds the first (admin) account, and decide whether open registration stays on
@@ -54,7 +54,7 @@ VybeCod.ing Launch Ops is a **multi-product launch operations platform**. It use
   - Phase 2 follow-up: brand kernel, result history, billing settings
   - Phase 3: real actions
 - **Open bugs:** none. The record is `docs/BUGS.md` (27 bugs, all fixed, each with a test that failed first; two known limitations). Remaining findings and phase status are in `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`.
-- **Doc version:** 0.2.0
+- **Doc version:** 1.1.1 — this is the `version:` in this file's frontmatter, not a separate number. All seven managed documents carry that one shared version and are raised together.
 
 **Tests (2026-09-17)**
 
@@ -332,10 +332,10 @@ The developer cannot configure pip/python in system PATH on Windows. Always use 
   - Domain: launchops.run is the custom domain of `launchops` (port 8080), **live over HTTPS**. DNS is at Spaceship, with the apex CNAME flattened to Railway's edge; no CAA or AAAA record is in the way. The first certificate attempt stalled at "polling authorizations" for about 3.5 hours with correct DNS; removing and re-adding the domain cleared it, and the certificate was issued 2026-09-17 16:51 UTC, valid to 2026-12-16.
   - **Loose end:** re-adding the domain gave it a new CNAME target, `xesm2hmr.up.railway.app`, and Spaceship still points at the old `5rlc9k25.up.railway.app`. Traffic and the certificate work, but the record should be updated.
   - The old `backend`, `frontend` and `src-tauri` services have been removed. A detached empty volume, `postgres-volume-qVKY`, is left over and can be deleted in the dashboard.
-- **Status (2026-09-17):** live. `launchops` answers at https://launchops.run over HTTPS and at https://launchops-production-0457.up.railway.app. Verified live on the deployment built from `24eff91` (the pull request after it, `f143f1c`, changed documentation only):
-  - `/health` answers ok, and the interface loads
-  - unauthenticated API calls get 401
-  - security headers, including HSTS
+- **Status (2026-09-17):** live. `launchops` answers at https://launchops.run over HTTPS and at https://launchops-production-0457.up.railway.app. Production runs `bc6143c` (the pull request #3 merge), deployed successfully at 2026-09-17T19:47:08Z; the previous deployment, `f143f1c`, is being removed. Verified against https://launchops.run after that deploy:
+  - `GET /health` answers 200 `{"status":"ok"}`, and the interface loads
+  - unauthenticated API calls get 401: `POST /api/auth/refresh` with no cookie answers `{"detail":"Your session has ended. Sign in again."}`, and `GET /api/auth/me` with no token answers 401
+  - security headers, including HSTS (`max-age=31536000; includeSubDomains`)
   - the database and migrations work: before the admin account existed, registration from another address was refused with 403. A later sign-up probe — run once the admin existed, when the guard no longer applies — created the real account `guard-check@example.com`, which has to be deleted by hand. Don't probe registration against the live site.
 - **Live smoke test (2026-09-17):** passed with the deployment's key. `generate_result` made three calls against the real Anthropic API, all with valid results, for about $0.10 in total:
   - a non-research operation on Sonnet 5 (structured outputs)
@@ -353,8 +353,8 @@ The developer cannot configure pip/python in system PATH on Windows. Always use 
 
 ## What Needs To Happen Next
 
-`docs/ROADMAP.md` is the task list: **Active** (T-1 to T-8, the owner-only follow-ups), **Blocked / needs the owner** (B-1 to B-13) and **Next up**. `docs/HANDOFF.md` is the last session's handoff — read it at session start. The **"Progress"** section of `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` has the phase status, the findings and the reasoning; the open owner questions on the brand kernel (D15) and reset links (D8) are in `docs/PHASE1_DESIGN.md`. Every session ends with **"perform handoff"**.
+`docs/ROADMAP.md` is the task list: **Active** (T-1 to T-8, the owner-only follow-ups), **Blocked / needs the owner** (B-1 to B-12), **Decided** (B-13, the session-end merge, done 2026-09-17) and **Next up**. `docs/HANDOFF.md` is the last session's handoff — read it at session start. The **"Progress"** section of `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` has the phase status, the findings and the reasoning; the open owner questions on the brand kernel (D15) and reset links (D8) are in `docs/PHASE1_DESIGN.md`. Every session ends with **"perform handoff"**.
 
 ---
 
-Last-verified: 2026-09-17 · production `f143f1c` (`main`) · this session's work in pull request #3, branch `fix/refresh-token-clock-skew` (`ee4932a`)
+Last-verified: 2026-09-17 · production `bc6143c` (`main`, the pull request #3 merge, deployed 19:47:08Z) · as of the 2026-09-17T20:05:00Z documentation audit the post-merge documentation updates were still uncommitted, on branch `docs/record-the-merge`; confirm with `git status`. `.github/workflows/test-pipeline.yml` stays untracked by design

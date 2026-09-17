@@ -1,8 +1,8 @@
 ---
 document: BUGS
-version: 1.1.0
-last-updated: 2026-09-17T19:40:00Z
-last-audit: 2026-09-17T19:30:00Z
+version: 1.1.1
+last-updated: 2026-09-17T20:10:00Z
+last-audit: 2026-09-17T20:05:00Z
 managed-by: session-orchestrator/bug-fix-tracker
 ---
 
@@ -10,8 +10,9 @@ managed-by: session-orchestrator/bug-fix-tracker
 
 First edition of this registry. It back-fills every bug found and fixed during the Phase 0–2
 rebuild, up to the handoff of 2026-09-17. All of it is on `main`, merged in pull request #1
-(merge commit `24eff91`) and #2 (`f143f1c`) — except BUG-027, found and fixed at the end of the
-same session, which is in pull request #3 on branch `fix/refresh-token-clock-skew`, not yet merged.
+(merge commit `24eff91`) and #2 (`f143f1c`). BUG-027, found and fixed at the end of the same
+session, arrived after those two: pull request #3, from branch `fix/refresh-token-clock-skew`,
+merged as `bc6143c`.
 
 **Every fix in this project lands with a test that failed before the fix and passed after it.**
 All 27 bugs below did. The regression tests named in each entry were read and confirmed to exist
@@ -271,10 +272,14 @@ Two accepted gaps. Neither is a defect in shipped behaviour; both are holes in t
   `python -m ruff check .` clean. Full backend suite: 550 passed, 98.31% coverage
   (3,316 statements, 56 missed).
 - **Status:** ✅ Fixed and verified
-- **Not yet on `main`:** unlike every other entry here, this fix is not in production. It is
-  commit `35d24c5` (`backend/routers/auth.py`, `backend/tests/test_sessions.py`) on the local
-  branch `fix/refresh-token-clock-skew`, open as pull request #3 and not yet merged. Tracked as B-13 in
-  `docs/ROADMAP.md`.
+- **On `main` and in production:** commit `35d24c5` (`backend/routers/auth.py`,
+  `backend/tests/test_sessions.py`), merged into `main` as `bc6143c` (pull request #3, a merge
+  commit) once all three CI jobs passed — backend (550 tests, 95% coverage gate, `postgres:18`
+  service), frontend (lint, typecheck, Vitest, build, Playwright) and the gitleaks secret scan.
+  Railway deployed `bc6143c` at 2026-09-17T19:47:08Z, and it was verified live afterwards:
+  `GET https://launchops.run/health` → 200 `{"status":"ok"}`, and `POST /api/auth/refresh`
+  with no cookie → 401 `{"detail":"Your session has ended. Sign in again."}`. This resolves
+  B-13 in `docs/ROADMAP.md`.
 
 ---
 

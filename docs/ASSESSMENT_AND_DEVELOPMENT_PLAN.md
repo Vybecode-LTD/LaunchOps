@@ -6,9 +6,9 @@
 
 ## Progress (updated 2026-09-17)
 
-All of this work is on `main`: merged from pull request #1 (merge commit `24eff91`) on 2026-09-17, after CI passed.
+All of this work is on `main`: merged from pull request #1 (merge commit `24eff91`) on 2026-09-17, after CI passed, with the documentation and one later fix following in #2 (`f143f1c`) and #3 (`bc6143c`).
 
-One later fix is not on `main` yet. Reconciling the documentation at session end turned up an
+One later fix arrived after that. Reconciling the documentation at session end turned up an
 intermittent failure in the refresh-token tests, and behind it a real defect: `POST /api/auth/refresh`
 decided whether a refresh token was a replay by comparing the application's clock with a `used_at`
 timestamp PostgreSQL had written. In production the app and the database are separate services, so a
@@ -16,8 +16,8 @@ few seconds of clock skew could let a stolen, already-rotated token through inst
 whole token family. The database now makes the comparison itself
 (`r.used_at < NOW() - $2::interval AS reused`), and a test that monkeypatches the application clock
 five seconds slow — failing against the old code, passing against the fix — holds it in place. It is
-BUG-027 in `docs/BUGS.md`. It is committed on the local branch `fix/refresh-token-clock-skew`
-(`35d24c5`), which is open as pull request #3 and not yet merged, so the fix is not yet in production.
+BUG-027 in `docs/BUGS.md`, commit `35d24c5`, merged through pull request #3 (`bc6143c`) after CI
+passed and deployed to production at 19:47 UTC the same day.
 
 | Phase | Status |
 |---|---|

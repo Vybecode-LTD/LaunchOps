@@ -1,8 +1,8 @@
 ---
 document: AUDIT-LOG
-version: 1.1.0
-last-updated: 2026-09-17T19:40:00Z
-last-audit: 2026-09-17T19:30:00Z
+version: 1.1.1
+last-updated: 2026-09-17T20:10:00Z
+last-audit: 2026-09-17T20:05:00Z
 managed-by: session-orchestrator/doc-reconciler
 ---
 
@@ -15,6 +15,84 @@ checked, what was found, what was fixed and what was left for a document's owner
 `git show`, and the source itself — never against another document. Where two documents disagree,
 the code decides. No test suite is ever run to produce these figures: they are read from the
 session's own completed runs, because a second run against the shared test database corrupts it.
+
+---
+
+## Audit — 2026-09-17T20:05:00Z — re-audit after the pull request #3 merge
+
+**Trigger:** the standing item the first entry left — "re-audit at the next session end, and **again
+immediately after B-13 merges**." It merged.
+**Scope:** deliberately narrow — only what the merge and the deployment changed: every description of
+the branch, the pull request, the merge and production; the commit hashes behind those claims; the
+blocked range; and the first entry's follow-up list. Nothing else was re-read; the first entry's
+verified-clean list still stands.
+**Repository state:** `main` = `origin/main` = **`bc6143c`**. HEAD is the new branch
+`docs/record-the-merge`, sitting *at* `bc6143c` with **no commits of its own**, five documents modified
+and one untracked file.
+**This reconciler made no commit, stage, push or branch, and ran no test suite.** Findings continue the
+first entry's numbering.
+
+### Findings
+
+| # | Severity | Document | Issue | Resolution |
+|---|---|---|---|---|
+| 15 | HIGH | `CLAUDE.md`, `docs/HANDOFF.md` | Both assert a clean working tree — "working tree clean apart from the untracked `.github/workflows/test-pipeline.yml`" and "Working tree is clean apart from the permanently untracked …". `git status` shows **five modified tracked documents** — the post-merge updates themselves — on a branch (`docs/record-the-merge`) that no document names. The same shape as finding 14, one level down: documents describing a tree state that stopped being true as they were written, this time hiding an uncommitted documentation batch rather than a security fix | **Fixed in both.** Each now names the branch, says the post-merge updates are uncommitted, and anchors the claim to this audit's timestamp rather than to a mutable `last-updated`, so a later metadata bump can't silently invalidate it |
+| 16 | HIGH | `docs/CHANGELOG.md` | The **"Not yet merged"** section still reads "the BUG-027 fix … and this documentation batch are pull request #3, on branch `fix/refresh-token-clock-skew`. Until it merges they are not on `main` and the security fix is not in production". All three clauses are now false: it merged as `bc6143c`, it is on `main`, and the fix is deployed | **Left for `doc-versioner`,** which runs after this audit and owns the file. Reported, not edited |
+| 17 | MEDIUM | `docs/CHANGELOG.md` | Its 1.1.0 entry describes the first audit as "12 issues found (0 critical, 2 high, 5 medium, 5 low), 8 fixed, 4 left to document owners". The entry below records **14 findings — 1 critical, 2 high, 6 medium, 5 low; 9 auto-fixed, 3 closed by their owners, 2 left open.** The figures are internally consistent but describe a different audit; "0 critical" erases finding 14 | **Left for `doc-versioner`** |
+| 18 | LOW | `docs/CHANGELOG.md` | "`docs/ROADMAP.md`: gained B-13 (whether to commit the session-end batch)" — B-13 is no longer a question and no longer in Blocked; it is in ROADMAP's new **Decided** section, resolved | **Left for `doc-versioner`** — historical wording in a released entry, judgement call |
+
+**Totals:** 4 findings — 0 critical, 2 high, 1 medium, 1 low.
+**Auto-fixed by this reconciler: 1** (15). **Left for an owner: 3** (16, 17, 18 — all `docs/CHANGELOG.md`).
+
+### Verified — the merge and deployment claims hold
+
+- **`bc6143c` is genuinely the merge of pull request #3, and genuinely a merge commit.** Two parents,
+  `f143f1c` (the old `main`) and `c486949` (the branch head); subject "Merge pull request #3 from
+  Vybecode-LTD/fix/refresh-token-clock-skew". Not a squash, so `.gitleaksignore`'s three per-commit
+  fingerprints — two on `d7752c3`, one on `4f433ee` — still resolve, as `ROADMAP.md` claims.
+- **`35d24c5` is an ancestor of `bc6143c` and carries exactly the two files credited to it:**
+  `backend/routers/auth.py` (+8/−2) and `backend/tests/test_sessions.py` (+21). The BUG-027 fix is
+  therefore on `main` and, via the deployment, in production.
+- **All six commits are in the merge and none other is:** `f143f1c..bc6143c` is exactly `35d24c5`,
+  `584cff6`, `7c1f1cb`, `39ff28b`, `ee4932a`, `c486949`, plus the merge itself. Every hash quoted in
+  every document resolves and carries the subject it is credited with.
+- **The deployment timestamp corroborates.** `bc6143c` was committed 2026-09-17T19:47:05Z and Railway
+  records the deployment at 19:47:08Z — three seconds later, consistent with a deploy triggered by the
+  push rather than a figure typed from memory. The live HTTP responses are the session's own
+  observations, recorded as reported; this audit makes no network calls.
+- **The blocked range is right everywhere.** `ROADMAP.md` has a `## Decided` section holding B-13
+  ("done 2026-09-17") and says "Twelve are open (B-1 to B-12)"; `CLAUDE.md` and `HANDOFF.md` both cite
+  B-1…B-12 and mark B-13 resolved; `BUGS.md`'s pointer to "B-13 in `docs/ROADMAP.md`" still resolves,
+  because B-13 was moved rather than deleted. T-1…T-8 unchanged and consistent.
+- **Four owners' documents and the plan are accurate on the merge.** `CLAUDE.md`, `docs/BUGS.md`
+  (BUG-027's field now reads "On `main` and in production"), `docs/HANDOFF.md`, `docs/ROADMAP.md` and
+  `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` each describe the merge, the six commits, the deploy and
+  the live checks correctly. A sweep of every `.md` in the repository for "uncommitted", "unpushed",
+  "not merged", "not in production" and the branch name found **no stale claim outside
+  `docs/CHANGELOG.md`**.
+- **Version drift has not returned.** All seven managed documents still read `version: 1.1.0`. No
+  version number was touched by this audit.
+
+### The first entry's follow-ups — closed
+
+| # | Item | State |
+|---|---|---|
+| 1 | Owner — push, open the pull request, merge B-13 with a merge commit | **Done.** Verified above |
+| 2 | `roadmap-manager` — the "eighteen findings" count (finding 10) | **Done.** M0 now reads "Every finding from F-1 to F-18 closed — nineteen of them, the list carrying an F-7b as well as an F-7" |
+| 3 | `handoff-builder` — disambiguate "18 bugs" against BUG-027 (finding 11) | **Done.** Now spelled out: "17 during that work … and, as the eighteenth, BUG-027" |
+| 4 | Frontend owner — the wrong CSP claim in `frontend/src/main.tsx:11-12` | **Done** in `ee4932a`. The comment now reads "public/theme-init.js applies the saved theme before first paint; repeat it here for environments that don't run it (the desktop app serves its own document)" — matching `frontend/public/theme-init.js` and the corrected `DESIGN_SYSTEM.md` |
+| 5 | **Standing:** re-audit after B-13 merges | **Discharged by this entry** |
+| — | Finding 6 (not a follow-up): `docs/CHANGELOG.md` was missing | **Closed.** On disk, referenced correctly from `CLAUDE.md` |
+
+### Left open
+
+1. **`doc-versioner` — `docs/CHANGELOG.md` findings 16, 17 and 18.** 16 is the one that matters: the
+   file still tells a reader the security fix is not in production.
+2. **Standing, and the same trap one level down:** the documents corrected here — including this log —
+   are themselves uncommitted on `docs/record-the-merge`. Every statement any of them makes about the
+   working tree is true only until that batch is committed. Re-check with `git status` and `git log`
+   before trusting it; the fixes in finding 15 are worded to survive the commit, but the next batch's
+   will not be unless they are written the same way.
 
 ---
 
