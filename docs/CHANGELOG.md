@@ -1,8 +1,8 @@
 ---
 document: CHANGELOG
-version: 1.1.2
-last-updated: 2026-09-17T21:24:00Z
-last-audit: 2026-09-17T20:45:00Z
+version: 1.1.3
+last-updated: 2026-09-18T03:32:06Z
+last-audit: 2026-09-18T02:45:00Z
 managed-by: session-orchestrator/doc-versioner
 ---
 
@@ -18,10 +18,269 @@ Newest first. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 | Version | What it covers |
 |---|---|
+| **1.1.3** | Pull request #5, not merged when this was written, up to its last code commit `7dbc35d`: the default AI budget and the rule that only a platform admin may go above it (BUG-028, BUG-031), a cap per organisation rather than on the total (B-14); four screens fixed at phone width (BUG-029); empty competitor columns (BUG-030); the playbook domain module; the automated review's fixes, with BUG-032 left open; a fourth audit; and gap 14, the Vitest suite unreliable at default concurrency on this machine |
 | **1.1.2** | Correction and reconciliation after the pull request #4 merge: six stale current-state claims put right, T-2 and T-3 settled and T-4 retitled, a third audit, and the test-cluster notes |
 | **1.1.1** | The merge of pull request #3 and what followed: BUG-027 in production, six documents reconciled to the merged state, a second audit, and three corrections to the 1.1.0 entry |
 | **1.1.0** | The second pass of the 2026-09-17 handoff: the BUG-027 security fix, one more regression test, and the first documentation audit |
 | **1.0.0** | The documentation baseline written earlier in that same session, covering the Phase 0–2 rebuild through to production |
+
+---
+
+## [1.1.3] — 2026-09-18
+
+_Everything on pull request #5 up to its last code commit, `7dbc35d`, where the pull request's
+code is frozen: the eleven commits from `c7358fb` — 1.1.2 itself, recorded below — to `7dbc35d`
+(`git rev-list --count 0ce65dd..7dbc35d` is 11). Also the pull request's automated review, a
+fourth documentation audit, and the documentation that records all of it, which goes onto the
+branch as one documentation commit after `7dbc35d`. **When this was written, pull request #5 was
+open, not merged and not deployed** (Where it stands, at the end). Stamped past midnight UTC; on
+the owner's clock (UTC-4) it is still the evening of 2026-09-17, the only reason this heading's
+date differs from the entries below._
+
+### Fixed — on the pull request's branch only
+
+_None of these fixes was on `main` or in production when this was written. The regression tests
+for BUG-028 to BUG-031 are named in `docs/BUGS.md`._
+
+- **BUG-028 (CRITICAL) — organisations without a budget of their own could spend without limit on
+  the deployment's `ANTHROPIC_API_KEY`.** Registration leaves an organisation's
+  `monthly_ai_budget_usd` `NULL`, `ensure_within_budget` returned at once on `NULL`, and open
+  registration stays on by the owner's decision (T-2), so any self-registered account could do it.
+  Three commits:
+  - `522e40d` adds **`DEFAULT_MONTHLY_AI_BUDGET_USD`** (default **25**), which caps every
+    organisation without a budget of its own. Clearing a budget falls back to the default rather
+    than meaning unlimited, `0` is the deliberate opt-out, and the 429 says which budget was
+    reached. Four backend tests, each confirmed failing before the fix.
+  - `43ab3e6` answers **Codex's P1 and P2**. Enforcement and the usage summary now go through one
+    helper, `effective_budget` (`backend/services/usage.py:57`), so Settings → Usage shows the
+    budget that actually applies and says when it is the default; before, an organisation on the
+    default was told it had no monthly budget and that operations don't stop for cost. And a
+    negative default now fails settings validation (`ge=0`, `backend/config.py:73`) instead of
+    silently switching the cap off. Eight tests: five backend, three Vitest.
+  - `7dbc35d` answers **CodeRabbit's comment outside the diff in its review of `43ab3e6`**. In a
+    month with no AI usage, Settings → Usage showed only its empty state, and the month's summary
+    was the only place the budget appeared, so a brand-new organisation saw no sign of its $25 cap
+    until an operation had already cost something. The current month now says which budget
+    applies: the platform's default, the organisation's own, or none (`BudgetStatement`,
+    `UsageSettings.tsx:117`). It also rewords the budget field's hint from "until an owner raises
+    it" to "until the budget is raised", and corrects a test docstring that still called the
+    default "not a ceiling", its only backend change. Two Vitest tests, written to fail first.
+- **BUG-031 (CRITICAL) — any account that registers could raise its own organisation's budget
+  past the default** — `a53b26e`. Registration makes every new account the Owner of the
+  organisation it creates, and an Owner could set any budget up to $9,999,999,999.99, which then
+  won over the default: one request lifted BUG-028's cap, and the 429 said how. **The owner's
+  decision of 2026-09-17:** an organisation's owners may set any budget up to the platform default
+  — lower it, match it or clear it — and **only a platform admin may set one above it**.
+  `usage.ensure_budget_allowed` enforces that on `PUT /api/organisation/budget` with a 403, and the
+  429 now names whoever can actually raise the budget. Budgets already stored are kept: the rule
+  applies to changes. Six tests, five backend and one Vitest; the two that prove the bypass fail
+  without the fix.
+- **Together, the two fixes _cap_ the spending exposure, per organisation; they do not close
+  it.** Once pull request #5 is merged and deployed, every organisation is held to $25 a month
+  unless it has a budget of its own, but nothing caps the total: every open sign-up creates another
+  organisation with its own $25 a month on the same key. Whether the total needs a cap is **B-14**.
+- **BUG-029 (MEDIUM) — four screens scrolled sideways on a phone** — `2d57b35`. At 390px,
+  Portfolio overflowed by 136px, Review and the review result by 133px each, and the SEO report by
+  58px: three unrelated causes, fixed in four CSS Modules files. The accessibility scans cover the
+  same 27 screens, but at the default desktop viewport, so nothing had failed. New
+  **`frontend/e2e/responsive.spec.ts`** checks the 27 screens at 390×844 and names the element
+  whose removal would fix an overflow: **27 tests, taking Playwright from 69 to 96.** What the fix
+  leaves in place — on a phone, the launch board shows only its project column — is **LIM-003** in
+  `docs/BUGS.md`.
+- **BUG-030 (LOW) — competitor results rendered empty columns and empty headings** — `597e94b`.
+  A column no competitor fills is left out; a missing value in a column that is shown reads "Not
+  found", matching the renderers' "Not rated" and "No contact found"; a profile heading with no
+  items is omitted. Three Vitest tests, written to fail first.
+- **A re-run no longer reopens a finished playbook stage** — `6b97da3`, answering **CodeRabbit's
+  Major** finding. `stateFromQueue` checked `running` before `approved`, so re-running an approved
+  operation showed it as running, and its stage as unfinished, until the run ended; it now ranks
+  approved, pending, running, failed. Four Vitest tests, three written to fail first. It has no
+  BUG ID: no screen on this branch imports the module.
+
+### Found, not fixed
+
+- **BUG-032 (LOW, open) — a budget stored above the default can be lowered only to the default or
+  below, except by a platform admin.** From CodeRabbit's review of `7dbc35d` (Minor, on
+  `backend/services/usage.py:83`): `ensure_budget_allowed` compares a new amount with the platform
+  default, never with the organisation's current budget, so an owner who isn't a platform admin
+  cannot take an admin-set $500 down to $400, only to $25 or below, or clear it. It fails safe: it
+  can refuse a decrease, never allow an increase. **Whether it is a defect, or BUG-031's rule
+  working as written, is the owner's decision**; `docs/BUGS.md` names the test to write first if it
+  is to be fixed. Pull request #5's code is frozen, so merging it ships this behaviour unless it is
+  fixed first.
+- **The Vitest suite is not reliable at default concurrency on this development machine, and that
+  is pre-existing on `main`** — `docs/TESTING.md` gap 14. Measured on a quiet machine, with every
+  `node` process checked by command line first: `main`'s frontend source failed **4 of 4** full
+  runs, and this branch 2 of 3, when it had 618 tests; `app.review.test.tsx` → "opens the first
+  result and explains what approving an outreach result does" failed in 6 of those 7. Green at
+  `--maxWorkers=2` and in CI. The likely mechanism — fifteen workers, each file building its own
+  jsdom, until a lookup outruns the 10 s `asyncUtilTimeout` — is **not confirmed**, and **no fix
+  is applied**: capping `maxWorkers`, raising `asyncUtilTimeout` or `pool: 'vmThreads'` is the
+  owner's choice. Until then a red frontend run on this machine is not by itself a regression, and
+  `docs/HANDOFF.md` takes the baseline with `npx vitest run --maxWorkers=2`.
+- **On a phone, the project tab bar runs off the right edge:** Outbox, Launch plan and Settings
+  are reachable only by swiping, with no cue, because `.tabnav` in
+  `frontend/src/components/ui/Display.module.css` scrolls with its scrollbar hidden. Pre-existing,
+  newly seen, not fixed; recorded in `docs/HANDOFF.md`.
+
+### Added
+
+- **The launch playbook's domain module, `frontend/src/lib/domain/playbook.ts`** — `8c9f2e2`,
+  with `6b97da3`'s fix above. Seventeen of the eighteen operations in **five ordered stages** —
+  understand the market, fix the positioning, write the story, line up distribution, prepare the
+  push — from which it derives each operation's state, each stage's progress, the current stage
+  and the single operation to run next. The one tool, `repurpose`, is held aside in
+  `ALWAYS_AVAILABLE`: it stores nothing, so its use cannot be observed. **A domain module only: no
+  screen on pull request #5 imports it, so nothing a user sees has changed.** 18 tests, 14 of them
+  from `8c9f2e2`.
+
+### Changed
+
+- **The launch plan checklist test** — `908f46d`. `e2e/golden.spec.ts` → "launch plan: ticking an
+  item saves the checklist" now asserts with `click()` then `expect(item).toBeChecked()`, which
+  retries, instead of `check()`, which threw at once when the controlled checkbox had not yet
+  settled under load, as it did once in CI on `a2124a9` (run 35281944055). The `PATCH` assertion
+  is unchanged, so the test still proves the tick was saved. **Test-only: no user-facing defect was
+  demonstrated**; `docs/TESTING.md` gap 13 records what was ruled out.
+- **Test figures, measured this session one suite at a time, on the branch's code at `7dbc35d`:**
+  backend **564 passed** (was 550), 98.32% of 3,340 statements, 56 missed; frontend Vitest **628
+  passed in 50 files** (was 601 in 49): lines 99.21%, statements 97.08%, branches 90.13%, functions
+  96.53%; Playwright **96 passed** (was 69): 3 smoke, 12 golden path, 54 accessibility, 27
+  responsive. Both 95% gates pass. The increases reconcile commit by commit: backend +4
+  (`522e40d`), +5 (`43ab3e6`), +5 (`a53b26e`); Vitest +3 (`597e94b`), +14 (`8c9f2e2`),
+  +4 (`6b97da3`), +3 (`43ab3e6`), +1 (`a53b26e`), +2 (`7dbc35d`); Playwright +27 (`2d57b35`).
+- **CI passed on `7dbc35d`**: run 35298972693, all three jobs (backend, frontend and the secret
+  scan), 2026-09-18T02:20:45Z to 02:26:54Z. Any commit after `7dbc35d` — the documentation commit
+  that carries this entry among them — needs a green run of its own before the merge (T-9).
+
+### Documentation
+
+- **`a2124a9`, committed without raising the version** (Versioning, below): `CLAUDE.md` gained the
+  `DEFAULT_MONTHLY_AI_BUDGET_USD` row, the platform default in "Usage and budgets", the backend and
+  Playwright figures and the responsive specs; `docs/TESTING.md` gained `e2e/responsive.spec.ts`
+  across its design, inventory and coverage sections, and **gap 12**: nothing stops a stray
+  `*.spec.ts` from joining the Playwright suite.
+- **The documentation commit after `7dbc35d`** brings the seven managed documents and
+  `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` up to the code at `7dbc35d`:
+  - **`docs/BUGS.md`**: BUG-028 to BUG-031, fixed on the branch only; BUG-032, open; LIM-003. 32
+    bugs in all, 31 fixed; the next ID is BUG-033.
+  - **`docs/ROADMAP.md`**: **T-9**, merging pull request #5 and then checking Settings → Usage on
+    the live site, heads Active; **B-14** and **B-15** opened; B-5 records the owner's budget
+    decision; T-4 is the owner's end-of-session rotation; the playbook screen is Next up, item 1,
+    with a note under M4.
+  - **`docs/HANDOFF.md`**: rewritten for pull request #5 — its commits, the review, BUG-032, the
+    local branch below, and a baseline that allows for gap 14.
+  - **`docs/TESTING.md`**: the figures above and their run history, the inventory with the new and
+    changed test files, the controlled-input guidance ("click and assert, never `check()`"), **gap
+    13** and **gap 14**.
+  - **`CLAUDE.md`**: Current State (the active task, open bugs, the tests table), the budget rule
+    in "Usage and budgets" and in the `DEFAULT_MONTHLY_AI_BUDGET_USD` row, the playbook in the
+    project structure and under Operations, T-4, and the footer.
+  - **`docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`**, not managed and so without a version of its
+    own: Progress brought current, with the default and the ceiling in the usage row, the quality
+    gates labelled as the branch's, and B-14 and B-15 among the owner's decisions. This answers
+    CodeRabbit's comment outside the diff in its review of `a2124a9`.
+  - **`docs/AUDIT-LOG.md`**: the fourth audit (Audited, below), and finding 26's correction to the
+    20:45Z entry.
+  - **This entry**, rewritten from its 00:52Z draft, which finding 27 found out of date.
+
+### Reviewed — pull request #5
+
+_Checked with read-only GitHub queries, last at 2026-09-18T03:32Z. Nothing was posted._
+
+- **Nine review threads and two comments outside the diff.** Codex reviewed `a2124a9`; CodeRabbit
+  reviewed `a2124a9`, `908f46d`, `43ab3e6` and `7dbc35d`.
+  - **Fixed in code:** Codex's **P1** and **P2** (`43ab3e6`); CodeRabbit's **Major** on the
+    playbook (`6b97da3`), the one thread resolved, by CodeRabbit itself; and CodeRabbit's comment
+    outside the diff in its review of `43ab3e6` (`7dbc35d`).
+  - **Recorded as BUG-032, open:** CodeRabbit's thread on `backend/services/usage.py:83`, from its
+    review of `7dbc35d`.
+  - **Fixed in this documentation:** three of CodeRabbit's five threads on documents — the
+    responsive suite's scope in `CLAUDE.md`, now "27 enumerated screens"; the open and close counts
+    in `docs/AUDIT-LOG.md`'s 20:45Z entry (finding 26); the working-tree claim in
+    `docs/HANDOFF.md` — and its comment outside the diff on the plan's budget wording and test
+    totals, in its review of `a2124a9`.
+  - **Left as written:** the thread asking for the 1.1.2 entry to record `522e40d` and `2d57b35`
+    and to drop "No application code changed". Both of that entry's statements were true of
+    `c7358fb`, the commit it describes, and "`bc6143c` remains the last commit that changed
+    application code" still holds for `main`; the code that followed is recorded here instead.
+  - **Not actioned:** the thread asking for the exposed Railway token to be revoked at once rather
+    than at the end of each session. Rotation at session end is the owner's settled practice
+    (T-4).
+- **No thread or comment has been answered on GitHub**, and eight threads are unresolved: posting
+  on the owner's account has not been authorised (`docs/HANDOFF.md`, Next steps, item 1).
+
+### Audited
+
+- **Fourth reconciliation audit** — `docs/AUDIT-LOG.md`, **2026-09-18T02:45:00Z**, the closing
+  pass over this documentation. **11 findings (26–36): 0 critical, 3 high, 2 medium, 6 low.**
+  Auto-fixed by the reconciler: 1 (26, in the log itself); 10 left for their owners. The third
+  audit, findings 19–25, came in `c7358fb` and is recorded under 1.1.2.
+- **Closed since, each re-checked in its file:** 27 (this entry); 28 — `CLAUDE.md` and
+  `docs/BUGS.md` now say the merge caps the exposure, per organisation; 29 and most of 30 —
+  `CLAUDE.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md` and `docs/BUGS.md` call `7dbc35d` the last
+  code commit rather than the head, and make no claim the documentation commit would falsify;
+  31 — `docs/HANDOFF.md` counts nine threads, eight unresolved; 32 — the stamps (Versioning,
+  below); 33 — the plan; 34 — `docs/BUGS.md` points at `docs/ROADMAP.md`; 36 — `CLAUDE.md` and
+  `docs/ROADMAP.md` now agree with `docs/HANDOFF.md` and the plan on rotating the token at session
+  end.
+
+### Still open in the documents
+
+_As found when this entry was written._
+
+- **Finding 30, in part:** `docs/TESTING.md` lines 24 and 520 still call `7dbc35d` "the head of
+  pull request #5". The measurements they date stay true; the label stops being true once the
+  documentation commit is pushed.
+- **Finding 35:** `docs/TESTING.md` gap 11 still says no `docs/BUGS.md` maps the bug IDs to root
+  causes and fixes, though it has existed since `7c1f1cb` (what stays true is that it doesn't map
+  the `B1`–`B19` test section headers), and line 238's "There is no `B14` group" now sits beside
+  `docs/ROADMAP.md`'s unrelated B-14. The body of `docs/TESTING.md` has not changed since 02:33Z,
+  before the audit opened.
+- **Outside the managed set, noted by the audit:** `SOURCE_MAP.md` lists neither
+  `domain/playbook.ts` nor `e2e/responsive.spec.ts`, and its `services/usage.py` row predates the
+  default budget.
+- **For the owner:** finding 24 — the platform admin's address beside the decision that open
+  registration stays on, now in three documents — and T-1 and T-4 in `docs/ROADMAP.md`.
+
+### Versioning
+
+- **`a2124a9` changed `CLAUDE.md` and `docs/TESTING.md` without raising the version.** It left
+  both at **1.1.2**, with a `last-updated` an hour older than the change, over content 1.1.2 never
+  described — the budget variable, the responsive suite, the 554 and 96 figures, gap 12 — and was
+  pushed that way. 1.1.3 is the first version to cover it, which is why this entry spans
+  everything since `c7358fb`.
+- **1.1.3 was extended here, not bumped to 1.1.4**, as the fourth audit recommended: at `7dbc35d`
+  all seven documents read 1.1.2, and until the documentation commit that carries this entry no
+  commit on any branch carried 1.1.3. All seven managed documents read `version: 1.1.3`,
+  `last-updated: 2026-09-18T03:32:06Z` and `last-audit: 2026-09-18T02:45:00Z`, the newest
+  `## Audit —` heading in `docs/AUDIT-LOG.md`.
+
+### Not part of pull request #5
+
+- **The playbook screen, on the local branch `feat/playbook-ui`:** one commit, `f6261a6`, stacked
+  on `a53b26e` rather than `7dbc35d`, with no upstream and no copy on `origin` when this was
+  written. It opens the Operations screen on the playbook — a "Next up" card, the five stages in
+  order, and "All operations" (`?view=all`) for the category catalogue — and advises without
+  blocking. It is to become its own pull request once #5 merges, rebased onto `main`, which gives
+  it a new hash (`docs/ROADMAP.md` → Next up, item 1). Nothing recorded in this entry depends on
+  it.
+
+### Where it stands, when this was written (2026-09-18T03:32Z)
+
+- **Pull request #5 was open, mergeable, not merged and not deployed**, from branch
+  `fix/spend-cap-and-mobile-overflow`, with CI green on its last code commit, `7dbc35d`.
+- **Production was unchanged by anything in this entry, the spending exposure included:** `main` =
+  `origin/main` = `0ce65dd`, the documentation-only merge of pull request #4, and `bc6143c` was
+  still the last commit on `main` that changed application code.
+- **Next is T-9.** Once CI is green on the pull request's latest commit, merge with a **merge
+  commit, never a squash** — `.gitleaksignore`'s fingerprints are per commit — then, signed in as
+  an Owner and never with a probe account, check that Settings → Usage shows the $25 default.
+- No migration (still `0001`–`0007`) and no new Railway variable: `DEFAULT_MONTHLY_AI_BUDGET_USD`
+  defaults to 25 in code. `.github/workflows/test-pipeline.yml` stays untracked by design. No test
+  suite was run to produce this version.
+- **Re-check with `gh pr view 5`, `gh pr checks 5` and `git log --oneline -1 origin/main` rather
+  than trusting this section.**
 
 ---
 

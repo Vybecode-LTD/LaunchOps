@@ -1,8 +1,8 @@
 ---
 document: AUDIT-LOG
-version: 1.1.2
-last-updated: 2026-09-17T21:24:00Z
-last-audit: 2026-09-17T20:45:00Z
+version: 1.1.3
+last-updated: 2026-09-18T03:32:06Z
+last-audit: 2026-09-18T02:45:00Z
 managed-by: session-orchestrator/doc-reconciler
 ---
 
@@ -15,6 +15,171 @@ checked, what was found, what was fixed and what was left for a document's owner
 `git show`, and the source itself — never against another document. Where two documents disagree,
 the code decides. No test suite is ever run to produce these figures: they are read from the
 session's own completed runs, because a second run against the shared test database corrupts it.
+
+---
+
+## Audit — 2026-09-18T02:45:00Z — closing audit of pull request #5's documentation batch
+
+**Trigger:** the closing pass over this session's final documentation batch, run straight before
+`doc-versioner` stamps it and before it goes up as one commit — and a review finding against this
+log itself: CodeRabbit, on pull request #5, on the 20:45Z entry below (finding 26). On the owner's
+clock (UTC-4) it is 22:45 on 2026-09-17.
+**Scope:** the seven managed documents and `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`, every claim
+checked against the repository, not against another document: every current-state sentence about
+the branch, the pull request, `main` and production; every hash, test name and source line the new
+BUG-028 to BUG-031 entries cite; every figure against the test files; the playbook's status; and the
+wording this batch must hold — merging pull request #5 **caps** the spending exposure, per
+organisation; it does not **close** it. `docs/PHASE1_DESIGN.md`, `docs/DESIGN_SYSTEM.md`,
+`SOURCE_MAP.md` and `SETUP_PROMPT.md` were swept only for that wording and for the playbook: none
+says "closes", none mentions the playbook.
+**Repository state, at open (02:43Z) and at close:** HEAD is `fix/spend-cap-and-mobile-overflow`,
+**eleven commits** ahead of `main`, at `7dbc35d` — the branch's last code commit — which is also
+`origin`'s copy. `main` = `origin/main` = `0ce65dd`, whose application code is `bc6143c`'s. **Eight
+tracked files are modified** — `CLAUDE.md` and seven under `docs/` — and **this log is one of the
+eight**: already modified at open by the 1.1.3 frontmatter bump, and further by this entry (the
+lesson of finding 26). `.github/workflows/test-pipeline.yml` is untracked by design. The local
+branch `feat/playbook-ui` holds one commit, `f6261a6`, on `a53b26e`, with no upstream and no copy on
+`origin`. No document changed while the audit ran (Concurrency), and this log is the only file it
+touched. **Everything below describes that uncommitted tree.**
+**This reconciler made no commit, stage, push or branch, and ran no test suite.** One departure from
+the previous entry's practice: four **read-only** queries to GitHub — `gh pr view 5`, `gh run view
+35298972693`, the pull request's review comments and `git ls-remote --heads origin` — because the
+documents make claims about pull request, CI and remote state, none of which is in the local
+repository. Nothing was sent to the production site. Findings continue the numbering.
+
+### Findings
+
+| # | Severity | Document | Issue | Resolution |
+|---|---|---|---|---|
+| 26 | LOW | `docs/AUDIT-LOG.md` (the 20:45Z entry below) | Raised by CodeRabbit on pull request #5. That entry's Repository state gave three modified tracked documents as the state "**at open and at close**", then said everything below it was uncommitted, "**this log included**" — so at close the log was a fourth, or the count had to say it left the log out. Its Concurrency table's 21:10Z row has the same gap: "the tree returned to exactly its state at open", while the same section says the log had already recorded the two files before they went | **Fixed in place, with a dated note** — three at open, four at close, and the 21:10Z row names the log as the one exception; nothing else in that entry changed. In place because the entry is in `c7358fb`, on this branch and not yet on `main`, and this log's own history corrects unmerged entries that way: `ee4932a` and `c486949` both amended the 19:30Z entry before pull request #3 merged, while entries on `main` have only ever been appended to. Recorded here too, so the correction carries a finding like every other fix |
+| 27 | HIGH | `docs/CHANGELOG.md` | **The 1.1.3 entry stops at 00:52Z**, as does the file (last written 00:52:45Z). It never mentions `6b97da3`, `43ab3e6`, `a53b26e`, `7dbc35d`, B-14, B-15 or T-9, records none of BUG-028 to BUG-031 (its one "BUG-028" is as the next free ID), and several statements in it are now false. **The code:** the Codex P1 gap is "verified and **not yet addressed**" and `summary()` "still returns the stored `NULL`" (lines 66–71) — `43ab3e6` fixed both; CodeRabbit's point that `stateFromQueue` checks `running` before `approved` is "accurate about the code" (140–143) — `6b97da3` reversed the order; "application code last changed in `8c9f2e2`" (176–177) — four commits since changed it. **Commit state:** "All three CI jobs passed on `908f46d`, **the pull request's head**", beside 554 and 618 (105–109) — the head is `7dbc35d`, run 35298972693, 564 and 628. **Sibling documents:** "Not brought current" (156–171) says `docs/BUGS.md` "records none of the three fixes and still gives BUG-028 as the next ID"; all four documents it names have since been brought current. **Audits:** "`last-audit` stays 2026-09-17T20:45:00Z … no audit was run for this version" (178–179) stops being true with this entry. Two documents send readers there: `docs/HANDOFF.md:92`, "**1.1.3** covers everything on pull request #5 and its review" — false today — and `CLAUDE.md:23`, "the top entry is where things stand" | **Left for `doc-versioner`,** which owns the file and runs next. 1.1.3 is not committed anywhere — at `HEAD` the frontmatter still reads 1.1.2 — so the entry can be extended rather than bumped. The summary row (line 21) and the "Reviewed" list need it too; the list still carries finding 26's item as open |
+| 28 | HIGH | `CLAUDE.md`, `docs/BUGS.md` | **Merging pull request #5 is said to close the spending exposure; it caps it, per organisation.** Nothing caps the total, and every open sign-up adds another $25 a month (B-14). `CLAUDE.md:46`: "Merging pull request #5 is what **closes** the live spending exposure" — contradicted later in the same paragraph ("bounds each organisation, not the key as a whole"). `CLAUDE.md:364`, the footer, with no such qualification: "merging pull request #5 **closes** the spending exposure". `docs/BUGS.md:58–59`: "the exposure **closes** only with both, and pull request #5 carries both". `docs/BUGS.md:191`: "**Closes the exposure** only together with BUG-031's fix". Ambiguous, most likely meaning the two bugs: `docs/BUGS.md:281`, "**Both close** when pull request #5 merges". `docs/ROADMAP.md`, `docs/HANDOFF.md`, `docs/CHANGELOG.md` and the plan already say "caps" or its equivalent | **Left for `memory-updater` (`CLAUDE.md`) and `bug-fix-tracker` (`docs/BUGS.md`):** "caps", per organisation, with B-14 as the part still open |
+| 29 | HIGH | `CLAUDE.md` | **Two sentences the commit itself will falsify** — true as written, false from the moment this batch is committed. Line 46, undated: "The documentation that records `a53b26e` and `7dbc35d` **is not yet committed**", with `7dbc35d` as "**the head**" of "**eleven commits**". The footer (364) repeats both, though its `Last-verified` stamp at least dates it. This is the shape of finding 14, the first audit's one CRITICAL — documents committed describing their own work as uncommitted — in the file every session reads first | **Left for `memory-updater`, before the commit.** Name `7dbc35d` the **last code commit** — which the frozen code keeps true — rather than the head, and drop the "not yet committed" clause or date it, as `docs/HANDOFF.md:18` does ("was uncommitted, to go up as one more commit") |
+| 30 | MEDIUM | `docs/HANDOFF.md`, `docs/ROADMAP.md`, `docs/BUGS.md`, `docs/TESTING.md` | The same wording, milder, goes stale when the commit is pushed. `docs/HANDOFF.md:16`: the GitHub copy "**ends at `7dbc35d`**", "Eleven commits ahead of `main`"; `:89` "head `7dbc35d`". `docs/ROADMAP.md:150`: "the head is `7dbc35d`, the pull request's eleventh commit" — though its next sentence expects a documentation commit. `docs/BUGS.md:277`: "whose head **is now** `7dbc35d`". As an aside, "`7dbc35d`, the head of pull request #5", at `docs/BUGS.md:88` and `docs/TESTING.md:24` and `:520` — each describing a measurement or CI run at `7dbc35d`, which stays true. `docs/BUGS.md:187` is dated ("checked … at 2026-09-18T02:28Z") and survives | **Left for each file's owner.** Not wrong today; "last code commit" is the wording that outlives the push |
+| 31 | MEDIUM | `docs/HANDOFF.md`, and `docs/CHANGELOG.md` → Reviewed | `docs/HANDOFF.md:21`: "CodeRabbit has reviewed nothing newer … 'Review in progress' at 02:31Z" and "**Seven of the eight threads are unresolved**". **Overtaken at 02:33:16Z:** CodeRabbit reviewed `7dbc35d` with one actionable comment (Minor, `backend/services/usage.py:83`) — a ninth thread. **It is right about the code:** `ensure_budget_allowed` compares the amount with the default alone, so where a platform admin has set, say, $500 against a $25 default, an owner who isn't a platform admin gets 403 trying to lower it to $400 — only $25 or less, or clearing it, is allowed. No document describes that case, and "Owners can set a budget up to the default, **lower it** or clear it" (`CLAUDE.md:186`; in similar words `:303`, `docs/HANDOFF.md:37`, `docs/BUGS.md:225–227`, `docs/ROADMAP.md:173`), while true of the rule, reads as if an owner can always lower a budget. The branch's code is frozen, so any change is another pull request's | **Left for `handoff-builder` and the owner.** Recorded, not judged. The 02:31Z stamp keeps `docs/HANDOFF.md:21` honest, and its next-steps item 1 already says to read the review "once it lands" — it has: nine threads, eight without a reply |
+| 32 | LOW | all seven managed documents | Every `last-updated` reads `2026-09-18T00:52:00Z`, but five files were modified after it: `CLAUDE.md` 02:41Z, `docs/ROADMAP.md` 02:42Z, `docs/HANDOFF.md` 02:40Z, `docs/BUGS.md` and `docs/TESTING.md` 02:33Z. Every `last-audit` reads 20:45Z, before this entry | **Left for `doc-versioner`,** which reads this entry's heading for `last-audit` |
+| 33 | LOW | `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md` | Progress opens "All of this work is on `main`", and its "Quality gates today" gives 564, 628 and 96 — measured on the branch at `7dbc35d`; `main`'s code gives 550, 601 and 69. The usage row beside it is labelled "on pull request #5, not yet on `main`"; the gates are not. "Next → Decisions for the owner" names section 8, D15 and D8, not B-14 or B-15 | **Left for the plan's owner.** Label the gates with the branch, and point the decisions at `docs/ROADMAP.md` → Blocked, as "Still to do" already points at Active |
+| 34 | LOW | `docs/BUGS.md` | Lines 61–63 put the next-session items in the plan's "Next" and the open owner decisions in `docs/PHASE1_DESIGN.md` (D8, D15). The plan itself names `docs/ROADMAP.md` → Active as the full list, and the open decisions are B-1 to B-12, B-14 and B-15 in `docs/ROADMAP.md` → Blocked, of which D8 and D15 account for four. On `main` before this session | **Left for `bug-fix-tracker`:** point both at `docs/ROADMAP.md` |
+| 35 | LOW | `docs/TESTING.md` | Gap 11 (line 580): "**Bug IDs have no register yet** … no `docs/BUGS.md` maps the IDs to root causes and fixes". `docs/BUGS.md` has existed since `7c1f1cb`. What is still true is narrower: it numbers bugs BUG-001 to BUG-031 and never maps the `B1`–`B19` test section headers. And line 238's "There is no `B14` group" now sits beside `docs/ROADMAP.md`'s B-14, which means something else. On `main`; the first audit missed it | **Left for `test-doc-manager`** |
+| 36 | LOW | `CLAUDE.md`, `docs/ROADMAP.md`; `docs/HANDOFF.md`, the plan | T-4's advice disagrees, and the repository cannot settle it. `CLAUDE.md:49`: issue the next token with "`railway login` in the owner's own shell"; `docs/ROADMAP.md:154` offers `railway login` or exporting the variable. `docs/HANDOFF.md:54` and the plan (line 169): "`railway login` will not authorise on this machine", so rotation waits for session end — as `docs/CHANGELOG.md`'s 1.1.2 entry also says. Standing since 1.1.2 | **Left for the owner** to say which is current, then for `memory-updater` and `roadmap-manager` |
+
+**Totals:** 11 findings — 0 critical, 3 high, 2 medium, 6 low.
+**Auto-fixed by this reconciler: 1** (26, in its own file). **Left for an owner: 10** (27 and 32
+`doc-versioner` · 28 `memory-updater` and `bug-fix-tracker` · 29 `memory-updater` · 30 four owners ·
+31 `handoff-builder` and the owner · 33 the plan's owner · 34 `bug-fix-tracker` · 35
+`test-doc-manager` · 36 the owner).
+
+### Before the batch is committed
+
+- **Serious — each would commit a false statement about the code, the commit state or production:**
+  27 (the changelog's top entry says three fixed defects are unaddressed, and names a superseded
+  head), 28 ("closes" overstates what the merge gives production) and 29 (`CLAUDE.md` asserting,
+  from inside the commit, that it is uncommitted).
+- **Moderate — true today, stale on push (30) or already overtaken (31).**
+- **Minor — stamps and cross-reference wording:** 32 to 36.
+- **Clean — the playbook.** Every document describes it, on this branch, as a domain module no screen
+  uses, and places its screen on `feat/playbook-ui`.
+
+### Verified — what holds against the repository
+
+- **The branch, the pull request and CI are as described, except where findings 27, 30 and 31 say
+  otherwise.** `git rev-list --count main..HEAD` is 11, and `CLAUDE.md:46` lists them in order, each
+  hash carrying the subject credited to it. GitHub reports pull request #5 **OPEN**, not merged,
+  mergeable, head `7dbc35d`; run 35298972693 succeeded on `7dbc35d`, all three jobs, 02:20:45Z to
+  02:26:54Z — the finish `docs/HANDOFF.md:18` gives, to the second.
+- **The production claims are true of the code production runs.** `git diff --name-only bc6143c
+  0ce65dd` names nothing outside `CLAUDE.md` and `docs/`. At `bc6143c`, `ensure_within_budget` returns
+  at once on a `NULL` budget and `backend/config.py` has no default, so "production has open
+  registration and no default cap" holds in every form the documents give it. Registration's switch
+  is enabled when unset (`get_config("registration_enabled", True)`, `backend/routers/auth.py:141`).
+- **Every budget claim matches the code, line numbers included:** `effective_budget` at
+  `backend/services/usage.py:57`, the organisation's own budget first (65–66); `ensure_budget_allowed`
+  at :71 and the 403's text word for word; the 429's choice of who can raise it at 110–115; the Owner
+  check (`access.membership(request, "owner")`) and then the ceiling at
+  `backend/routers/organisations.py:365–366`, under `/api/organisation`; `Field(default=Decimal(25),
+  ge=0)` at `backend/config.py:73`; `BudgetUpdate`'s $9,999,999,999.99 limit at `backend/models.py:66`;
+  the new organisation and its Owner at `backend/routers/auth.py:101–104`; ten sign-ups an hour per
+  address (`NEW_ACCOUNTS_PER_ADDRESS`); the summary's four fields; `BudgetStatement` at
+  `UsageSettings.tsx:117`, for the current month only (line 93), the administrator note (181–184)
+  and the hint (256) word for word; the variable in `backend/.env.example`; no migration on the
+  branch (still `0001`–`0007`). `7dbc35d`'s one backend change is a docstring.
+- **Every regression test cited for BUG-028 to BUG-031 is at the line given** — the fourteen in
+  `test_usage.py` (188, 289, 305, 316, 328, 337, and the `stranger` fixture at 278), six
+  `app.usage.test.tsx` titles (136, 148, 336, 349, 361, 378) under their `describe` (335), and
+  `results.test.tsx` 47, 67 and 84 — and both negatives are true: no test checks the hint's wording
+  or asserts "Your organisation's budget". So are `PortfolioPage.module.css:98`,
+  `WorkflowResult.tsx:117`, the 27 screens at 390×844 in `responsive.spec.ts`, and `.tabnav`
+  scrolling with its scrollbar hidden.
+- **Every test figure reconciles with the files, without running anything.** A static recount of
+  every test file matches `docs/TESTING.md` section 4 file by file — 369, 541 and 17 defined, in 24,
+  50 and 4 files, none missing, none unlisted, 31 parametrized backend tests. Counting at each commit
+  reproduces every delta the documents give: `test_usage.py` 10 → 14 → 19 → 24, `app.usage.test.tsx`
+  16 → 19 → 20 → 22, `playbook.test.ts` 14 → 18, `results.test.tsx` 29 → 32 — hence 550 → 564 and
+  601 → 628. On `feat/playbook-ui`, `app.playbook.test.tsx` has 12 tests in a 51-file tree, so
+  `docs/HANDOFF.md:41`'s 638 is 626 + 12. Pass counts and coverage are the session's own runs,
+  recorded as reported.
+- **The playbook is described correctly everywhere.** No non-test file imports `playbook.ts`; the
+  five stage titles, `ALWAYS_AVAILABLE = ["repurpose"]` and the fields `purpose`,
+  `startsAtDaysBefore` and `builtOn` match `CLAUDE.md:171`; `stateFromQueue` now ranks approved,
+  pending, running, failed. The screen's files are named only at `docs/HANDOFF.md:41` and
+  `docs/ROADMAP.md:226`, both labelled as the local branch; `f6261a6` shares no file with `7dbc35d`,
+  so `docs/HANDOFF.md:52`'s clean dry-run merge is certain.
+- **IDs and counts agree across `CLAUDE.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md` and
+  `docs/BUGS.md`:** 27 bugs on `main` and 4 on the branch, 31 in all, 0 open, next BUG-032; T-9 heads
+  Active; B-1 to B-12, B-14 and B-15 open, B-13 Decided. All seven documents read 1.1.3, and
+  `CLAUDE.md`'s in-body literals (23, 55) match.
+- **Nothing secret is in the batch.** No line the uncommitted diff adds carries a token, key prefix
+  or UUID — only long test names matched the pattern. `.gitleaksignore` holds three fingerprints,
+  two on `d7752c3` and one on `4f433ee`, unchanged since `b0beeaf`, and the gitleaks-sensitive note
+  in `docs/TESTING.md` is untouched.
+- **Outside this audit's scope, noted only:** `SOURCE_MAP.md` lists domain modules and e2e specs one
+  by one but has neither `domain/playbook.ts` nor `e2e/responsive.spec.ts`, and its
+  `services/usage.py` row predates the default budget.
+
+### Concurrency
+
+**None.** Apart from this log, every document's hash at close matches the snapshot taken at 02:52Z,
+and each was last modified before this audit's first command at 02:43:17Z — between 02:27Z and
+02:42Z, or at 00:52Z for `docs/CHANGELOG.md`; this log's last change before this entry was the
+00:52Z frontmatter bump. The one outside change was on GitHub: CodeRabbit's
+review of `7dbc35d` at 02:33:16Z, after the documents that mention it were written and ten minutes
+before this audit opened (finding 31).
+
+### The previous entry's follow-ups — closed
+
+| # | Item | State |
+|---|---|---|
+| 1 | `handoff-builder` — finding 19 | **Done** in `c7358fb`. `docs/HANDOFF.md` has neither "still points at" nor `5rlc9k25`, and treats T-4 as a rotation owed, not an errand |
+| 2 | The plan's owner — finding 20 and the absent T-4 | **Done.** The plan records T-3 done with the address check (157–159), T-2 done (172) and T-4 open (168–171) |
+| 3 | `doc-versioner` — findings 21 and 22 | **Done.** `CLAUDE.md`'s in-body literals follow the frontmatter, and all seven `last-audit` stamps agree. Finding 32 is 22's next round |
+| 4 | `memory-updater` — finding 23 | **Done.** `CLAUDE.md:265` quotes `DEFAULT_TEST_DSN` exactly as `backend/tests/conftest.py:23` has it |
+| 5 | The owner — T-4 and T-1 | **Both still open** (`docs/ROADMAP.md`); T-4 now also carries finding 36 |
+| — | Finding 24 (for the owner) | **Unchanged, and wider:** the admin's address now appears in three documents, not one — `CLAUDE.md:291`, `docs/ROADMAP.md:152` and the plan's line 172. Still not a secret; still the owner's call |
+| 6 | **Standing:** check a moved task in all four places; re-audit once the batch is committed | **Done.** The batch was committed as `c7358fb`, the first commit on this branch — `docs/correct-the-production-commit` exists neither locally nor on `origin` — and this entry is the re-audit. T-9, B-14 and B-15 agree across `docs/ROADMAP.md`, `CLAUDE.md`, `docs/HANDOFF.md` and the plan, bar finding 33's omission. As that follow-up predicted, the drift that did survive is a restatement: the changelog (27) |
+
+### Left open
+
+1. **`doc-versioner` — finding 27 first, then 32.** `CLAUDE.md` and `docs/HANDOFF.md` both send
+   readers to the changelog's top entry, and it says three fixed defects are unaddressed.
+2. **`memory-updater` — findings 28 and 29, before the commit:** two sentences in the file every
+   session reads first.
+3. **`bug-fix-tracker` — findings 28 and 34.**
+4. **`handoff-builder` and the owner — finding 31:** a ninth review thread, and eight without a
+   reply, not seven.
+5. **The owners of `docs/ROADMAP.md`, `docs/TESTING.md` and the plan — findings 30, 33 and 35;** the
+   owner — 36, and T-4 and T-1 as before.
+6. **Standing — three coming events will each falsify a known set of sentences; re-check that set as
+   each lands.**
+   - **This batch's commit and push:** findings 29 and 30, and this entry's own "uncommitted tree".
+     The head stops being `7dbc35d`, and the new head needs its own green CI run before the merge,
+     as T-9 already says.
+   - **The merge of pull request #5:** every "open", "not on `main`" and "not in production" for
+     BUG-028 to BUG-031, T-9, `CLAUDE.md`'s Active task and footer, `docs/HANDOFF.md`'s opening,
+     `docs/ROADMAP.md`'s M4 note and the plan's usage row — and confirm in the dashboard that Railway
+     deployed it, which `0ce65dd`'s deploy never was.
+   - **The rebase of `feat/playbook-ui`:** `f6261a6` gets a new hash. Both files that name it,
+     `docs/HANDOFF.md` and `docs/ROADMAP.md`, already warn that it will change; both will need the new
+     one.
 
 ---
 
@@ -31,11 +196,16 @@ Active tasks T-2, T-3 and T-4; and the figures re-run this session. `docs/PHASE1
 branch state only — they carry none.
 **Repository state:** `main` = `origin/main` = **`0ce65dd`**. HEAD is the branch
 `docs/correct-the-production-commit`, created *at* `0ce65dd` with **no commits of its own**
-(`git rev-list --left-right --count main...HEAD` → `0 0`). Three tracked documents are modified —
-`CLAUDE.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md` — and one file is untracked,
-`.github/workflows/test-pipeline.yml`, by design. That is the state at **open and at close**; in
-between, two more untracked files existed for about four minutes — see Concurrency and finding
-25. **Everything recorded below is uncommitted working tree**, this log included.
+(`git rev-list --left-right --count main...HEAD` → `0 0`). **At open**, three tracked documents are
+modified — `CLAUDE.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md` — and one file is untracked,
+`.github/workflows/test-pipeline.yml`, by design. **At close** there are four: the same three and
+this log, which this entry modifies; the untracked file is unchanged. In between, two more
+untracked files existed for about four minutes — see Concurrency and finding 25. **Everything
+recorded below is uncommitted working tree**, this log included.
+*Corrected in place on 2026-09-18 — finding 26 of the 2026-09-18T02:45:00Z entry above, raised by
+CodeRabbit on pull request #5. This paragraph first gave the three as the state "at open and at
+close", leaving out this log although its last sentence counts it; the 21:10Z row under
+Concurrency had the same gap. Nothing else in this entry was changed.*
 **This reconciler made no commit, stage, push or branch, and ran no test suite.** Findings continue
 the numbering.
 
@@ -66,7 +236,7 @@ same pair of files arriving and leaving.
 | Time | What happened | Effect |
 |---|---|---|
 | 21:06Z | Two untracked files appeared in `frontend/` — `e2e/_audit-shots.spec.ts` and `playwright.audit.config.ts` — written by another agent for a visual audit, after this audit's opening `git status` had been taken and recorded | **Opened finding 25.** The spec's name would have put it inside the main Playwright suite |
-| 21:10Z | Their author deleted both, and any `frontend/audit-shots/` output with them | **Closed finding 25.** The tree returned to exactly its state at open |
+| 21:10Z | Their author deleted both, and any `frontend/audit-shots/` output with them | **Closed finding 25.** The tree returned to its state at open, apart from this log, which had already recorded them |
 
 Neither file was made or removed by this reconciler. Deleting another agent's work in progress
 mid-session is how evidence disappears, so they were recorded rather than touched — and then the
