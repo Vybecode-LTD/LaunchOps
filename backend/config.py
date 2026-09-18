@@ -3,6 +3,7 @@
 from decimal import Decimal
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # The placeholder older .env.example files suggested; never acceptable outside debug mode.
@@ -67,7 +68,9 @@ class Settings(BaseSettings):
     max_emails_per_day: int = 20
     # Applies to any organisation that has not set a budget of its own, so a self-registered
     # account cannot spend without limit on the deployment's API key. 0 means no default cap.
-    default_monthly_ai_budget_usd: Decimal = Decimal(25)
+    # Negative is refused: the budget check treats anything at or below 0 as "no cap", so a
+    # mistyped negative would otherwise start normally and silently remove this safeguard.
+    default_monthly_ai_budget_usd: Decimal = Field(default=Decimal(25), ge=0)
 
 
 def check_startup_settings(settings: Settings) -> None:

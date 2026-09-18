@@ -54,6 +54,20 @@ def _next_month(start: datetime) -> datetime:
     return datetime(start.year + (start.month == 12), start.month % 12 + 1, 1, tzinfo=UTC)
 
 
+def effective_budget(own: Decimal | None) -> tuple[Decimal | None, str]:
+    """The monthly budget that actually applies to an organisation, and where it comes from.
+
+    Returns `(amount, source)`: the organisation's own budget when it has set one
+    (`"organisation"`), otherwise the platform default (`"default"`), or no cap at all when the
+    default is switched off with 0 (`"none"`). Enforcement and the usage summary both call this,
+    so the budget an owner is shown is always the one that stops their operations.
+    """
+    if own is not None:
+        return own, "organisation"
+    default = get_settings().default_monthly_ai_budget_usd
+    return (default, "default") if default > 0 else (None, "none")
+
+
 async def ensure_within_budget(org_id: str, org_name: str) -> None:
     """429 when this month's cost has reached the organisation's budget, or the platform default.
 
@@ -62,12 +76,11 @@ async def ensure_within_budget(org_id: str, org_name: str) -> None:
     organisation's own budget always wins; the default only covers those that never set one.
     """
     pool = await get_pool()
-    budget = await pool.fetchval("SELECT monthly_ai_budget_usd FROM organisations WHERE id = $1", uuid.UUID(org_id))
-    its_own = budget is not None
-    if not its_own:
-        budget = get_settings().default_monthly_ai_budget_usd
-        if budget <= 0:
-            return
+    own = await pool.fetchval("SELECT monthly_ai_budget_usd FROM organisations WHERE id = $1", uuid.UUID(org_id))
+    budget, source = effective_budget(own)
+    if budget is None:
+        return
+    its_own = source == "organisation"
     start = _month_start(datetime.now(UTC).date())
     spent = await pool.fetchval(
         "SELECT COALESCE(SUM(cost_usd), 0) FROM ai_usage WHERE org_id = $1 AND created_at >= $2 AND created_at < $3",
@@ -123,7 +136,9 @@ async def summary(org_id: str, month: datetime) -> dict:
     args = (uuid.UUID(org_id), month, _next_month(month))
     where = "u.org_id = $1 AND u.created_at >= $2 AND u.created_at < $3"
     total = await pool.fetchrow(f"SELECT {TOTALS} FROM ai_usage u WHERE {where}", *args)
-    budget = await pool.fetchval("SELECT monthly_ai_budget_usd FROM organisations WHERE id = $1", args[0])
+    own = await pool.fetchval("SELECT monthly_ai_budget_usd FROM organisations WHERE id = $1", args[0])
+    effective, source = effective_budget(own)
+    default = get_settings().default_monthly_ai_budget_usd
 
     async def breakdown(key_sql: str, label_sql: str, joins: str = "") -> list[dict]:
         rows = await pool.fetch(
@@ -135,7 +150,13 @@ async def summary(org_id: str, month: datetime) -> dict:
 
     return {
         "month": f"{month:%Y-%m}",
-        "budget_usd": float(budget) if budget is not None else None,
+        # What the organisation set itself, which the budget form edits.
+        "budget_usd": float(own) if own is not None else None,
+        # The platform default, when one is switched on.
+        "default_budget_usd": float(default) if default > 0 else None,
+        # What actually stops operations, and whose it is: show this, not budget_usd.
+        "effective_budget_usd": float(effective) if effective is not None else None,
+        "budget_source": source,
         "total": _totals(total),
         "by_operation": await breakdown("u.operation", "u.operation"),
         "by_project": await breakdown("u.product_id", "COALESCE(p.name, 'A deleted project')", "LEFT JOIN products p ON p.id = u.product_id"),

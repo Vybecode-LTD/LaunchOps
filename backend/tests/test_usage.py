@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
+from pydantic import ValidationError
 
 import config
 import database
@@ -220,3 +221,51 @@ async def test_clearing_a_budget_falls_back_to_the_platform_default(client, owne
                                json={"product_id": owner.product["id"], "workflow_id": "trend"})
 
     assert launch.status_code == 429
+
+
+def test_a_negative_platform_default_is_refused_at_startup():
+    """Only exactly 0 opts out of the default cap. `ensure_within_budget` treats anything at or below
+    zero as "no cap", so without a floor a mistyped negative value would start the app normally and
+    quietly remove the safeguard the setting exists to provide. It must fail loudly instead."""
+    with pytest.raises(ValidationError, match="default_monthly_ai_budget_usd"):
+        config.Settings(default_monthly_ai_budget_usd=Decimal(-1))
+
+
+def test_zero_and_positive_platform_defaults_are_accepted():
+    assert config.Settings(default_monthly_ai_budget_usd=Decimal(0)).default_monthly_ai_budget_usd == 0
+    assert config.Settings(default_monthly_ai_budget_usd=Decimal(40)).default_monthly_ai_budget_usd == 40
+
+
+async def test_the_usage_summary_reports_the_default_budget_an_organisation_is_actually_under(client, owner, monkeypatch):
+    """The summary used to return only the organisation's stored budget. Under the platform default
+    that is NULL, so Settings -> Usage told owners operations would never stop for cost while they
+    were in fact capped at the default — they would learn the truth from a 429."""
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(25))
+
+    usage = (await client.get("/api/organisation/usage", headers=owner.headers)).json()
+
+    assert usage["budget_usd"] is None  # still what the organisation set itself, for the edit form
+    assert usage["default_budget_usd"] == 25.0
+    assert usage["effective_budget_usd"] == 25.0
+    assert usage["budget_source"] == "default"
+
+
+async def test_the_usage_summary_reports_an_organisations_own_budget_as_its_own(client, owner, monkeypatch):
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(25))
+    await client.put("/api/organisation/budget", headers=owner.headers, json={"monthly_ai_budget_usd": 60})
+
+    usage = (await client.get("/api/organisation/usage", headers=owner.headers)).json()
+
+    assert usage["budget_usd"] == 60.0
+    assert usage["effective_budget_usd"] == 60.0
+    assert usage["budget_source"] == "organisation"
+
+
+async def test_the_usage_summary_reports_no_budget_only_when_there_really_is_none(client, owner, monkeypatch):
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(0))
+
+    usage = (await client.get("/api/organisation/usage", headers=owner.headers)).json()
+
+    assert usage["default_budget_usd"] is None
+    assert usage["effective_budget_usd"] is None
+    assert usage["budget_source"] == "none"

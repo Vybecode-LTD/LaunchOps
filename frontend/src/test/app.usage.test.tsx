@@ -309,3 +309,46 @@ describe("When the AI budget is used up", () => {
     expect(screen.getByText(refusal)).toBeInTheDocument();
   });
 });
+
+// DEFAULT_MONTHLY_AI_BUDGET_USD caps any organisation that hasn't set its own budget. The page used to
+// read only the organisation's stored budget, which is null under the default, so it told owners
+// their operations would never stop for cost while they were in fact capped.
+describe("The platform's default budget", () => {
+  it("shows the default an organisation without its own budget is held to, not 'no budget'", async () => {
+    const state = makeState({ defaultBudget: 25, aiUsage: [usage({ cost_usd: 10 })] });
+    renderApp("/settings/usage", state);
+
+    const month = await region(formatUsageMonth(thisMonth));
+    expect(await within(month).findByText("$25.00")).toBeInTheDocument();
+    expect(within(month).getByText("Within budget")).toBeInTheDocument();
+    expect(within(month).getByText("This is the platform's default budget. Set your own below to change it.")).toBeInTheDocument();
+    expect(within(month).queryByText("No monthly budget, so operations don't stop for cost. Set one below.")).not.toBeInTheDocument();
+  });
+
+  it("says the default applies again when an organisation removes its own budget", async () => {
+    const state = makeState({ defaultBudget: 25, budgets: { "org-1": 60 } });
+    const { user } = renderApp("/settings/usage", state);
+
+    const panel = await region("Monthly budget");
+    await user.click(within(panel).getByRole("button", { name: "Remove budget" }));
+
+    expect(await screen.findByText("Budget removed")).toBeInTheDocument();
+    expect(screen.getByText("The platform's default budget of $25.00 applies again.")).toBeInTheDocument();
+    expect(screen.queryByText("AI operations no longer stop for cost.")).not.toBeInTheDocument();
+  });
+
+  it("stops an organisation at the default and says which budget it reached", async () => {
+    const project = makeProject();
+    const state = makeState({ projects: [project], defaultBudget: 5, aiUsage: [usage({ product_id: project.id, cost_usd: 5.2 })] });
+    const { user } = renderApp(`/projects/${project.id}/operations?run=blog`, state);
+
+    await user.click(await screen.findByRole("button", { name: "Run blog post draft" }));
+
+    const month = new Date().toLocaleString("en-US", { month: "long", timeZone: "UTC" });
+    const sheet = screen.getByRole("dialog", { name: "Run blog post draft" });
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(
+      `Northstar Ventures has used the default AI budget for ${month} ($5.00). An owner can set a higher budget in Settings → Usage.`,
+    );
+    expect(state.queue).toEqual([]);
+  });
+});

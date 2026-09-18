@@ -107,8 +107,14 @@ export interface FakeState {
   latency?: Partial<Record<"projectDetail" | "checklistSave", number>>;
   /** The AI usage ledger, for Settings → Usage and the budget check. */
   aiUsage?: FakeUsageRow[];
-  /** Monthly AI budgets in US dollars by organisation id; missing or null means no budget. */
+  /** Monthly AI budgets in US dollars by organisation id; missing or null means no budget of its own. */
   budgets?: Record<string, number | null>;
+  /**
+   * The platform default budget (DEFAULT_MONTHLY_AI_BUDGET_USD), which caps any organisation without its own.
+   * Unset or null here means switched off, so fixtures written before it are unaffected — unlike production,
+   * where it defaults to 25. A test that needs it sets it.
+   */
+  defaultBudget?: number | null;
   /** Results whose job a worker has started: cancelling one answers 202 and it stays running. Others cancel at once. */
   runningJobs?: string[];
   /** Answer GET /api/events differently (e.g. a refusal or an outage); return nothing to open the stream as usual. */
@@ -312,6 +318,9 @@ function usageSummary(state: FakeState, orgId: string, month: string): UsageSumm
   return {
     month,
     budget_usd: state.budgets?.[orgId] ?? null,
+    default_budget_usd: state.defaultBudget != null && state.defaultBudget > 0 ? state.defaultBudget : null,
+    effective_budget_usd: effectiveBudget(state, orgId).amount,
+    budget_source: effectiveBudget(state, orgId).source,
     total: usageTotals(rows),
     by_operation: breakdown((row) => row.operation, (row) => row.operation),
     by_project: breakdown(
@@ -325,16 +334,29 @@ function usageSummary(state: FakeState, orgId: string, month: string): UsageSumm
 
 const usd = (amount: number) => `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+/** Mirrors effective_budget() in backend/services/usage.py: the budget that actually applies, and whose it is. */
+function effectiveBudget(state: FakeState, orgId: string): { amount: number | null; source: "organisation" | "default" | "none" } {
+  const own = state.budgets?.[orgId];
+  if (own !== undefined && own !== null) return { amount: own, source: "organisation" };
+  const fallback = state.defaultBudget;
+  return fallback != null && fallback > 0 ? { amount: fallback, source: "default" } : { amount: null, source: "none" };
+}
+
 /** Mirrors ensure_within_budget() in backend/services/usage.py: 429 once this UTC month's cost reaches the budget. */
 function budgetRefusal(state: FakeState, membership: Membership): Response | null {
-  const budget = state.budgets?.[membership.id];
-  if (budget === undefined || budget === null) return null;
+  const { amount: budget, source } = effectiveBudget(state, membership.id);
+  if (budget === null) return null;
   const now = new Date();
   const spent = usageTotals((state.aiUsage ?? []).filter((row) => row.org_id === membership.id && row.created_at.slice(0, 7) === now.toISOString().slice(0, 7))).cost_usd;
   if (spent < budget) return null;
   const month = now.toLocaleString("en-US", { month: "long", timeZone: "UTC" });
   return HttpResponse.json(
-    { detail: `${membership.name} has used its AI budget for ${month} (${usd(budget)}). An owner can raise it in Settings → Usage.` },
+    {
+      detail:
+        source === "organisation"
+          ? `${membership.name} has used its AI budget for ${month} (${usd(budget)}). An owner can raise it in Settings → Usage.`
+          : `${membership.name} has used the default AI budget for ${month} (${usd(budget)}). An owner can set a higher budget in Settings → Usage.`,
+    },
     { status: 429 },
   );
 }

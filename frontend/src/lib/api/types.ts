@@ -221,8 +221,14 @@ export interface UsageBreakdown extends UsageTotals {
 export interface UsageSummary {
   /** YYYY-MM, a UTC month. */
   month: string;
-  /** The organisation's monthly budget in US dollars, or null when it has none. */
+  /** The budget the organisation set itself, in US dollars, or null when it has none. The budget form edits this. */
   budget_usd: number | null;
+  /** The platform default (DEFAULT_MONTHLY_AI_BUDGET_USD) that covers organisations without their own, or null when switched off. */
+  default_budget_usd: number | null;
+  /** The budget that actually stops operations — show this, not budget_usd. Null means no cap at all. */
+  effective_budget_usd: number | null;
+  /** Whose budget effective_budget_usd is. */
+  budget_source: "organisation" | "default" | "none";
   total: UsageTotals;
   /** Each list is sorted most expensive first. */
   by_operation: UsageBreakdown[];
