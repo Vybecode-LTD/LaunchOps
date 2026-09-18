@@ -192,7 +192,8 @@ describe("Library", () => {
 
     await user.click(await screen.findByRole("link", { name: "Use in an operation" }));
     expect(await screen.findByText(/pick an operation and it will be filled in as instructions/)).toBeInTheDocument();
-    await user.click(within(screen.getByRole("region", { name: "Content" })).getAllByRole("button", { name: "Run" })[0]!);
+    await user.click(screen.getByRole("button", { name: "All operations" }));
+    await user.click(within(await screen.findByRole("region", { name: "Content" })).getAllByRole("button", { name: "Run" })[0]!);
     expect(await screen.findByLabelText(/Instructions/)).toHaveValue("Reddit AMA for launch week");
   });
 });

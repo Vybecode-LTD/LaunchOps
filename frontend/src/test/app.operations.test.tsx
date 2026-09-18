@@ -9,8 +9,11 @@ import { server } from "./server";
 
 const OFFLINE = "Can't reach the LaunchOps server. Check your connection and try again.";
 
-/** The catalogue row for an operation, found by its name. */
-const operationRow = (name: string) => screen.getAllByRole("listitem").find((item) => within(item).queryByText(name))!;
+/**
+ * The row for an operation, found by its name: the innermost list item holding it. In the playbook,
+ * operations sit inside stages that are list items themselves, so the first match is the stage.
+ */
+const operationRow = (name: string) => screen.getAllByRole("listitem").filter((item) => within(item).queryByText(name)).at(-1)!;
 
 describe("Operations page", () => {
   it("stops using an idea when you choose not to", async () => {

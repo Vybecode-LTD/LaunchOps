@@ -109,7 +109,7 @@ describe("Operations by role", () => {
   it("lists operations for a viewer without Run, and says why", async () => {
     const project = makeProject({ pricing_result: pricing });
     const state = stateAs("viewer", { projects: [project] });
-    renderApp(`/projects/${project.id}/operations`, state);
+    renderApp(`/projects/${project.id}/operations?view=all`, state);
 
     expect(await screen.findByText("Running operations needs the Editor role in Northstar Ventures.")).toBeInTheDocument();
     expect(await screen.findByRole("region", { name: "Research" })).toHaveTextContent("Competitor deep-dive");
@@ -137,7 +137,7 @@ describe("Operations by role", () => {
   it("lets an editor run an operation", async () => {
     const project = makeProject();
     const state = stateAs("editor", { projects: [project] });
-    const { user } = renderApp(`/projects/${project.id}/operations`, state);
+    const { user } = renderApp(`/projects/${project.id}/operations?view=all`, state);
 
     const research = await screen.findByRole("region", { name: "Research" });
     expect(screen.queryByText(/Running operations needs/)).not.toBeInTheDocument();
