@@ -133,6 +133,25 @@ describe("Usage", () => {
     expect(within(month).getByText("Operations and reports run this month will show here with what they cost.")).toBeInTheDocument();
   });
 
+  it("tells a new organisation which budget applies before anything has run", async () => {
+    // With no usage the page shows an empty state instead of the month's summary, which was the only
+    // place the budget appeared — so a brand-new organisation, the one most likely to be on the
+    // platform default, saw no sign of its cap until an operation had already cost something.
+    renderApp("/settings/usage", makeState({ defaultBudget: 25 }));
+
+    const month = await region(formatUsageMonth(thisMonth));
+    expect(
+      await within(month).findByText("The platform's default budget of $25.00 applies: operations stop when a month's cost reaches it."),
+    ).toBeInTheDocument();
+  });
+
+  it("says there is no cap before anything has run, when there really is none", async () => {
+    renderApp("/settings/usage", makeState());
+
+    const month = await region(formatUsageMonth(thisMonth));
+    expect(await within(month).findByText("No monthly budget, so operations don't stop for cost. Set one below.")).toBeInTheDocument();
+  });
+
   it("says how many calls have no cost estimate because their model has no known price", async () => {
     const state = makeState({
       aiUsage: [usage({ cost_usd: 2 }), usage({ model: "claude-future-9", cost_usd: null }), usage({ model: "claude-future-9", cost_usd: null })],

@@ -186,7 +186,9 @@ async def test_an_organisation_without_its_own_budget_is_capped_by_the_platform_
 
 
 async def test_an_organisations_own_budget_wins_over_the_platform_default(client, owner, fake_ai, run_jobs, monkeypatch):
-    """The default is a floor for organisations that never set one, not a ceiling on those that did."""
+    """An organisation's own budget, once set, applies instead of the default. Setting one above the default
+    takes a platform admin (BUG-031): this passes because the fixture's owner registered first and so is
+    the platform admin. For an ordinary owner the default is a ceiling as well as the fallback."""
     monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(2))
     await client.put("/api/organisation/budget", headers=owner.headers, json={"monthly_ai_budget_usd": 50})
     await _usage_row(owner.org_id, owner.user["id"], owner.product["id"], "trend", "claude-sonnet-5", 2.5)

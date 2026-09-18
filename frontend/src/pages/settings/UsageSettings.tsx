@@ -84,11 +84,14 @@ export function UsageSettings() {
         ) : !summary ? (
           <Skeleton height={160} />
         ) : summary.total.calls === 0 ? (
-          <EmptyState title={`No AI usage in ${monthName}`}>
-            {month === thisMonth
-              ? "Operations and reports run this month will show here with what they cost."
-              : "No operations or reports ran that month."}
-          </EmptyState>
+          <>
+            <EmptyState title={`No AI usage in ${monthName}`}>
+              {month === thisMonth
+                ? "Operations and reports run this month will show here with what they cost."
+                : "No operations or reports ran that month."}
+            </EmptyState>
+            {month === thisMonth && <BudgetStatement summary={summary} />}
+          </>
         ) : (
           <MonthSummary summary={summary} current={month === thisMonth} />
         )}
@@ -103,6 +106,24 @@ export function UsageSettings() {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Which budget applies, in one sentence. Used when the month has nothing to chart: the summary is the
+ * only other place the budget appears, so without this a brand-new organisation — the one most likely
+ * to be on the platform default — saw no sign of its cap until an operation had already cost something.
+ */
+function BudgetStatement({ summary }: { summary: UsageSummary }) {
+  const { effective_budget_usd: budget, budget_source: source } = summary;
+  if (budget === null) {
+    return <p className={styles.budgetText}>No monthly budget, so operations don&apos;t stop for cost. Set one below.</p>;
+  }
+  const whose = source === "default" ? "The platform's default budget" : "Your organisation's budget";
+  return (
+    <p className={styles.budgetText}>
+      {whose} of {formatUsd(budget)} applies: operations stop when a month&apos;s cost reaches it.
+    </p>
   );
 }
 
@@ -232,7 +253,7 @@ function BudgetPanel({ budget, defaultBudget }: { budget: number | null; default
         <FieldStack>
           <Field
             label="Budget in US dollars"
-            hint="When a month's estimated cost reaches it, operations and reports can't start until the next month or until an owner raises it."
+            hint="When a month's estimated cost reaches it, operations and reports can't start until the next month or until the budget is raised."
             error={error}
           >
             {(props) => (
