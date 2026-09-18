@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router";
 import { useOrganisation } from "@/lib/auth/organisation";
-import { useCaptures, useQueue } from "@/lib/queries/hooks";
+import { useCaptures, useQueueSummary } from "@/lib/queries/hooks";
 import { CATEGORY_LABELS, CATEGORY_ORDER, OPERATIONS, getOperation } from "@/lib/domain/operations";
 import { Notice, Segmented } from "@/components/ui/Display";
 import { RoleNote } from "@/components/access/Access";
@@ -22,9 +22,10 @@ export function OperationsPage() {
   const project = useProjectContext();
   const canRun = useOrganisation().can("editor");
   const captures = useCaptures();
-  // Every result for this project, whatever its status: the playbook needs the finished and failed
-  // ones as well as those awaiting review to know what's done.
-  const queue = useQueue({ product_id: project.id, limit: 500 });
+  // Where every one of the project's results stands, counted by operation and status: the playbook
+  // needs the finished and failed ones as well as those awaiting review to know what's done. A page of
+  // results holds the newest 500 at most and could leave out an operation's only approved one.
+  const results = useQueueSummary(project.id);
   const [params, setParams] = useSearchParams();
   const view: View = params.get("view") === "all" ? "all" : "playbook";
   const runId = params.get("run");
@@ -72,7 +73,7 @@ export function OperationsPage() {
       </div>
 
       {view === "playbook" ? (
-        <Playbook project={project} queue={queue.data} queueFailed={queue.isError} onRun={setRun} />
+        <Playbook project={project} queue={results.data} queueFailed={results.isError} onRun={setRun} />
       ) : (
         <div className={styles.opsLayout}>
           <nav className={styles.opsNav} aria-label="Operation categories">

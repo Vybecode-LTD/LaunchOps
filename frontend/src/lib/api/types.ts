@@ -183,6 +183,14 @@ export interface QueueItem {
   created_at: string;
 }
 
+/** One line of `GET /api/queue/summary`: how many of a project's results one operation has in one status. */
+export interface QueueSummaryRow {
+  product_id: string;
+  workflow_id: string;
+  status: QueueStatus;
+  count: number;
+}
+
 /**
  * POST /api/queue/{id}/cancel: "cancelled" when the job hadn't started (the result is now failed), "cancelling" when
  * it was running and stops at its next heartbeat (the result stays running until then).

@@ -29,6 +29,7 @@ import type {
   ProjectUpdate,
   QueueItem,
   QueueStatus,
+  QueueSummaryRow,
   RepurposeResult,
   SeoResult,
   Template,
@@ -164,6 +165,8 @@ export const operationsApi = {
 export const queueApi = {
   list: (params: { product_id?: string; status?: QueueStatus; limit?: number } = {}) =>
     request<QueueItem[]>(`/api/queue${query(params)}`),
+  /** How many of a project's results each operation has in each status — every result, not a page of them. */
+  summary: (productId: string) => request<QueueSummaryRow[]>(`/api/queue/summary${query({ product_id: productId })}`),
   get: (id: string) => request<QueueItem>(`/api/queue/${id}`),
   review: (id: string, status: "approved" | "rejected" | "pending", notes = "") =>
     request<QueueItem>(`/api/queue/${id}`, { method: "PATCH", body: { status, notes } }),

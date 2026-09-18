@@ -3,8 +3,9 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import type { QueueItem, QueueStatus } from "@/lib/api/types";
 import { addDays, toDateKey } from "@/lib/domain/dates";
+import { keys } from "@/lib/queries/keys";
 import { API, id, makeProject, makeState } from "./fakeApi";
-import { renderApp } from "./renderApp";
+import { renderApp, requestsTo } from "./renderApp";
 import { stateAs } from "./roles";
 import { server } from "./server";
 
@@ -86,6 +87,54 @@ describe("The launch playbook", () => {
     expect(within(stage("Understand the market")).getByText("Behind")).toBeInTheDocument();
   });
 
+  // A launch date that has passed read "launch is -3 days away", and tomorrow "launch is 1 days away".
+  it.each([
+    [1, "launch is tomorrow"],
+    [0, "launch is today"],
+    [-1, "the launch date was yesterday"],
+    [-3, "the launch date was 3 days ago"],
+  ])("puts a launch date %i days from today in words: %s", async (offset, words) => {
+    const project = makeProject({ launch_date: addDays(toDateKey(new Date()), offset) });
+    renderApp(`/projects/${project.id}/operations`, makeState({ projects: [project] }));
+
+    const hero = await nextUp();
+    expect(within(hero).getByText(`Behind: this stage is normally underway 45 days before launch, and ${words}.`)).toBeInTheDocument();
+  });
+
+  it("opens the next stage when the one being worked on finishes, and leaves the finished one as it was", async () => {
+    // A stage decides whether it starts open when it first renders. One that becomes current while
+    // the screen is open has to open then, or the guide points at a stage that's shut.
+    const project = makeProject({ market_analysis: { executive_summary: "Growing." }, pricing_result: { launch_strategy: "Undercut." } });
+    const trend = result(project.id, "trend", "running");
+    const state = makeState({ projects: [project], queue: [result(project.id, "competitor", "approved"), trend] });
+    const { queryClient } = renderApp(`/projects/${project.id}/operations`, state);
+    await nextUp();
+    expect(within(stage("Fix the positioning")).queryByText("Press kit")).not.toBeInTheDocument();
+
+    // The trend report reaches review, which finishes the first stage.
+    trend.status = "pending";
+    await queryClient.invalidateQueries({ queryKey: keys.queueAll });
+
+    expect(await within(stage("Fix the positioning")).findByText("Press kit")).toBeInTheDocument();
+    // Closing the finished stage would pull its operations out from under someone using them.
+    expect(within(stage("Understand the market")).getByText("Competitor deep-dive")).toBeInTheDocument();
+  });
+
+  it("reads what's finished from a count of every result, not a page of the newest", async () => {
+    // GET /api/queue returns the newest 500 results at most, so an operation whose only approved
+    // result was older looked unfinished and was recommended again. The summary counts them all —
+    // and is only counts, where the list carried every result's content.
+    const project = makeProject();
+    const state = makeState({ projects: [project], queue: [result(project.id, "competitor", "approved")] });
+    renderApp(`/projects/${project.id}/operations`, state);
+    await nextUp();
+
+    expect(requestsTo(state, "GET", `/api/queue/summary?product_id=${project.id}`).length).toBeGreaterThan(0);
+    // The screen's other lists of results are counts of one status, like the Review tab's.
+    const lists = requestsTo(state, "GET", "/api/queue?").map((r) => new URLSearchParams(r.path.split("?")[1]));
+    expect(lists.filter((params) => !params.has("status"))).toEqual([]);
+  });
+
   it("names unfinished groundwork a stage builds on, without stopping anyone running it", async () => {
     const project = makeProject();
     const { user } = renderApp(`/projects/${project.id}/operations`, makeState({ projects: [project] }));
@@ -157,7 +206,7 @@ describe("The launch playbook", () => {
     const project = makeProject({ market_analysis: { executive_summary: "Growing." } });
     renderApp(`/projects/${project.id}/operations`, makeState({ projects: [project] }));
     // After renderApp, which installs the fake backend's own handlers on top of anything added earlier.
-    server.use(http.get(`${API}/api/queue`, () => HttpResponse.json({ detail: "Service unavailable" }, { status: 503 })));
+    server.use(http.get(`${API}/api/queue/summary`, () => HttpResponse.json({ detail: "Service unavailable" }, { status: 503 })));
 
     expect(
       await screen.findByText(/Results couldn't be loaded, so the playbook may not show everything that's already done/),

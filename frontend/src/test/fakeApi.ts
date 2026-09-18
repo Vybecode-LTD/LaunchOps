@@ -19,6 +19,7 @@ import type {
   OrgRole,
   Project,
   QueueItem,
+  QueueSummaryRow,
   Source,
   Template,
   UsageBreakdown,
@@ -698,6 +699,20 @@ export function handlers(state: FakeState): HttpHandler[] {
       const productId = url.searchParams.get("product_id");
       const status = url.searchParams.get("status");
       return HttpResponse.json(state.queue.filter((q) => (!productId || q.product_id === productId) && (!status || q.status === status)));
+    }),
+    // Mirrors GET /api/queue/summary: every result of one project, counted by operation and status.
+    http.get(`${API}/api/queue/summary`, async ({ request }) => {
+      await record(request);
+      const productId = new URL(request.url).searchParams.get("product_id") ?? "";
+      if (!project(productId)) return HttpResponse.json({ detail: "Product not found" }, { status: 404 });
+      const rows = new Map<string, QueueSummaryRow>();
+      for (const q of state.queue.filter((item) => item.product_id === productId)) {
+        const key = `${q.workflow_id} ${q.status}`;
+        const row = rows.get(key) ?? { product_id: productId, workflow_id: q.workflow_id, status: q.status, count: 0 };
+        row.count += 1;
+        rows.set(key, row);
+      }
+      return HttpResponse.json([...rows.values()]);
     }),
     http.patch(`${API}/api/queue/:id`, async ({ request, params }) => {
       const body = (await record(request)) as { status: QueueItem["status"]; notes: string };

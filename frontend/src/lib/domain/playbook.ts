@@ -116,13 +116,20 @@ export interface Playbook {
 const COUNTS_AS_DONE: OperationState[] = ["done", "in_review"];
 
 /**
+ * What the playbook reads of a result: its project, its operation and where it stands. A full result
+ * has these, and so does a line of `GET /api/queue/summary`, which counts every result a project has
+ * rather than returning a page of the newest.
+ */
+export type ResultRecord = Pick<QueueItem, "product_id" | "workflow_id" | "status">;
+
+/**
  * The most meaningful state among a project's runs of one operation.
  *
  * Completion wins over activity. Running an operation again adds a new result and keeps the
  * earlier ones, so a finished operation can have a `running` rerun beside its approved result;
  * if `running` won, re-running anything would reopen a stage the user had already finished.
  */
-function stateFromQueue(items: QueueItem[]): OperationState {
+function stateFromQueue(items: ResultRecord[]): OperationState {
   if (items.some((item) => item.status === "approved")) return "done";
   if (items.some((item) => item.status === "pending")) return "in_review";
   if (items.some((item) => item.status === "running")) return "running";
@@ -130,7 +137,7 @@ function stateFromQueue(items: QueueItem[]): OperationState {
   return "todo";
 }
 
-function operationState(operation: OperationDef, project: Project, queue: QueueItem[]): OperationState {
+function operationState(operation: OperationDef, project: Project, queue: ResultRecord[]): OperationState {
   // A report lives on the project, so a saved one is the record of the run. Without one, a
   // report falls back to the queue like any other operation — it may be running or have failed.
   if (operation.reportKey && hasReport(project[operation.reportKey as ReportKey])) return "done";
@@ -144,7 +151,7 @@ function operationState(operation: OperationDef, project: Project, queue: QueueI
  * `today` is a local `YYYY-MM-DD` key, as everywhere else in the app — launch dates are never
  * converted through UTC.
  */
-export function playbook(project: Project, queue: QueueItem[], today: string): Playbook {
+export function playbook(project: Project, queue: ResultRecord[], today: string): Playbook {
   const remaining = daysToLaunch(project, today);
   const forProject = queue.filter((item) => item.product_id === project.id);
 

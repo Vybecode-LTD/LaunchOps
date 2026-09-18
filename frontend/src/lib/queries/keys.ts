@@ -6,6 +6,8 @@ export const keys = {
   project: (id: string) => ["projects", "detail", id] as const,
   queueAll: ["queue"] as const,
   queue: (params: { product_id?: string; status?: QueueStatus; limit?: number }) => ["queue", "list", params] as const,
+  // Under "queue", so whatever refreshes the results — live updates, a launch, a cancel — refreshes this too.
+  queueSummary: (productId: string) => ["queue", "summary", productId] as const,
   emailsAll: ["emails"] as const,
   emails: (params: { product_id?: string }) => ["emails", "list", params] as const,
   emailQuota: () => ["emails", "quota"] as const,

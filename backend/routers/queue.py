@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import math
+import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
@@ -47,6 +48,29 @@ async def list_queue(
     if status:
         filters["status"] = status
     return await select("queue", filters=filters, limit=limit)
+
+
+@router.get("/summary")
+async def queue_summary(request: Request, product_id: str) -> list[dict]:
+    """How many of a project's results each operation has in each status — all of them, however many.
+
+    The Operations playbook reads what's finished from this. A page of `GET /api/queue` holds the newest
+    500 at most, so an operation whose only approved result was older would look unfinished; and this is
+    a few counts where that list is every result's content. Declared before `/{item_id}`, which would
+    otherwise take "summary" for an id.
+    """
+    current = await access.membership(request)
+    product = await access.load(current, "products", product_id, "Product not found")
+    pool = await get_pool()
+    rows = await pool.fetch(
+        "SELECT workflow_id, status, COUNT(*) AS count FROM queue"
+        " WHERE org_id = $1 AND product_id = $2 GROUP BY workflow_id, status ORDER BY workflow_id, status",
+        uuid.UUID(current.org_id), uuid.UUID(product["id"]),
+    )
+    return [
+        {"product_id": product["id"], "workflow_id": row["workflow_id"], "status": row["status"], "count": row["count"]}
+        for row in rows
+    ]
 
 
 @router.get("/{item_id}")

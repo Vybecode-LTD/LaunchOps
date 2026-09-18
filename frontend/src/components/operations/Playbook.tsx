@@ -1,11 +1,19 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import { Collapsible } from "radix-ui";
 import { Check, ChevronDown, TriangleAlert } from "lucide-react";
-import type { Project, QueueItem } from "@/lib/api/types";
+import type { Project } from "@/lib/api/types";
 import { useOrganisation } from "@/lib/auth/organisation";
 import { useToday } from "@/lib/hooks/useClock";
 import { getOperation, type OperationDef } from "@/lib/domain/operations";
-import { ALWAYS_AVAILABLE, playbook, type Playbook as PlaybookData, type StageProgress, type StageStatus } from "@/lib/domain/playbook";
+import {
+  ALWAYS_AVAILABLE,
+  playbook,
+  type Playbook as PlaybookData,
+  type ResultRecord,
+  type StageProgress,
+  type StageStatus,
+} from "@/lib/domain/playbook";
 import { daysToLaunch, describeDays, tMinus } from "@/lib/domain/projects";
 import { routes } from "@/lib/routes";
 import { Button, cx } from "@/components/ui/Button";
@@ -28,6 +36,14 @@ function listOf(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 }
 
+/** How far off the launch is, to end a sentence: "launch is 11 days away", "the launch date was 3 days ago". */
+function launchDistance(days: number): string {
+  if (days > 1) return `launch is ${days} days away`;
+  if (days === 1) return "launch is tomorrow";
+  if (days === 0) return "launch is today";
+  return days === -1 ? "the launch date was yesterday" : `the launch date was ${-days} days ago`;
+}
+
 /**
  * The Operations screen as a guided launch: what to run next, then every stage in the order a
  * launch actually runs in. It answers "what should I do now?" rather than listing eighteen
@@ -42,8 +58,8 @@ export function Playbook({
   onRun,
 }: {
   project: Project;
-  /** Every result for the project, or undefined while they load. */
-  queue: QueueItem[] | undefined;
+  /** Where the project's results stand — every one of them, as `GET /api/queue/summary` counts them — or undefined while they load. */
+  queue: ResultRecord[] | undefined;
   /** The results couldn't be loaded. */
   queueFailed?: boolean;
   onRun: (id: string) => void;
@@ -184,7 +200,7 @@ function NextUp({
         {behind && window !== null && days !== null ? (
           <p className={styles.nextUpTiming}>
             <TriangleAlert aria-hidden="true" />
-            Behind: this stage is normally underway {window} days before launch, and launch is {days} days away.
+            Behind: this stage is normally underway {window} days before launch, and {launchDistance(days)}.
           </p>
         ) : (
           days !== null && <p className={styles.nextUpMeta}>{describeDays(days)}.</p>
@@ -223,10 +239,20 @@ function Stage({
   const { stage, status, done, total, operations, missingGroundwork } = entry;
   const pill = STAGE_PILL[status];
   const titleId = `stage-${stage.id}-title`;
+  // Open while it's the stage to work on — including when it becomes that while the screen is open,
+  // which `defaultOpen` alone would miss: Radix reads it only when a stage first renders. A stage that
+  // stops being current stays as it is; closing it would pull its operations, and the focus on them,
+  // out from under someone using them.
+  const [open, setOpen] = useState(isCurrent);
+  const [wasCurrent, setWasCurrent] = useState(isCurrent);
+  if (isCurrent !== wasCurrent) {
+    setWasCurrent(isCurrent);
+    if (isCurrent) setOpen(true);
+  }
 
   return (
     <li className={cx(styles.stage, styles[status])}>
-      <Collapsible.Root defaultOpen={isCurrent || status === "behind"}>
+      <Collapsible.Root open={open} onOpenChange={setOpen}>
         <h3 className={styles.stageHeading} id={titleId}>
           <Collapsible.Trigger className={styles.stageTrigger}>
             <span className={styles.marker} aria-hidden="true">
