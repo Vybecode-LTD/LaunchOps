@@ -181,7 +181,7 @@ async def test_an_organisation_without_its_own_budget_is_capped_by_the_platform_
                                json={"product_id": owner.product["id"], "workflow_id": "trend"})
 
     month = datetime.now(UTC).strftime("%B")
-    message = f"Olivia's organisation has used the default AI budget for {month} ($2.00). A platform administrator can raise it."
+    message = f"Olivia's organisation has used the default AI budget for {month} ($2.00). Operations can start again next month."
     assert (launch.status_code, launch.json()) == (429, {"detail": message})
 
 
@@ -296,7 +296,7 @@ async def test_an_owner_cannot_raise_their_budget_above_the_platform_default(cli
 
     assert raised.status_code == 403
     assert raised.json() == {
-        "detail": "An organisation can set a monthly AI budget of up to $25.00. A platform administrator can set a higher one."
+        "detail": "The most an organisation can set is $25.00 a month."
     }
     usage = (await client.get("/api/organisation/usage", headers=stranger.headers)).json()
     assert (usage["budget_usd"], usage["effective_budget_usd"]) == (None, 25.0)
@@ -334,8 +334,10 @@ async def test_with_the_default_switched_off_an_owner_sets_any_budget(client, st
     assert raised.status_code == 200
 
 
-async def test_a_refusal_at_the_default_says_only_an_admin_can_raise_it(client, stranger, create_product, fake_ai, run_jobs, monkeypatch):
-    """The refusal used to say an owner could set a higher budget, which invited exactly the bypass."""
+async def test_a_refusal_at_the_default_promises_no_one_can_raise_it(client, stranger, create_product, fake_ai, run_jobs, monkeypatch):
+    """The refusal first said an owner could set a higher budget, which invited the bypass (BUG-031), then
+    that a platform administrator could — but an admin can't reach an organisation they don't belong to
+    (the owner's decision on B-15), so for a stranger nobody can. It says what is true for everyone."""
     monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(2))
     product = await create_product(stranger.token, name="Side Project")
     await _usage_row(stranger.org_id, stranger.user["id"], product["id"], "trend", "claude-sonnet-5", 2.5)
@@ -345,5 +347,36 @@ async def test_a_refusal_at_the_default_says_only_an_admin_can_raise_it(client, 
     month = datetime.now(UTC).strftime("%B")
     assert launch.status_code == 429
     assert launch.json()["detail"] == (
-        f"Mallory's organisation has used the default AI budget for {month} ($2.00). A platform administrator can raise it."
+        f"Mallory's organisation has used the default AI budget for {month} ($2.00). Operations can start again next month."
     )
+
+
+
+async def test_an_owner_can_lower_a_budget_stored_above_the_default(client, stranger, monkeypatch):
+    """BUG-032. The ceiling compared a request with the platform default only, so an owner whose budget was
+    already above it — set before the ceiling existed, or with the default switched off — could not lower
+    it to another amount still above it. Lowering only ever reduces what the key can spend."""
+    settings = config.get_settings()
+    monkeypatch.setattr(settings, "default_monthly_ai_budget_usd", Decimal(0))
+    await client.put("/api/organisation/budget", headers=stranger.headers, json={"monthly_ai_budget_usd": 500})
+    monkeypatch.setattr(settings, "default_monthly_ai_budget_usd", Decimal(25))
+
+    lowered = await client.put("/api/organisation/budget", headers=stranger.headers, json={"monthly_ai_budget_usd": 400})
+
+    assert lowered.status_code == 200
+    usage = (await client.get("/api/organisation/usage", headers=stranger.headers)).json()
+    assert (usage["budget_usd"], usage["budget_source"]) == (400.0, "organisation")
+
+
+async def test_an_owner_cannot_raise_a_budget_stored_above_the_default_any_further(client, stranger, monkeypatch):
+    """The other half of BUG-032's fix: lowering is allowed, but a budget above the default is never a
+    route to a higher one."""
+    settings = config.get_settings()
+    monkeypatch.setattr(settings, "default_monthly_ai_budget_usd", Decimal(0))
+    await client.put("/api/organisation/budget", headers=stranger.headers, json={"monthly_ai_budget_usd": 500})
+    monkeypatch.setattr(settings, "default_monthly_ai_budget_usd", Decimal(25))
+
+    raised = await client.put("/api/organisation/budget", headers=stranger.headers, json={"monthly_ai_budget_usd": 600})
+
+    assert raised.status_code == 403
+    assert raised.json() == {"detail": "This organisation's budget can be lowered, but not raised above its current $500.00."}

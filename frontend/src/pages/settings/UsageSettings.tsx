@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { errorMessage } from "@/lib/api/client";
 import type { UsageBreakdown, UsageSummary } from "@/lib/api/types";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useOrganisation } from "@/lib/auth/organisation";
 import { useSetBudget, useUsage } from "@/lib/queries/hooks";
 import { useNow } from "@/lib/hooks/useClock";
@@ -128,6 +129,10 @@ function BudgetStatement({ summary }: { summary: UsageSummary }) {
 }
 
 function MonthSummary({ summary, current }: { summary: UsageSummary; current: boolean }) {
+  // Only a platform admin can set a budget above the default, and only where they are an owner — as
+  // they are here, since this page is for owners. Nobody else can go above it (B-15), so the note
+  // mustn't suggest an administrator will.
+  const isAdmin = useAuth().user?.role === "admin";
   // The budget that actually stops operations, not only the one the organisation set: under the
   // platform default the stored budget is null, and reading it said operations never stop for cost.
   const { total, effective_budget_usd: budget, budget_source: source } = summary;
@@ -179,8 +184,9 @@ function MonthSummary({ summary, current }: { summary: UsageSummary; current: bo
               </p>
               {source === "default" && (
                 <p className={styles.budgetText}>
-                  This is the platform&apos;s default budget. You can set a lower one below; only a platform administrator can
-                  set a higher one.
+                  {isAdmin
+                    ? "This is the platform's default budget. As a platform administrator, you can set a higher one below."
+                    : "This is the platform's default budget, and the most an organisation can set. You can set a lower one below."}
                 </p>
               )}
             </>
