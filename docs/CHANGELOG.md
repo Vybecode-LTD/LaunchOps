@@ -1,8 +1,8 @@
 ---
 document: CHANGELOG
-version: 1.1.3
-last-updated: 2026-09-18T03:32:06Z
-last-audit: 2026-09-18T02:45:00Z
+version: 1.1.4
+last-updated: 2026-09-18T06:39:21Z
+last-audit: 2026-09-18T06:35:00Z
 managed-by: session-orchestrator/doc-versioner
 ---
 
@@ -18,11 +18,378 @@ Newest first. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 | Version | What it covers |
 |---|---|
+| **1.1.4** | Pull request #5 merged (`477eaa4`) and deployed, putting BUG-028 to BUG-031 in production, and BUG-032 with them; pull request #6, not merged when this was written, up to its last code commit `b607021`: the launch playbook on the Operations screen, `GET /api/queue/summary`, BUG-032 fixed, the budget's check and write under one row lock, and budget messages that promise only what the reader can do; the owner's decisions of 2026-09-18 — no cap on the total (B-14), no platform admin setting the budget of an organisation they don't belong to (B-15), and a playbook that advises and never blocks; both pull requests' reviews; LIM-004; and a fifth audit |
 | **1.1.3** | Pull request #5, not merged when this was written, up to its last code commit `7dbc35d`: the default AI budget and the rule that only a platform admin may go above it (BUG-028, BUG-031), a cap per organisation rather than on the total (B-14); four screens fixed at phone width (BUG-029); empty competitor columns (BUG-030); the playbook domain module; the automated review's fixes, with BUG-032 left open; a fourth audit; and gap 14, the Vitest suite unreliable at default concurrency on this machine |
 | **1.1.2** | Correction and reconciliation after the pull request #4 merge: six stale current-state claims put right, T-2 and T-3 settled and T-4 retitled, a third audit, and the test-cluster notes |
 | **1.1.1** | The merge of pull request #3 and what followed: BUG-027 in production, six documents reconciled to the merged state, a second audit, and three corrections to the 1.1.0 entry |
 | **1.1.0** | The second pass of the 2026-09-17 handoff: the BUG-027 security fix, one more regression test, and the first documentation audit |
 | **1.0.0** | The documentation baseline written earlier in that same session, covering the Phase 0–2 rebuild through to production |
+
+---
+
+## [1.1.4] — 2026-09-18
+
+_Pull request #5 merged and deployed, and pull request #6 up to its last code commit, `b607021`:
+the launch playbook on the Operations screen, the owner's budget decisions of 2026-09-18 carried
+out, and the fixes from its automated review. Also the owner's decisions of that day, the review
+threads on pull request #5 answered on GitHub, a new known limitation (LIM-004), five documents
+outside the managed set brought current, and a fifth documentation audit. The documentation that
+records all of it goes onto pull request #6 as a documentation commit after `b607021`. **When this
+was written, pull request #6 was open, not merged and not deployed** (Where it stands, at the
+end)._
+
+### Shipped — pull request #5, merged and deployed
+
+- **Pull request #5 merged into `main` as `477eaa4` at 2026-09-18T04:43:03Z**, from branch
+  `fix/spend-cap-and-mobile-overflow` — a **merge commit, not a squash**, so `.gitleaksignore`'s
+  per-commit fingerprints still resolve. CI had passed on the pull request's last commit,
+  `ce12024`, the 1.1.3 documentation: all three jobs green by 2026-09-18T03:38:11Z. `main` =
+  `origin/main` = `477eaa4`.
+- **Production serves `477eaa4`'s build — verified from the live site, not from Railway.** At
+  **2026-09-18T04:43:44Z** the JavaScript bundle of https://launchops.run changed to
+  `index-D1A5232b.js`, whose Settings → Usage chunk (`UsageSettings-ZBCrvSWu.js`) contains
+  "default budget of", from `43ab3e6`'s "The platform's default budget of $X applies again." —
+  text only pull request #5's code has. At **05:14:16Z** it was the same bundle, and
+  `GET /health` answered 200 `{"status":"ok"}`. Re-checked at **06:09:38Z**: the same chunk
+  contains `7dbc35d`'s sentence ("…applies: operations stop when a month's cost reaches it."),
+  `43ab3e6`'s ("…applies again.") and still pull request #5's note naming a platform
+  administrator ("…only a platform administrator can set a higher one."), so production runs all
+  of pull request #5's code and none of pull request #6's; `GET /health` answered 200. The new
+  bundle appeared about 41 seconds after the merge, fast for a Railway build; the observation
+  stands either way. **The Railway dashboard's deployment record was not read.**
+- **So BUG-028, BUG-029, BUG-030 and BUG-031 are fixed on `main` and in production.** Every
+  organisation without a budget of its own is held to the $25 platform default; its owners can
+  lower or clear their budget; only a platform admin can set one above the default. That caps each
+  organisation, not the total, and the owner has decided to leave the total uncapped (B-14, Decided
+  below).
+- **BUG-032 reached production with the merge**, having come in with `a53b26e`. It fails safe: it
+  can refuse an owner's decrease, never allow an increase. It is fixed on pull request #6's branch
+  (`08705de`, Fixed below) and stays live until #6 merges and deploys.
+- **T-9 is done, except its second half.** Checking Settings → Usage on the live site signed in as
+  an Owner needs a person who can sign in, which the assistant cannot do, so it moves into T-10
+  (Where it stands, at the end).
+
+### Decided — by the owner, 2026-09-18
+
+1. **Merge pull request #5 (T-9): yes.** Done, above.
+2. **The playbook advises and never blocks a run.** No stage waits for the ones before it; every
+   operation still runs from wherever it is. This was the open question in `docs/ROADMAP.md` → Next
+   up, item 1.
+3. **BUG-032: owners should be able to lower their budget.** Fixed in `08705de`, below.
+4. **B-14, a cap on total AI spend across organisations: no total cap.** The owner's reason: AI
+   usage is to be charged to customers at a markup, so more spending by customers means more
+   revenue. Recorded with it, as fact rather than advice: that reasoning depends on billing, which
+   is not built — B-12 is open, and billing settings are a Phase 2 follow-up. Until billing exists,
+   each self-registered organisation can spend up to $25 a month on the deployment's one
+   `ANTHROPIC_API_KEY` with nothing recovering it, and open registration (T-2; at most ten new
+   accounts an hour from one network address) adds organisations with nothing capping the sum. That
+   exposure is the consequence of the decision.
+5. **B-15, whether a platform admin may set the budget of an organisation they don't belong to:
+   no** ("Absolutely not"). Carried out in `08705de`, which stops every message promising an
+   administrator, and extended in `b607021`, which promises a raise only to someone who can make
+   one.
+6. **Answer the review threads on pull request #5 on GitHub: yes.** Done the same day (Reviewed —
+   pull request #5, below).
+
+- **Still open for the owner — twelve, B-1 to B-12:** plan section 8 (B-1 to B-7), the brand kernel
+  (B-8 to B-10, D15), whether organisation owners should also create reset links (B-11, D8), and
+  billing (B-12). B-13, B-14 and B-15 are decided.
+
+### Added — on pull request #6's branch only
+
+_Nothing in this section or the next is on `main` or in production._
+
+- **The Operations screen opens on the launch playbook** — `53456fc`, built on the domain module
+  recorded under 1.1.3 (`frontend/src/components/operations/Playbook.tsx`, `OperationCard.tsx` and
+  `Playbook.module.css`, in `frontend/src/pages/project/OperationsPage.tsx`):
+  - **"Next up"**: the one operation to run now, its stage ("Next up · Stage 1 of 5 · Understand
+    the market"), what it produces, and a primary "Run …" button for Editors and above. A stage
+    behind its window says so: "Behind: this stage is normally underway 45 days before launch, and
+    launch is 11 days away." When everything in the stage is running or waiting for review, it says
+    "Waiting on …" with the stage's name and a link to Review; when every step is done, it says
+    that.
+  - **The five stages as an ordered list**, which a screen reader announces as "stage 1 of 5". Each
+    has its window ("From T-45d"), "n of m" and a pill: Done, Now, Behind or Later. The current
+    stage is open; the others collapse to one line.
+  - **Each operation's progress**: Done, In review, Running or Failed.
+  - **"Always available"**: the one tool, `repurpose`, which saves nothing and counts towards
+    nothing.
+  - **"All operations"** (`?view=all`) keeps the catalogue by category. Both views share
+    `OperationCard`, so an operation reads the same in each.
+  - **While results load** it says "Working out what's next…" rather than recommending from an
+    empty list; if they fail to load, it shows a notice and still guides from the reports saved on
+    the project.
+  - **It advises and never blocks**, by the owner's decision above.
+  - **Tests:** 12 Vitest tests in a new file, `frontend/src/test/app.playbook.test.tsx`, and 3
+    Playwright tests: "All operations" in both accessibility themes and at phone width.
+- **`GET /api/queue/summary?product_id=…`** — `4af499c`, in `backend/routers/queue.py`: how many of
+  a project's results each operation (`workflow_id`) has in each status, counted over **every**
+  result. 404 for a project outside the organisation or a malformed id, 422 without `product_id`;
+  declared before `/{item_id}`, which would otherwise take "summary" for an id. The playbook reads
+  it in place of a page of `GET /api/queue` (Fixed, below). On the frontend: `queueApi.summary`;
+  `keys.queueSummary`, under `["queue"]`, so live updates, launches and cancels refresh it;
+  `useQueueSummary`, which polls like the results while any is running; and `ResultRecord` in
+  `frontend/src/lib/domain/playbook.ts`, which a full result and a summary row both fit.
+
+### Fixed — on pull request #6's branch only
+
+- **BUG-032 (LOW) — an owner could lower a budget stored above the default only to the default or
+  below** — `08705de`, by the owner's decision above. An owner who isn't a platform admin may now
+  set any budget up to the platform default, clear it, **or lower a budget already above the
+  default to any lower amount**. Raising such a budget any further is refused with a 403 — for a
+  budget of $500, "This organisation's budget can be lowered, but not raised above its current
+  $500.00."
+- **B-15, carried out: no message promises an administrator** — `08705de`, by the owner's decision
+  above. The budget route is Owner-only and stays so, which means nobody can go above the default
+  in a self-registered organisation, yet three messages said a platform administrator could. Any
+  other request above the default now gets a 403 reading "The most an organisation can set is
+  $25.00 a month." The 429 at the default, or at an organisation's own budget at or above it, ends
+  "Operations can start again next month."; an owner below the default is still told "An owner can
+  raise it in Settings → Usage." The note on Settings → Usage reads, to a platform admin, "This is
+  the platform's default budget. As a platform administrator, you can set a higher one below."; to
+  everyone else, "This is the platform's default budget, and the most an organisation can set. You
+  can set a lower one below."
+- **`08705de`'s tests:** two new backend tests,
+  `test_an_owner_can_lower_a_budget_stored_above_the_default` and
+  `test_an_owner_cannot_raise_a_budget_stored_above_the_default_any_further`, one renamed to
+  `test_a_refusal_at_the_default_promises_no_one_can_raise_it`, and two new Vitest tests in
+  `app.usage.test.tsx`. Five backend tests failed before the change, as its commit message records.
+- **The budget's check and write, under one row lock** — `b607021`, answering CodeRabbit's
+  **Major** on this pull request (`backend/services/usage.py:90`). With BUG-032's fix the check
+  read the organisation's current budget, and the write came separately: two owners lowering $500
+  at once, to $400 and to $450, could both pass against $500, and the later write would raise $400
+  to $450. The check and the write now run in one transaction with the organisation's row locked —
+  `SELECT … FOR UPDATE` in `usage.set_budget(org_id, amount, *, is_admin)` — and
+  `ensure_budget_allowed(current, amount, *, is_admin)` is a plain function given the current
+  budget. **Never on `main`:** the race came with BUG-032's fix, on this pull request.
+  `test_usage.py::test_two_budget_changes_at_once_cannot_raise_what_the_first_set` holds a first
+  change open on its own connection, polls `pg_locks` until the request is waiting on the row — not
+  a sleep — then commits; before the fix the request answered 200 and wrote $450.
+- **Settings → Usage promises a raise only to someone who can make one** — `b607021`, answering
+  CodeRabbit's comment outside the diff (Minor, `UsageSettings.tsx:181-183`). `canRaiseBudget` in
+  `frontend/src/lib/domain/usage.ts` mirrors the backend's rule: a platform admin; anyone while the
+  platform default is off; or an owner whose own budget is below the default. For everyone else,
+  stopped operations read "AI operations can't start again until next month." rather than "…,
+  unless the budget is raised.", and the budget field's hint reads "When a month's estimated cost
+  reaches it, operations and reports can't start until the next month." rather than "…or until the
+  budget is raised." Four Vitest tests: two for `canRaiseBudget` in `lib/domain/usage.test.ts`, two
+  in `app.usage.test.tsx`.
+- **Codex's three findings on the playbook** — `4af499c`, all P2, each with a test written to fail
+  first. The code was new on this pull request, so none of the three was ever on `main`.
+  - **A stage that becomes current while the screen is open now opens** (`Playbook.tsx:229`, which
+    CodeRabbit raised too). Radix reads `defaultOpen` only when a stage first renders, so the guide
+    could point at a stage that stayed shut. The stage it leaves is not closed: that would pull its
+    operations, and the focus on them, out from under someone using them.
+  - **A passed launch date is put in words** (`Playbook.tsx:187`): "the launch date was 3 days
+    ago", not "launch is -3 days away", and "the launch date was yesterday". Tomorrow and today,
+    which read "1 days away" and "0 days away", now read "launch is tomorrow" and "launch is
+    today".
+  - **What's finished is counted over every result** (`OperationsPage.tsx:27`). The playbook read
+    `GET /api/queue?product_id=…&limit=500`, which returns the newest 500 at most, so an operation
+    whose only approved result was older looked unfinished and was recommended again; it also
+    carried up to 500 results with their content, where the summary is a few counts. It now reads
+    `GET /api/queue/summary` (Added, above).
+  - **Tests:** three backend in `test_queue.py` —
+    `test_summary_counts_a_projects_results_by_operation_and_status`,
+    `test_summary_counts_results_older_than_the_newest_500`, with the 500 inserted in bulk by
+    `generate_series`, and `test_summary_needs_a_project_in_the_organisation` — plus one assertion
+    in `test_tenancy.py::test_queue_items_are_isolated`; six Vitest in `app.playbook.test.tsx`:
+    four launch-date wordings through `it.each`, the stage opening mid-session and the summary
+    replacing the page of results. The existing "results can't be loaded" test now fails the
+    summary route.
+
+### Changed
+
+- **Test figures, measured 2026-09-18 on the branch's code at `b607021`, one suite at a time:**
+  backend **570 passed** (was 564), 98.33% of 3,356 statements, 56 missed, against the scratch
+  cluster on port 56433 through `TEST_DATABASE_URL`; `services/usage.py` at 98% (85 statements, 2
+  missed) and `routers/queue.py` at 96% (209, 8 missed). Frontend Vitest **652 passed in 51 files**
+  (was 628 in 50), from `npm run coverage -- --maxWorkers=2`, run twice with identical results:
+  lines 99.19% (3,317 of 3,344), statements 97.13% (3,825 of 3,938), branches 90.24% (3,110 of
+  3,446), functions 96.59% (1,502 of 1,555). Playwright **99 passed** (was 96), in Chromium through
+  the temporary local-browser configuration in section 2 of `docs/TESTING.md`, at `--workers=4`: 3
+  smoke, 12 golden path, 56 accessibility (28 screens × 2 themes; "All operations" is the new
+  screen) and 28 at a 390px phone width. ESLint (zero warnings), `tsc -b` and ruff are clean. Both
+  95% gates pass.
+- **The increases reconcile commit by commit:** backend +2 (`08705de`), +3 (`4af499c`), +1
+  (`b607021`); Vitest +12 (`53456fc`), +2 (`08705de`), +6 (`4af499c`), +4 (`b607021`), with
+  `lib/domain/playbook.test.ts` unchanged at 18; Playwright +3 (`53456fc`).
+- **Every change was written test-first.** Seen failing before their fix: backend 5 before
+  `08705de`, as its commit message records, 3 before `4af499c` and 1 before `b607021`; Vitest 7
+  before `4af499c` — the six new tests and the updated "can't be loaded" test — and 3 before
+  `b607021`.
+- **CI passed on `08705de`, and again on `b607021`**, the last code commit: all three jobs —
+  backend, frontend with Playwright, and the secret scan (on `b607021`: the secret scan at
+  05:52:16Z, the backend at 05:53:44Z, the frontend at 05:57:07Z). This documentation, committed
+  on top, gets its own run; read it with `gh pr checks 6`. The merge waits until all three jobs
+  are green on the pull request's latest commit (T-10).
+
+### Checked outside the test suites
+
+- **By eye, against the fake backend** (a temporary Playwright spec, deleted afterwards): the
+  playbook on a project whose launch date passed two days ago, on the desktop and at 390px, reads
+  "…and the launch date was 2 days ago."; Settings → Usage, for an owner who isn't a platform
+  admin, on the default and with it used up, reads "AI operations can't start again until next
+  month.", with no "raised" anywhere.
+- **The new route's contract, by reading both sides.** No automated test runs the frontend against
+  the real backend (`docs/TESTING.md` gap 3), so `/api/queue/summary?product_id=` and the fields
+  `product_id`, `workflow_id`, `status` and `count` were checked against `QueueSummaryRow` by
+  reading, and the route itself by the backend tests against real Postgres. A signed-in check
+  against a local backend was not done: the assistant does not create accounts or enter passwords.
+
+### Known, not fixed
+
+- **LIM-004, new: the project tab bar on a phone.** `.tabnav` in
+  `frontend/src/components/ui/Display.module.css` scrolls with its scrollbar hidden, so Outbox,
+  Launch plan and Settings are reachable only by swiping, with no cue. 1.1.3 recorded it only in
+  this file and in `docs/HANDOFF.md`; it now has a registry entry in `docs/BUGS.md`. Seen again on
+  2026-09-18 in a 390px screenshot of the Operations screen, where the tabs end at "Review" and the
+  next is cut off.
+- **LIM-003, unchanged:** on a phone the Portfolio launch board shows only its project column. The
+  owner's chosen fix is cards (`docs/ROADMAP.md` → Next up).
+- **Gap 13, new evidence — a browser test timing out under CPU contention.** At Playwright's
+  default 8 workers on this 16-core machine, two full runs each had one phone-width screen time out
+  after 10 s waiting for it to render — "Run sheet", then "Calendar month" — a different screen
+  each time, and each passed when run on its own: "Run sheet" 5 of 5 with `--repeat-each 5`, and
+  the responsive spec by itself 28 of 28. The calendar is a screen pull request #6 does not touch.
+  Locally, run Playwright with `--workers=4`; CI is unaffected.
+- **Gap 14, unchanged:** the Vitest suite is not reliable at default concurrency on this machine;
+  run it with `--maxWorkers=2`.
+- **The fake backend is looser than the real one.** Its `GET /api/queue`
+  (`frontend/src/test/fakeApi.ts`) ignores `limit` and returns results in insertion order, where
+  the backend returns the newest first and at most `limit`, which is why no frontend test could see
+  the 500-result problem; `test_summary_counts_results_older_than_the_newest_500` covers it in the
+  backend. Making the fake sort newest first was rejected: tests that create results a millisecond
+  apart would then order unpredictably.
+- **Still untested:** `BudgetStatement`'s wording for an organisation's own budget, "Your
+  organisation's budget of $X applies: operations stop when a month's cost reaches it." No test
+  asserts it; the default-budget wording is tested.
+- **Budgets stored above $25 before the ceiling existed are kept**, because the rule applies to
+  changes. The owner can list any in production from Railway's Postgres console:
+  `SELECT id, name, monthly_ai_budget_usd FROM organisations WHERE monthly_ai_budget_usd > 25;`
+
+### Reviewed — pull request #5
+
+- **Final tally: twelve review threads and two comments outside the diff.**
+  - **Codex, two threads:** P1 on `backend/services/usage.py`, expose the effective budget, and P2
+    on `backend/config.py`, reject a negative default — both fixed in `43ab3e6`.
+  - **CodeRabbit, ten threads.** In its first reviews, five on documents — `CLAUDE.md` (the
+    responsive suite's scope), the plan's line on rotating the Railway token, `docs/AUDIT-LOG.md`,
+    `docs/CHANGELOG.md:290` and `docs/HANDOFF.md` — plus a Major on
+    `frontend/src/lib/domain/playbook.ts`, fixed in `6b97da3`, and one on
+    `backend/services/usage.py:83`, which is BUG-032. Then, in its review of `ce12024`, three more
+    on documents (below).
+- **A correction: the 1.1.3 entry's count of nine was right.** The token thread was one of
+  CodeRabbit's five threads on documents — the one that entry lists as "Not actioned". The 1.1.3
+  `docs/HANDOFF.md` listed it again after "five were on the documents", which reads as ten, and
+  CodeRabbit's thread on `docs/CHANGELOG.md:198` asked for the two to agree. The 1.1.3 entry below
+  is left as written; with the three threads on `ce12024`, the total is now twelve.
+- **Answered on GitHub on 2026-09-18, with the owner's go-ahead:** replies on four threads, each
+  then resolved — Codex's P1 and P2 (fixed in `43ab3e6`), the token thread (the owner's settled
+  practice, T-4) and BUG-032 (fixed on pull request #6, in `08705de`) — and one comment on the pull
+  request answering both comments outside the diff: the budget shown before any usage (CodeRabbit's
+  review of `43ab3e6`), fixed by `7dbc35d`, and the plan's wording (its review of `a2124a9`),
+  brought current in `ce12024`. With the five threads CodeRabbit had resolved itself, **9 of the 12
+  are resolved.**
+- **The last three — CodeRabbit's review of `ce12024`, all Minor — are answered by this
+  documentation**, and get their replies once it is pushed:
+  - **`CLAUDE.md:186`: "no ceiling" should say "no platform-default ceiling", and keep the request
+    maximum**, there and in the `DEFAULT_MONTHLY_AI_BUDGET_USD` row. `BudgetUpdate` in
+    `backend/models.py` is `Field(ge=0, max_digits=12, decimal_places=2)`, so **$9,999,999,999.99**
+    is the most any request can set, even with `DEFAULT_MONTHLY_AI_BUDGET_USD=0`, which removes
+    only the platform-default ceiling. 1.1.4's `CLAUDE.md` says so in "Usage and budgets" and in
+    that row.
+  - **`docs/ROADMAP.md:173`: reflect BUG-032 in the B-5 row**, which stated the owners' rule as
+    enforced while BUG-032 held it back. 1.1.4's B-5 row includes BUG-032: in production, an owner
+    who isn't a platform admin can take a budget stored above the default only to the default or
+    below, and pull request #6's `08705de` lets them lower it to any lower amount.
+  - **`docs/CHANGELOG.md:198`: reconcile the thread count.** Answered by the correction above, in
+    this entry rather than by editing 1.1.3's.
+
+### Reviewed — pull request #6
+
+_Its automated review ran on `08705de`: five threads and one comment outside the diff, all fixed in
+code._
+
+- **Codex, three P2 threads**, all fixed in `4af499c` (Fixed, above): `Playbook.tsx:229`, a stage
+  that becomes current stays collapsed; `Playbook.tsx:187`, "launch is -3 days away"; and
+  `OperationsPage.tsx:27`, completion read from the newest 500 results.
+- **CodeRabbit, two threads and one comment outside the diff:** a **Major** on
+  `backend/services/usage.py:90`, the race, fixed in `b607021`; a Minor on `Playbook.tsx:229`, the
+  same as Codex's, fixed in `4af499c`; and, outside the diff, a Minor on
+  `UsageSettings.tsx:181-183`, to promise a raise only when the owner can make one, fixed in
+  `b607021`.
+- **None has been answered on GitHub.** The owner's go-ahead covered pull request #5's threads;
+  posting on #6 waits for theirs.
+
+### Documentation
+
+- **1.1.4 is a new version rather than an extension of 1.1.3:** 1.1.3 was committed in `ce12024`
+  and merged with pull request #5, so it stays as the record of that state. All seven managed
+  documents are raised to 1.1.4 together.
+- **The documentation commit after `b607021`** brings the seven managed documents up to the code at
+  `b607021`, and to production at `477eaa4`:
+  - **`docs/BUGS.md`**: BUG-028 to BUG-031 on `main` and in production; BUG-032 in production since
+    the merge, and fixed on pull request #6's branch; LIM-004.
+  - **`docs/ROADMAP.md`**: T-9 done but for the signed-in check, which moves into **T-10** — merge
+    pull request #6, then check the live site signed in as an Owner — new, at P1 and first in
+    Active; B-14 and B-15 decided; the playbook's gates settled; B-5 with BUG-032. Twelve questions
+    stay open, B-1 to B-12.
+  - **`docs/HANDOFF.md`**: rewritten for pull request #6 and the merge of #5, with pull request
+    #5's thread count corrected.
+  - **`docs/TESTING.md`**: the figures above, the new and changed test files, gap 13's new
+    evidence, with `--workers=4` for local runs, and two new gaps (Known, not fixed): 15, the fake
+    backend's `GET /api/queue`, and 16, `BudgetStatement`'s untested own-budget wording.
+  - **`CLAUDE.md`**: Current State — the merge, pull request #6 as the active task, the open bugs
+    and the tests table — the playbook screen and the summary route, and "no platform-default
+    ceiling" with the request maximum.
+  - **This entry.**
+- **Outside the managed set, and so without versions of their own:**
+  - **`docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`**: Progress — pull request #5 merged and live, pull
+    request #6 open, the playbook screen, which pulls part of Phase 4's Campaign Playbooks forward,
+    and the owner's decisions of 2026-09-18 — the quality gates, now measured at `b607021`, and the
+    usage row.
+  - **`SOURCE_MAP.md`**: the playbook's components (`Playbook.tsx` with `Playbook.module.css`, and
+    `OperationCard.tsx`) and the summary route in the `routers/queue.py` row; also
+    `domain/playbook.ts`, `e2e/responsive.spec.ts` and a `services/usage.py` row that covers the
+    default budget, the three gaps 1.1.3 noted under "Still open in the documents".
+  - **`docs/DESIGN_SYSTEM.md`**: two patterns — **recommend, never gate**, for the playbook, and
+    **promise only what the viewer can do**, for the budget messages.
+  - **`docs/PHASE1_DESIGN.md`**: D12's budget is no longer "optional". Later decisions, recorded
+    beside it, hold an organisation without a budget of its own to the platform default and settle
+    who may set what.
+  - **`SETUP_PROMPT.md`**: its quick check no longer uses `npm run check` (gap 14 in
+    `docs/TESTING.md`): it runs lint, the type check and Vitest at `--maxWorkers=2`, and notes
+    that the scratch test cluster is stopped at session start.
+- **`docs/AUDIT-LOG.md`: a fifth reconciliation audit**, the closing pass over this documentation.
+  It runs after this entry is written, so its findings, and what was done about them, are recorded
+  in the log, not here.
+
+### Where it stands, when this was written (2026-09-18T06:10Z)
+
+- **Pull request #6 was open, not merged and not deployed** —
+  https://github.com/Vybecode-LTD/LaunchOps/pull/6, from branch `feat/playbook-ui`, based on `main`
+  at `477eaa4`. Its code commits, oldest first: `53456fc` (the playbook screen), `08705de` (BUG-032
+  and B-15), `4af499c` (Codex's review) and `b607021` (CodeRabbit's review). **The last code commit
+  on pull request #6 is `b607021`**; this documentation goes on top of it, on the same pull
+  request.
+- **`main` = `origin/main` = `477eaa4`**, and production serves its build — confirmed from the live
+  bundle, not from the Railway dashboard. Nothing on pull request #6, BUG-032's fix included, is on
+  `main` or in production.
+- **Next is T-10.** Once all three CI jobs are green on the pull request's latest commit
+  (`gh pr checks 6`), merge with a **merge commit, never a squash** — `.gitleaksignore`'s
+  fingerprints are per commit. Then, **signed in as an Owner and never with a probe account**
+  (T-1), check that the Operations screen opens on the playbook with a "Next up" card, and that, in
+  an organisation with no budget of its own, Settings → Usage shows the $25 platform default (T-9's
+  check). The merge also takes BUG-032's fix to production.
+- **Still open:** T-1, deleting `guard-check@example.com` and its organisation; and **T-4, rotating
+  the Railway project token** — the owner's settled practice at the end of every session, owed at
+  the end of this one. No token value is ever written anywhere. T-5 to T-8 are optional and
+  unchanged; T-2 and T-3 were done on 2026-09-17.
+- Pull request #6 adds no migration (still `0001`–`0007`) and no environment variable.
+  `.github/workflows/test-pipeline.yml` stays untracked by design.
+- **Re-check with `gh pr view 6`, `gh pr checks 6` and `git log --oneline -1 origin/main` rather
+  than trusting this section.**
 
 ---
 

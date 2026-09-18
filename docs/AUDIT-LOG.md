@@ -1,8 +1,8 @@
 ---
 document: AUDIT-LOG
-version: 1.1.3
-last-updated: 2026-09-18T03:32:06Z
-last-audit: 2026-09-18T02:45:00Z
+version: 1.1.4
+last-updated: 2026-09-18T06:39:21Z
+last-audit: 2026-09-18T06:35:00Z
 managed-by: session-orchestrator/doc-reconciler
 ---
 
@@ -15,6 +15,181 @@ checked, what was found, what was fixed and what was left for a document's owner
 `git show`, and the source itself — never against another document. Where two documents disagree,
 the code decides. No test suite is ever run to produce these figures: they are read from the
 session's own completed runs, because a second run against the shared test database corrupts it.
+
+---
+
+## Audit — 2026-09-18T06:35:00Z — closing audit of documentation 1.1.4: pull request #5 merged, pull request #6 open
+
+**Trigger:** the closing pass over documentation 1.1.4. Six document owners brought the seven
+managed documents to 1.1.4 in parallel, and four unmanaged documents were updated alongside them,
+so the documents could disagree with each other; and the session's facts file gained a section of
+corrections, its section 10, after the owners had started. On the owner's clock (UTC-4) it is
+02:35 on 2026-09-18.
+**Scope:** the seven managed documents and the four unmanaged ones updated with them —
+`docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`, `SOURCE_MAP.md`, `docs/DESIGN_SYSTEM.md` and
+`docs/PHASE1_DESIGN.md`: versions; every hash and what it is credited with; both pull requests'
+state; production; every figure, with its counts and the Playwright breakdown; the counts of
+tasks, decisions, bugs, limitations and review threads; the owner's decisions of 2026-09-18;
+LIM-004; stale current-state wording; and durable phrasing. Section 10's three corrections were
+applied wherever they reach. `SETUP_PROMPT.md` was swept, not audited (finding 44).
+**Method:** each claim checked against the session's facts file, against the other documents and
+against the repository — files on disk, `git log`, `git show`, `git diff` and the source at
+`b607021` and at `477eaa4` — and, for pull request, review and CI state, against GitHub. Figures
+and live-site observations are the facts file's, recorded as given: nothing was run.
+**Repository state, at open (06:17Z) and at close:** HEAD is `feat/playbook-ui` at `b607021`, the
+last code commit on pull request #6, which is also `origin`'s copy; `main` = `origin/main` =
+`477eaa4`. No application code differs from `b607021`. At open ten tracked documents were
+modified — the eleven in scope bar this log; at close there are eleven, this log modified by this
+entry. `.github/workflows/test-pipeline.yml` is untracked by design. **Everything below describes
+that uncommitted tree**, which goes up as the documentation commit on top of `b607021`.
+**This reconciler made no commit, stage, stash, push or branch switch, and ran no test suite,
+linter, build or server.** Its GitHub queries were read-only — `gh pr view 5` and `6`,
+`gh pr checks 6`, `gh run list` and `gh run view` on both branches, and `gh api` GETs of both pull
+requests' review comments, reviews and comments. It posted nothing and sent nothing to the
+production site. Findings continue the numbering.
+
+### Findings
+
+| # | Severity | Document | Issue | Resolution |
+|---|---|---|---|---|
+| 37 | MEDIUM | `CLAUDE.md` (Deployment & CI → Status), `docs/HANDOFF.md`, `docs/ROADMAP.md` (T-9), `docs/BUGS.md` (BUG-028), `docs/CHANGELOG.md` (1.1.4 → Shipped) | **All five credited the 04:43:44Z deployment check with finding "the sentence `7dbc35d` added".** It matched "default budget of" in the live Settings → Usage chunk (`UsageSettings-ZBCrvSWu.js`, loaded by `index-D1A5232b.js`), from `43ab3e6`'s "The platform's default budget of $X applies again." — text only pull request #5's code has. `7dbc35d`'s sentence was first confirmed by the 06:09:38Z re-check, which found it, `43ab3e6`'s sentence and still pull request #5's note naming a platform administrator in the same chunk (facts, section 10). The conclusion holds — production serves `477eaa4`'s build — but in each document the one passage that says how production was verified gave the wrong evidence | **Fixed in all five**, in each document's own wording: what 04:43:44Z matched, 05:14:16Z unchanged, and the 06:09:38Z re-check — all of pull request #5's code, none of #6's. `CLAUDE.md` and the changelog, which give the check in most detail, also record that the new bundle appeared about 41 seconds after the merge, fast for a Railway build, and that the observation stands either way. The dashboard record is still unread, and every document still says so |
+| 38 | MEDIUM | `CLAUDE.md` (Active task), `docs/HANDOFF.md`, `docs/ROADMAP.md` (T-10), `docs/BUGS.md` (BUG-032 → Verification), `docs/CHANGELOG.md` (1.1.4 → Changed), `docs/TESTING.md` (At a glance) | **CI on `b607021` left as unknown.** Each said CI passed on `08705de` and that the later commits' CI was still to be read; the changelog: "was not confirmed for this entry". CI passed all three jobs on `b607021` — run 35312501264: secret scan 05:52:16Z, backend 05:53:44Z, frontend with Playwright 05:57:07Z — before any of the six was last written. The branch has two runs only, that one and `08705de`'s (35309632564); `4af499c` has none of its own | **Fixed in all six:** CI passed on `08705de` and again on `b607021`; the documentation commit on top gets its own run, which is the one the merge waits for (`gh pr checks 6`) |
+| 39 | LOW | `docs/TESTING.md`, section 5 | **The coverage record said less than was read.** `routers/organisations.py` 95.38% was labelled "worked out, not measured" (lines 485 and 491), but `coverage report` on the run's `.coverage` data measured it — 195 statements, 9 missed — as it did `routers/queue.py` (209, 8) and `services/usage.py` (85, 2). And line 499: "No per-file figures were read, so which files hold them isn't known". The saved per-file report was read: the one missed line added since 1.1.3 is `Playbook.tsx:36`, the multi-item branch of `listOf`; `lib/domain/usage.ts:77`, the `?? 0` in `canRaiseBudget` for a null own budget, is a missed branch; `endpoints.ts` and `hooks.ts` show only older misses; and from `08705de` to `b607021` the missed lines and branches did not move (27 and 336) | **Fixed:** the three modules as measured, `routers/organisations.py` no longer labelled worked out; the four files the report lists, naming `Playbook.tsx:36` and `lib/domain/usage.ts:77`; the unchanged missed counts across the review fixes. The summary route's "all run — worked out, not measured" stays, because it is still an inference from counts. Line 501, on `playbook.ts` being absent from every per-file table, is still true and was left |
+| 40 | LOW | `CLAUDE.md:33` | "The guided launch playbook on the Operations screen — **a Phase 2 follow-up** that pulls part of M4 … forward". The same file's Next list (line 49), `docs/HANDOFF.md` (Next steps, item 8), `docs/ROADMAP.md` → Next up (items 4 to 6) and the plan (Next, item 3) give the Phase 2 follow-ups as the brand kernel, result history and billing settings; the roadmap tracks the playbook as Next up item 1, one of the owner's product choices of 2026-09-17 | **Fixed:** "the owner's product choice of 2026-09-17, which pulls part of M4 … forward" |
+| 41 | LOW | `docs/TESTING.md`, gap 11 | **Finding 35, carried: not taken up in 1.1.4.** "Bug IDs have no register yet … no `docs/BUGS.md` maps the IDs to root causes and fixes". The registry has existed since `7c1f1cb`; what is true is narrower. And "There is no `B14` group" now sits beside the roadmap's B-14, decided today | **Fixed:** the headers' `B1`–`B19` IDs are mapped nowhere; `docs/BUGS.md` numbers bugs separately, BUG-001 to BUG-032; the missing `B14` group is marked as unrelated to the roadmap's B-14. Section 3's pointer to gap 11 still reads true |
+| 42 | LOW | `docs/CHANGELOG.md`, 1.1.4 → Documentation | The record of what 1.1.4 changed in `docs/TESTING.md` stops at the figures, the test files and gap 13's evidence. `docs/TESTING.md` also gained **gap 15** (the fake backend's `GET /api/queue` ignores `limit` and order) and **gap 16** (`BudgetStatement`'s own-budget wording is untested). The changelog's Known, not fixed and `docs/HANDOFF.md` describe both, but no document gave their numbers | **Fixed:** both named in that bullet, pointing at Known, not fixed |
+| 43 | LOW | `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`, Progress | "One later fix arrived after that." introduces BUG-027 (pull request #3, 2026-09-17), and now follows the new paragraph on pull request #6's playbook, so it reads as if the fix came after #6. In 1.1.3 it already followed the pull request #5 sentence | **Fixed:** "The later fix in #3 came after the Phase 0–2 merge." |
+| 44 | LOW | `SETUP_PROMPT.md` (outside the eleven; swept only) | The session-start prompt has every session run `npm run check` as its quick check. `docs/HANDOFF.md` (Start here) says not to use it for the baseline — at default concurrency the Vitest suite fails intermittently on this machine (`docs/TESTING.md` gap 14) — and gives `npm run lint`, `npm run typecheck` and `npx vitest run --maxWorkers=2` instead. Standing since 1.1.3 | **Left for the owner.** The prompt is the owner's own paste-in text, written in their voice and outside this audit's scope, so it was not edited. The fix is to swap `frontend: npm run check` for those three commands. **Resolved after the audit** (06:36Z), not by this reconciler: `SETUP_PROMPT.md` now runs `npm run lint; npm run typecheck; npx vitest run --maxWorkers=2` and `python -m pytest -q`, notes that the scratch test cluster is stopped at session start, and says not to use `npm run check`, citing gap 14 |
+| 45 | LOW | all seven managed documents | Stamps. All seven `last-audit` read 02:45:00Z, and this log was still at 1.1.3. `CLAUDE.md`'s `last-updated` (06:02:44Z) and `docs/HANDOFF.md`'s (06:03:14Z) predate their owners' last edits (06:06:40Z and 06:04:01Z): finding 32's pattern again | **Fixed in part:** all seven `last-audit` set to this entry's timestamp, and this log to 1.1.4 with its `last-updated`. The other six `last-updated` stamps are left for `doc-versioner`, as after every earlier audit; this entry records what changed after them. **Resolved after the audit:** all seven `last-updated` stamps, this log's included, set to 2026-09-18T06:39:21Z |
+
+**Totals:** 9 findings — 0 critical, 0 high, 2 medium, 7 low.
+**Auto-fixed by this reconciler: 8** (37 to 43, and 45 in part): 19 passages in seven documents —
+`CLAUDE.md` 3, `docs/TESTING.md` 6, `docs/CHANGELOG.md` 3, `docs/BUGS.md` 2, `docs/HANDOFF.md` 2,
+`docs/ROADMAP.md` 2 and the plan 1 — plus the frontmatter stamps. **Left for an owner: 2** (44 the
+owner · 45's `last-updated` stamps `doc-versioner`).
+
+### Before the documentation commit
+
+- **Nothing serious remains.** Outside dated historical entries, no document says pull request #5
+  is unmerged, BUG-032 open or unfixed, or the playbook's screen unpushed; and none describes its
+  own commit as uncommitted. Every document names `b607021` the last code commit and puts the
+  documentation on top of it, wording the push cannot falsify.
+- **Moderate, fixed:** 37 and 38, both from section 10, which arrived after the owners had
+  written.
+- **Minor:** 39 to 45; only 44 and part of 45 stay open. *Both resolved after the audit: see
+  their rows.*
+
+### Verified — what holds against the repository and GitHub
+
+- **Versions.** All seven managed documents are at 1.1.4 — six by their owners, this log by this
+  entry — and `CLAUDE.md`'s in-body literals (the changelog row at line 23, "Doc version" at line
+  52) match.
+- **Pull requests and CI, from GitHub.** #5 is MERGED, at 2026-09-18T04:43:03Z, as `477eaa4`: a
+  true merge commit (parents `0ce65dd` and `ce12024`) whose tree is `ce12024`'s, so production's
+  application code is `7dbc35d`'s. CI on `ce12024` finished at 03:38:11Z (run 35303654034). #6 is
+  OPEN and mergeable, `feat/playbook-ui` into `main`, head `b607021`. Every hash in the 1.1.4 text
+  resolves and carries the subject credited to it, and `08705de`'s message records the five
+  backend tests that failed first.
+- **Review threads, from GitHub.** #5 has twelve top-level review comments — Codex 2; CodeRabbit
+  10: five on documents at 22:35Z, `playbook.ts` and `usage.py:83`, and three on documents at
+  03:42Z (`CLAUDE.md:186`, `docs/CHANGELOG.md:198`, `docs/ROADMAP.md:173`) — the owner's four
+  replies at 05:11Z, on exactly the four threads the documents name, and one pull-request comment
+  at 05:12Z. #6 has five — Codex 3, CodeRabbit 2 — with no reply; both reviews are on `08705de`,
+  CodeRabbit's carrying the outside-the-diff comment on `UsageSettings.tsx:181-183`, and none has
+  come since. Resolution is visible only through GraphQL, which was not queried, so "9 of 12
+  resolved" is carried from the facts file.
+- **The code the documents quote, on the branch:** `ensure_budget_allowed(current, amount, *,
+  is_admin)` at `backend/services/usage.py:71`, both 403 messages word for word, the 429's remedy,
+  and `set_budget` at 126 with `FOR UPDATE` at 136, called at `backend/routers/organisations.py:367`;
+  `canRaiseBudget` at `frontend/src/lib/domain/usage.ts:71`, its `?? 0` at 77; `listOf`'s
+  multi-item line at `Playbook.tsx:36`; `fakeApi.ts:1063`; `GET /api/queue/summary` declared at
+  `backend/routers/queue.py:53`, before `/{item_id}` at 76, and `QueueSummaryRow`'s four fields;
+  and the Settings → Usage note, stop message and hint, word for word. **On `main`:** every line
+  BUG-028, BUG-031 and BUG-032 give for it — `usage.py:57`, `:71`, `:83` and `:110–115`,
+  `organisations.py:366`, `fakeApi.ts:1048–1050`, `UsageSettings.tsx:117`, `:181–184`, `:238` and
+  `:256`, `models.py:49` and `:66`, `config.py:73` — and the old 403 message.
+- **Tests.** For every test file pull request #6 touched, the counts in `docs/TESTING.md` section
+  4 match the files — `test_usage.py` 27, `test_queue.py` 35, `test_tenancy.py` 9,
+  `app.usage.test.tsx` 26, `usage.test.ts` 12, `app.playbook.test.tsx` 15, `playbook.test.ts` 18 —
+  and against `main` the deltas reconcile: backend +3 and +3; Vitest +4, +2 and 18 run in the new
+  file. The other three test files it touched keep their counts. Every regression test BUG-032
+  cites is at the line given. Both browser specs enumerate the same 28 screens — "All operations"
+  is the new one; `main`'s have 27 — and section 3's list matches them name for name.
+- **Figures.** Every figure in the eleven documents matches the facts file: 570, 98.33%, 3,356
+  and 56; 652 in 51 files, with all four percentages and their counts; 99 = 3 + 12 + 56 + 28; the
+  deltas since 1.1.3; the eight-worker timeouts. The arithmetic holds: 3,340 + 9 + 8 − 1 = 3,356;
+  186 of 195, 201 of 209 and 83 of 85 give 95.38%, 96.17% and 97.65%; and the frontend's missed
+  counts are 113, 336, 53 and 27.
+- **IDs and counts agree across the documents.** T-10 first, with T-1 and T-4 to T-8 open and
+  T-2, T-3 and T-9 done (`CLAUDE.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md`, the plan). B-1 to B-12
+  open; B-13, B-14, B-15 and the playbook's gates decided (those four, `docs/BUGS.md` and the
+  changelog). 32 bugs, all fixed, 31 on `main`, next BUG-033; LIM-001 to LIM-004. The decisions
+  are stated alike everywhere, B-14 with the owner's reason and, as fact, its dependence on
+  billing, which is not built. LIM-004's code claims hold: `.tabnav` scrolls with
+  `scrollbar-width: none`, as it has since `d7752c3`.
+- **Stale-state sweep.** Outside dated historical entries (the changelog's 1.1.3 and earlier, and
+  this log), nothing calls pull request #5 unmerged, the playbook's screen unpushed or on an
+  unpushed branch, or BUG-032 open or unfixed. `f6261a6`, the playbook commit's hash before the
+  branch was rebuilt on `main` (it is `53456fc` now: same subject, differing only by the new
+  base), appears nowhere. Every "27 screens" is historical: M2's checkbox in the roadmap, BUG-029's
+  cause and regression test (the spec as it was written, and as it still is on `main`), and the
+  changelog's 1.1.3 entry. 1.1.4's own text has no "head" and no commit count.
+- **Pull request #6's reach, from `git diff 477eaa4 b607021`:** 27 files; no dependency manifest,
+  no migration (still `0001`–`0007`), no `config.py` and no security-critical module. So
+  `docs/TESTING.md`'s "changes no dependency", the changelog's "no migration and no environment
+  variable" and the security-critical coverage row's "none has changed since" all hold, and so
+  does gap 13's note that neither `RunSheet.tsx` nor the calendar page changed.
+- **Nothing secret, no probe.** None of the 941 lines the batch adds carries a token, key prefix or
+  UUID. `.gitleaksignore` still pins three fingerprints, two on `d7752c3` and one on `4f433ee`, and
+  the gitleaks-sensitive note in `docs/TESTING.md` is unchanged. No document suggests a
+  registration probe on the live site; T-10's check is made signed in as an Owner, never with a
+  probe account.
+- **Carried, not re-checked:** the live-site observations at 04:43:44Z, 05:14:16Z and 06:09:38Z,
+  the test runs, the per-file coverage and the local clusters' state — all from the facts file,
+  because this audit runs nothing and sends nothing to production.
+
+### Concurrency
+
+**None.** At 06:28Z every document's hash matched the snapshot taken when the audit opened at
+06:17Z; each file this reconciler edited was checked again immediately before it was written, and
+the four it did not edit were unchanged at close (06:31Z). The last owner edit before the audit
+was `docs/TESTING.md`, at 06:15:17Z. GitHub did not move either: #6 still open at `b607021`, and
+no new review.
+
+### The previous entry's follow-ups — closed
+
+| # | Item | State |
+|---|---|---|
+| 1 | `doc-versioner` — finding 27, then 32 | **Done** in `ce12024`: the 1.1.3 entry was extended to `7dbc35d` and the review. Finding 32's pattern recurs as 45 |
+| 2 | `memory-updater` — findings 28 and 29 | **Done.** `CLAUDE.md` says the merge caps the exposure per organisation, and names `b607021` the last code commit with the documentation "committed on top of it", which the push cannot falsify |
+| 3 | `bug-fix-tracker` — findings 28 and 34 | **Done.** `docs/BUGS.md` says the fixes cap the exposure "rather than closing it", and points remaining work at `docs/ROADMAP.md` → Active and Blocked |
+| 4 | `handoff-builder` and the owner — finding 31 | **Done, and overtaken.** The threads are twelve, answered on GitHub on 2026-09-18 with the owner's go-ahead; the last three get their replies once this documentation is pushed |
+| 5 | The owners of the roadmap, `docs/TESTING.md` and the plan — findings 30, 33 and 35; the owner — 36, T-4 and T-1 | **30 and 33 done. 35 not done — carried as finding 41, and fixed here. 36 settled:** every document now gives the owner's settled practice — `railway login` will not authorise on this machine, and the token is rotated at the end of every session. T-4 and T-1 are still open |
+| 6 | **Standing:** three coming events | **All three happened, and each set was brought current.** 1.1.3 was committed as `ce12024`; pull request #5 merged as `477eaa4`, and every sentence that entry listed now says merged and in production, with the dashboard record stated as unread; and the playbook branch was rebuilt on `main`, `f6261a6` becoming `53456fc`, with no document left naming the old hash |
+| — | Finding 24 (the owner's call) | **Unchanged:** the admin's address is in `CLAUDE.md`, `docs/ROADMAP.md` (T-2) and the plan |
+
+### Left open
+
+1. **The owner — finding 44**, the quick check in `SETUP_PROMPT.md`; and, as before, T-4, owed
+   at the end of this session, and T-1. *Finding 44 was resolved after the audit: see its row.*
+2. **`doc-versioner` — finding 45's `last-updated` stamps.** *Resolved after the audit: see its
+   row.*
+3. **Standing — two coming events will each falsify a known set of sentences; re-check that set as
+   each lands.**
+   - **The documentation commit and its push.** It gets its own CI run, and five documents say
+     the merge waits for it (`CLAUDE.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md` T-10, `docs/BUGS.md`
+     BUG-032, `docs/TESTING.md`). Pull request #5's last three threads then get their replies
+     (`docs/HANDOFF.md`, Next steps, item 3).
+   - **The merge of pull request #6 (T-10).** Every "open", "not on `main`" and "not in
+     production" for #6, BUG-032, B-15's carrying-out and the playbook's gates: `CLAUDE.md`'s
+     Phase line, Active task, Open bugs, the Key behaviours split between `main` and #6, the
+     Screens table, the `DEFAULT_MONTHLY_AI_BUDGET_USD` row and the footer; `docs/HANDOFF.md`'s
+     opening; `docs/ROADMAP.md`'s T-10, M4 note, Next up item 1, B-5 and B-15; `docs/BUGS.md`'s
+     opening, count table and BUG-032; the plan's Progress and usage row; and D12 in
+     `docs/PHASE1_DESIGN.md`. The deploy has a concrete check from outside, as before: the live
+     Settings → Usage chunk should lose pull request #5's note ("…only a platform administrator
+     can set a higher one.") and carry #6's ("…and the most an organisation can set. You can set
+     a lower one below.").
 
 ---
 
