@@ -98,6 +98,48 @@ describe("what to run next", () => {
     expect(understand.done).toBe(1);
   });
 
+  it("shows a first run as running, and does not ask for it again meanwhile", () => {
+    // Only a first run with nothing finished beside it reports `running`; completion wins otherwise.
+    const { stages, recommended } = playbook(project(), [queued("market_analysis", "running")], TODAY);
+
+    expect(stages[0]!.operations.find((entry) => entry.operation.id === "market_analysis")?.state).toBe("running");
+    expect(recommended?.operation.id).toBe("competitor");
+  });
+
+  it("keeps a finished operation finished while it is run again", () => {
+    // Running an operation again adds a new `running` result and keeps the approved one. If
+    // `running` won, a stage the user had already finished would reopen the moment they re-ran
+    // something in it, and the recommendation for the next stage would disappear.
+    const queue = [queued("competitor", "approved"), { ...queued("competitor", "running"), id: "competitor-rerun" }];
+
+    const understand = playbook(project(), queue, TODAY).stages[0]!;
+
+    expect(understand.operations.find((entry) => entry.operation.id === "competitor")?.state).toBe("done");
+    expect(understand.done).toBe(1);
+  });
+
+  it("counts a result awaiting review even while the operation is run again", () => {
+    const queue = [queued("competitor", "pending"), { ...queued("competitor", "running"), id: "competitor-rerun" }];
+
+    const understand = playbook(project(), queue, TODAY).stages[0]!;
+
+    expect(understand.operations.find((entry) => entry.operation.id === "competitor")?.state).toBe("in_review");
+  });
+
+  it("moves on to the next stage when a finished one has a rerun in progress", () => {
+    const finished = project({ market_analysis: { executive_summary: "Growing." }, pricing_result: { launch_strategy: "Undercut." } });
+    const queue = [
+      queued("competitor", "approved"),
+      queued("trend", "approved"),
+      { ...queued("trend", "running"), id: "trend-rerun" },
+    ];
+
+    const { current, recommended } = playbook(finished, queue, TODAY);
+
+    expect(current?.stage.id).toBe("position");
+    expect(recommended?.stage.id).toBe("position");
+  });
+
   it("asks again for an operation that failed", () => {
     const { recommended } = playbook(project({ market_analysis: { executive_summary: "done" } }), [queued("competitor", "failed")], TODAY);
 

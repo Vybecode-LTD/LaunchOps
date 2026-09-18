@@ -115,11 +115,17 @@ export interface Playbook {
 
 const COUNTS_AS_DONE: OperationState[] = ["done", "in_review"];
 
-/** The most meaningful state among a project's runs of one operation. */
+/**
+ * The most meaningful state among a project's runs of one operation.
+ *
+ * Completion wins over activity. Running an operation again adds a new result and keeps the
+ * earlier ones, so a finished operation can have a `running` rerun beside its approved result;
+ * if `running` won, re-running anything would reopen a stage the user had already finished.
+ */
 function stateFromQueue(items: QueueItem[]): OperationState {
-  if (items.some((item) => item.status === "running")) return "running";
   if (items.some((item) => item.status === "approved")) return "done";
   if (items.some((item) => item.status === "pending")) return "in_review";
+  if (items.some((item) => item.status === "running")) return "running";
   if (items.some((item) => item.status === "failed")) return "failed";
   return "todo";
 }
