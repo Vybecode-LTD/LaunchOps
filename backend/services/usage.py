@@ -68,6 +68,25 @@ def effective_budget(own: Decimal | None) -> tuple[Decimal | None, str]:
     return (default, "default") if default > 0 else (None, "none")
 
 
+def ensure_budget_allowed(amount: Decimal | None, *, is_admin: bool) -> None:
+    """403 when someone other than a platform admin sets a budget above the platform default.
+
+    Registration makes every new account the owner of its own organisation, and an organisation's own
+    budget wins over the default. Without this, anyone could sign up and lift the cap on the
+    deployment's single API key with one request (BUG-031). Lowering or matching the default, or
+    clearing a budget, only ever reduces what the key can spend, so owners may always do those. With
+    the default switched off (0) there is no ceiling to enforce.
+    """
+    if amount is None or is_admin:
+        return
+    ceiling = get_settings().default_monthly_ai_budget_usd
+    if ceiling > 0 and amount > ceiling:
+        raise HTTPException(
+            403,
+            f"An organisation can set a monthly AI budget of up to ${ceiling:,.2f}. A platform administrator can set a higher one.",
+        )
+
+
 async def ensure_within_budget(org_id: str, org_name: str) -> None:
     """429 when this month's cost has reached the organisation's budget, or the platform default.
 
@@ -88,11 +107,12 @@ async def ensure_within_budget(org_id: str, org_name: str) -> None:
     )
     if spent >= budget:
         which = "its AI budget" if its_own else "the default AI budget"
-        advice = "raise it" if its_own else "set a higher budget"
-        raise HTTPException(
-            429,
-            f"{org_name} has used {which} for {start:%B} (${budget:,.2f}). An owner can {advice} in Settings → Usage.",
-        )
+        # Owners can raise their own budget only while it is still under the default; beyond that,
+        # and for the default itself, only a platform admin can. Name whoever can actually help.
+        ceiling = get_settings().default_monthly_ai_budget_usd
+        owner_can_raise = its_own and not (ceiling > 0 and budget >= ceiling)
+        remedy = "An owner can raise it in Settings → Usage." if owner_can_raise else "A platform administrator can raise it."
+        raise HTTPException(429, f"{org_name} has used {which} for {start:%B} (${budget:,.2f}). {remedy}")
 
 
 async def set_budget(org_id: str, amount: Decimal | None) -> None:

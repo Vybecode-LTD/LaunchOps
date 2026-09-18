@@ -157,7 +157,10 @@ function MonthSummary({ summary, current }: { summary: UsageSummary; current: bo
                   : "Operations stop when the month's cost reaches the budget."}
               </p>
               {source === "default" && (
-                <p className={styles.budgetText}>This is the platform&apos;s default budget. Set your own below to change it.</p>
+                <p className={styles.budgetText}>
+                  This is the platform&apos;s default budget. You can set a lower one below; only a platform administrator can
+                  set a higher one.
+                </p>
               )}
             </>
           )}

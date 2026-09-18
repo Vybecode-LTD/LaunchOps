@@ -346,16 +346,18 @@ function effectiveBudget(state: FakeState, orgId: string): { amount: number | nu
 function budgetRefusal(state: FakeState, membership: Membership): Response | null {
   const { amount: budget, source } = effectiveBudget(state, membership.id);
   if (budget === null) return null;
+  const ceiling = state.defaultBudget ?? 0;
   const now = new Date();
   const spent = usageTotals((state.aiUsage ?? []).filter((row) => row.org_id === membership.id && row.created_at.slice(0, 7) === now.toISOString().slice(0, 7))).cost_usd;
   if (spent < budget) return null;
   const month = now.toLocaleString("en-US", { month: "long", timeZone: "UTC" });
   return HttpResponse.json(
     {
-      detail:
-        source === "organisation"
-          ? `${membership.name} has used its AI budget for ${month} (${usd(budget)}). An owner can raise it in Settings → Usage.`
-          : `${membership.name} has used the default AI budget for ${month} (${usd(budget)}). An owner can set a higher budget in Settings → Usage.`,
+      detail: `${membership.name} has used ${source === "organisation" ? "its AI budget" : "the default AI budget"} for ${month} (${usd(budget)}). ${
+        source === "organisation" && !(ceiling > 0 && budget >= ceiling)
+          ? "An owner can raise it in Settings → Usage."
+          : "A platform administrator can raise it."
+      }`,
     },
     { status: 429 },
   );
@@ -1042,6 +1044,14 @@ export function handlers(state: FakeState): HttpHandler[] {
         if (amount < 0) return invalid("Input should be greater than or equal to 0");
         if (Math.abs(amount * 100 - Math.round(amount * 100)) > 1e-6) return invalid("Decimal input should have no more than 2 decimal places");
         if (amount >= 1e10) return invalid("Decimal input should have no more than 12 digits in total");
+      }
+      // Mirrors usage.ensure_budget_allowed: only a platform admin may go above the default (BUG-031).
+      const ceiling = state.defaultBudget ?? 0;
+      if (amount !== null && ceiling > 0 && amount > ceiling && state.user.role !== "admin") {
+        return HttpResponse.json(
+          { detail: `An organisation can set a monthly AI budget of up to ${usd(ceiling)}. A platform administrator can set a higher one.` },
+          { status: 403 },
+        );
       }
       const orgId = orgOf(request).id;
       state.budgets = { ...state.budgets, [orgId]: amount };

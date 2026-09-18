@@ -321,7 +321,9 @@ describe("The platform's default budget", () => {
     const month = await region(formatUsageMonth(thisMonth));
     expect(await within(month).findByText("$25.00")).toBeInTheDocument();
     expect(within(month).getByText("Within budget")).toBeInTheDocument();
-    expect(within(month).getByText("This is the platform's default budget. Set your own below to change it.")).toBeInTheDocument();
+    expect(
+      within(month).getByText("This is the platform's default budget. You can set a lower one below; only a platform administrator can set a higher one."),
+    ).toBeInTheDocument();
     expect(within(month).queryByText("No monthly budget, so operations don't stop for cost. Set one below.")).not.toBeInTheDocument();
   });
 
@@ -337,6 +339,23 @@ describe("The platform's default budget", () => {
     expect(screen.queryByText("AI operations no longer stop for cost.")).not.toBeInTheDocument();
   });
 
+  it("tells an owner who isn't a platform admin that they can't go above the default", async () => {
+    // BUG-031: every account that registers owns its own organisation, so letting an owner raise
+    // their budget past the default would let anyone lift the cap on the deployment's API key.
+    const state = makeState({ defaultBudget: 25 });
+    state.user = { ...state.user, role: "user" };
+    const { user } = renderApp("/settings/usage", state);
+
+    const panel = await region("Monthly budget");
+    await user.type(within(panel).getByLabelText("Budget in US dollars"), "1000");
+    await user.click(within(panel).getByRole("button", { name: "Save budget" }));
+
+    expect(await within(panel).findByRole("alert")).toHaveTextContent(
+      "An organisation can set a monthly AI budget of up to $25.00. A platform administrator can set a higher one.",
+    );
+    expect(state.budgets?.["org-1"]).toBeUndefined();
+  });
+
   it("stops an organisation at the default and says which budget it reached", async () => {
     const project = makeProject();
     const state = makeState({ projects: [project], defaultBudget: 5, aiUsage: [usage({ product_id: project.id, cost_usd: 5.2 })] });
@@ -347,7 +366,7 @@ describe("The platform's default budget", () => {
     const month = new Date().toLocaleString("en-US", { month: "long", timeZone: "UTC" });
     const sheet = screen.getByRole("dialog", { name: "Run blog post draft" });
     expect(await within(sheet).findByRole("alert")).toHaveTextContent(
-      `Northstar Ventures has used the default AI budget for ${month} ($5.00). An owner can set a higher budget in Settings → Usage.`,
+      `Northstar Ventures has used the default AI budget for ${month} ($5.00). A platform administrator can raise it.`,
     );
     expect(state.queue).toEqual([]);
   });

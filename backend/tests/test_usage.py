@@ -181,7 +181,7 @@ async def test_an_organisation_without_its_own_budget_is_capped_by_the_platform_
                                json={"product_id": owner.product["id"], "workflow_id": "trend"})
 
     month = datetime.now(UTC).strftime("%B")
-    message = f"Olivia's organisation has used the default AI budget for {month} ($2.00). An owner can set a higher budget in Settings → Usage."
+    message = f"Olivia's organisation has used the default AI budget for {month} ($2.00). A platform administrator can raise it."
     assert (launch.status_code, launch.json()) == (429, {"detail": message})
 
 
@@ -269,3 +269,79 @@ async def test_the_usage_summary_reports_no_budget_only_when_there_really_is_non
     assert usage["default_budget_usd"] is None
     assert usage["effective_budget_usd"] is None
     assert usage["budget_source"] == "none"
+
+
+
+@pytest.fixture
+async def stranger(client, owner, register, auth):
+    """Someone who signed up through open registration. The fixture's `owner` registered first and is
+    therefore the platform admin; this second account is an ordinary user who owns only the
+    organisation registration made for them — exactly the position of anyone on the internet."""
+    token, user = await register("mallory@example.com", name="Mallory")
+    headers = auth(token)
+    org_id = (await client.get("/api/auth/me", headers=headers)).json()["organisations"][0]["id"]
+    assert user["role"] == "user"
+    return type("Stranger", (), {"token": token, "user": user, "headers": headers, "org_id": org_id})
+
+
+async def test_an_owner_cannot_raise_their_budget_above_the_platform_default(client, stranger, monkeypatch):
+    """BUG-031. Registration makes every new account the owner of its own organisation, and an
+    organisation's own budget wins over the default — so without this rule anyone could sign up, set
+    their budget to $9,999,999,999.99 and spend without limit on the deployment's API key."""
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(25))
+
+    raised = await client.put("/api/organisation/budget", headers=stranger.headers, json={"monthly_ai_budget_usd": 1_000_000})
+
+    assert raised.status_code == 403
+    assert raised.json() == {
+        "detail": "An organisation can set a monthly AI budget of up to $25.00. A platform administrator can set a higher one."
+    }
+    usage = (await client.get("/api/organisation/usage", headers=stranger.headers)).json()
+    assert (usage["budget_usd"], usage["effective_budget_usd"]) == (None, 25.0)
+
+
+async def test_an_owner_can_set_a_budget_up_to_the_platform_default(client, stranger, monkeypatch):
+    """Lowering the cap, or matching it, is always allowed: it can only reduce what the key spends."""
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(25))
+
+    lower = await client.put("/api/organisation/budget", headers=stranger.headers, json={"monthly_ai_budget_usd": 10})
+    equal = await client.put("/api/organisation/budget", headers=stranger.headers, json={"monthly_ai_budget_usd": 25})
+    cleared = await client.put("/api/organisation/budget", headers=stranger.headers, json={"monthly_ai_budget_usd": None})
+
+    assert [lower.status_code, equal.status_code, cleared.status_code] == [200, 200, 200]
+
+
+async def test_a_platform_admin_can_set_a_budget_above_the_platform_default(client, owner, monkeypatch):
+    """The operator decides who may spend more than the default, one organisation at a time."""
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(25))
+    assert owner.user["role"] == "admin"
+
+    raised = await client.put("/api/organisation/budget", headers=owner.headers, json={"monthly_ai_budget_usd": 500})
+
+    assert raised.status_code == 200
+    usage = (await client.get("/api/organisation/usage", headers=owner.headers)).json()
+    assert (usage["effective_budget_usd"], usage["budget_source"]) == (500.0, "organisation")
+
+
+async def test_with_the_default_switched_off_an_owner_sets_any_budget(client, stranger, monkeypatch):
+    """0 means the operator opted out of a platform ceiling, so there is nothing to stay under."""
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(0))
+
+    raised = await client.put("/api/organisation/budget", headers=stranger.headers, json={"monthly_ai_budget_usd": 1_000_000})
+
+    assert raised.status_code == 200
+
+
+async def test_a_refusal_at_the_default_says_only_an_admin_can_raise_it(client, stranger, create_product, fake_ai, run_jobs, monkeypatch):
+    """The refusal used to say an owner could set a higher budget, which invited exactly the bypass."""
+    monkeypatch.setattr(config.get_settings(), "default_monthly_ai_budget_usd", Decimal(2))
+    product = await create_product(stranger.token, name="Side Project")
+    await _usage_row(stranger.org_id, stranger.user["id"], product["id"], "trend", "claude-sonnet-5", 2.5)
+
+    launch = await client.post("/api/workflows/launch", headers=stranger.headers, json={"product_id": product["id"], "workflow_id": "trend"})
+
+    month = datetime.now(UTC).strftime("%B")
+    assert launch.status_code == 429
+    assert launch.json()["detail"] == (
+        f"Mallory's organisation has used the default AI budget for {month} ($2.00). A platform administrator can raise it."
+    )
