@@ -44,6 +44,55 @@ describe("WorkflowResult", () => {
     expect(() => wrap(<WorkflowResult workflowId={workflowId} content={malformed} />)).not.toThrow();
   });
 
+  it("leaves out a competitor column no competitor has a value for", () => {
+    // The model often cannot find pricing or an audience for every competitor. Rendering the
+    // column anyway leaves a header over a strip of blank cells, which reads as broken on the
+    // screen most likely to be shown to someone else.
+    wrap(
+      <WorkflowResult
+        workflowId="competitor"
+        content={{
+          competitors: [
+            { name: "PatchForge", threat_level: 7, audience: "Producers" },
+            { name: "KnobWorks", threat_level: 3 },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole("columnheader", { name: "Pricing" })).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Audience" })).toBeInTheDocument();
+  });
+
+  it("marks a competitor that is missing a value the column does carry", () => {
+    wrap(
+      <WorkflowResult
+        workflowId="competitor"
+        content={{
+          competitors: [
+            { name: "PatchForge", threat_level: 7, audience: "Producers" },
+            { name: "KnobWorks", threat_level: 3 },
+          ],
+        }}
+      />,
+    );
+
+    const knobworks = screen.getAllByRole("row").find((row) => within(row).queryByText("KnobWorks"))!;
+    expect(within(knobworks).getByText("Not found")).toBeInTheDocument();
+  });
+
+  it("leaves out a profile heading with nothing under it", () => {
+    wrap(
+      <WorkflowResult
+        workflowId="competitor"
+        content={{ competitors: [{ name: "KnobWorks", threat_level: 3 }] }}
+      />,
+    );
+
+    expect(screen.queryByText("Strengths")).not.toBeInTheDocument();
+    expect(screen.queryByText("Weaknesses")).not.toBeInTheDocument();
+  });
+
   it("says which communities limit self-promotion, with a warning pill", () => {
     wrap(
       <WorkflowResult

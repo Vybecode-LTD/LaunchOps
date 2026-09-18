@@ -205,11 +205,17 @@
   padding: 2px;
   border-radius: var(--radius-md);
   background: var(--neutral-soft);
+  /* With enough options this is wider than a phone. Scroll it rather than let it
+     push the page out; the segments keep their own width so labels stay readable. */
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .segment {
   display: inline-flex;
   align-items: center;
+  flex: none;
   gap: 6px;
   height: 28px;
   padding: 0 10px;

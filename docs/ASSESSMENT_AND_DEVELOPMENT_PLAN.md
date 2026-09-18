@@ -6,7 +6,7 @@
 
 ## Progress (updated 2026-09-17)
 
-All of this work is on `main`: merged from pull request #1 (merge commit `24eff91`) on 2026-09-17, after CI passed, with the documentation and one later fix following in #2 (`f143f1c`) and #3 (`bc6143c`).
+The Phase 0–2 work is on `main`: merged from pull request #1 (merge commit `24eff91`) on 2026-09-17, after CI passed, with the documentation and one later fix following in #2 (`f143f1c`) and #3 (`bc6143c`). A later batch of fixes — the platform default AI budget and the ceiling on raising it, phone-width layout, empty result states and the playbook's domain module — is on pull request #5, **not yet merged**; the quality-gate figures below are measured on that branch.
 
 One later fix arrived after that. Reconciling the documentation at session end turned up an
 intermittent failure in the refresh-token tests, and behind it a real defect: `POST /api/auth/refresh`
@@ -39,7 +39,7 @@ passed and deployed to production at 19:47 UTC the same day.
 | Jobs | Durable jobs in PostgreSQL, run inside the web process or by `python -m worker`. A job survives restarts. It's retried when a retry might help (after 30 s, then 2 min; 3 attempts). It can be cancelled, and it stops after 15 minutes per attempt. |
 | Live updates | `GET /api/events` streams changes to results and the Outbox, so Review, the Outbox and the activity list update straight away. While the stream is connected, polling slows to every 30 s. |
 | AI layer | Uses the official SDK.<br>**Results:** every operation returns a structured result, validated before it's stored.<br>**Sources:** web research ends with a strict submit tool and lists only sources its searches returned.<br>**Caching and resuming:** the stable parts of each prompt are cached, and paused research resumes.<br>**Models:** Sonnet 5 by default; market analysis and pricing use Opus 5. |
-| Usage and cost | Every API call is recorded with an estimated cost for its tokens and web searches. Settings → Usage shows a month by operation, project, member and model. An optional monthly budget stops new operations once it's reached. |
+| Usage and cost | Every API call is recorded with an estimated cost for its tokens and web searches. Settings → Usage shows a month by operation, project, member and model. A monthly budget stops new operations once it's reached: the organisation's own, or — on pull request #5, not yet on `main` — the platform default (`DEFAULT_MONTHLY_AI_BUDGET_USD`, 25), which an owner may lower or clear but only a platform admin may raise (BUG-028, BUG-031); an owner can take a budget stored above the default only to the default or below (BUG-032, open). |
 
 Exit criteria:
 
@@ -128,15 +128,15 @@ Exit criteria:
 | Accessibility (plan said Lighthouse ≥ 90) | Replaced by a stricter gate: axe-core WCAG 2.2 A/AA scans of 27 screens in both themes, with zero violations required. |
 | Design canvas signed off before code | Skipped. The working build and screenshots are the review surface; sign-off is still needed (decision 6). |
 
-### Quality gates today
+### Quality gates today (measured on pull request #5's branch)
 
 | Gate | Status |
 |---|---|
 | Backend lint (ruff) | Passing; CI runs it. |
-| Backend tests | 550 passed; 98.3% coverage of application code (gate 95%). |
+| Backend tests | 564 passed; 98.3% coverage of application code (gate 95%). |
 | Frontend lint and type check | Passing: ESLint with zero warnings, strict TypeScript. |
-| Frontend tests (Vitest) | 601 passed in 49 files; 99.2% line coverage (gate 95%). |
-| Browser tests (Playwright) | 69 passed: 3 smoke, 12 golden path, and axe WCAG 2.2 A/AA scans of 27 screens in both themes. |
+| Frontend tests (Vitest) | 628 passed in 50 files; 99.2% line coverage (gate 95%). Fails intermittently at default concurrency on the development machine, pre-existing on `main` — see `docs/TESTING.md` gap 14. |
+| Browser tests (Playwright) | 96 passed: 3 smoke, 12 golden path, axe WCAG 2.2 A/AA scans of 27 screens in both themes, and 27 screens checked at a 390px phone width. |
 | Dependency and secret scans | Checked 2026-09-16: pip-audit found no known vulnerabilities, and npm's advisory service found none in the 614 installed package versions. CI also runs `npm audit` and gitleaks; gitleaks hasn't run on the development machine. |
 
 ### Next
@@ -145,6 +145,9 @@ Exit criteria:
    - section 8
    - the brand kernel questions in `docs/PHASE1_DESIGN.md` D15
    - whether organisation owners should also be able to create reset links (D8)
+   - from pull request #5's budget work: whether anything should cap total AI spend across organisations (B-14 in
+     `docs/ROADMAP.md`), and whether a platform admin should be able to set the budget of an organisation they don't belong
+     to (B-15)
 2. Finish the deployment. It's live on Railway (2026-09-17): project "Launch Ops" has `launchops` (built from `main` of `Vybecode-LTD/LaunchOps`, deploying every push; the worker runs inside it) and `Postgres`, and answers at https://launchops-production-0457.up.railway.app. `DATABASE_URL`, `JWT_SECRET`, `FIELD_ENCRYPTION_KEY`, `APP_URL`, `ADMIN_EMAIL` and `ANTHROPIC_API_KEY` are set.
 
    **Live smoke test (2026-09-17):** `generate_result` was run against the real API with the deployment's key, and all three calls returned valid results (about $0.10 in total):
@@ -154,11 +157,23 @@ Exit criteria:
 
    launchops.run is the custom domain and is **live over HTTPS**: the certificate was issued 2026-09-17 16:51 UTC and is valid to
    2026-12-16. Re-adding the domain to clear a stalled first attempt gave it a new CNAME target, `xesm2hmr.up.railway.app`, and
-   Spaceship still points at the old `5rlc9k25.up.railway.app` (traffic and the certificate work; `docs/ROADMAP.md` T-3).
+   the Spaceship record now points there (`docs/ROADMAP.md` T-3, done 2026-09-17). Verified against public DNS (Google `8.8.8.8`):
+   a flattened apex exposes no CNAME to read, so the check is by address — `launchops.run` → `69.46.46.46`, identical to
+   `xesm2hmr.up.railway.app` and no longer the old `5rlc9k25.up.railway.app` → `69.46.46.62`.
 
-   Still to do (the full list, with IDs, is `docs/ROADMAP.md` → Active, T-1 to T-8):
+   Still to do (the full list, with IDs, is `docs/ROADMAP.md` → Active, T-1 to T-9):
+   - **merge pull request #5 (T-9)** once CI passes, with a merge commit, not a squash. It fixes three defects live in production
+     — organisations without a budget could spend without limit on the deployment's API key, four screens scrolled sideways on a
+     phone, and competitor results rendered empty columns — and BUG-031, which let any self-registered owner lift the new cap
+     themselves. Until it merges, production has open registration and no spending cap
    - delete the account `guard-check@example.com` and "Guard check's organisation", created on the live site by a sign-up probe
-     after the admin account already existed (T-1), and confirm who holds the admin account and whether registration stays open (T-2)
+     after the admin account already existed (T-1)
+   - rotate the Railway project token again (T-4). The exposed token was deleted and a replacement issued, but the replacement was
+     pasted into chat too, so it is exposed the same way. The owner does this deliberately — `railway login` will not authorise on
+     this machine — and rotates at the end of every session, which bounds it. A token must never reach a commit: CI runs gitleaks
+     over the full git history
+   - **done 2026-09-17:** the admin account and the registration policy (T-2 — the platform admin is `color8studios@gmail.com`,
+     and open registration deliberately stays on), and the Spaceship CNAME (T-3)
    - consider turning on Wait for CI in the service's source settings, so only commits that pass CI deploy
    - optionally set the `MAIL_*` settings, turn on database backups, and delete the detached empty volume `postgres-volume-qVKY`
 3. Phase 2 follow-up: brand kernel (D15), result history (D16), billing settings.

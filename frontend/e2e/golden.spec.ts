@@ -107,7 +107,16 @@ test("launch plan: ticking an item saves the checklist", async ({ page }) => {
   await useFakeBackend(page, state);
   await page.goto(`/projects/${projects.vybe.id}/plan`);
 
-  await page.getByLabel("Beta testers recruited").check();
+  // Click and then assert, rather than `.check()`. A launch plan tick is a controlled checkbox:
+  // the click toggles it natively and React then re-renders it from the query cache, so the state
+  // Playwright reads immediately after the click is not guaranteed to be the settled one when the
+  // machine is loaded. `.check()` throws at once in that window ("Clicking the checkbox did not
+  // change its state") instead of retrying, which made this test fail intermittently in CI while
+  // the save itself was always sent correctly. `toBeChecked()` retries, and the PATCH assertion
+  // below still proves the tick was saved.
+  const item = page.getByLabel("Beta testers recruited");
+  await item.click();
+  await expect(item).toBeChecked();
 
   await expect.poll(() => requestsTo(state, "PATCH", `/api/products/${projects.vybe.id}/checklist`).at(-1)?.body).toMatchObject({ "Pre-Launch_5": true, "Pre-Launch_0": true });
 });

@@ -20,6 +20,15 @@
   gap: var(--space-3);
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--line);
+  /* The title and its copy actions are wider than a phone together, so let them
+     stack rather than push the page sideways. See e2e/responsive.spec.ts. */
+  flex-wrap: wrap;
+}
+
+/* The actions group beside a section title: its own row on a narrow screen. */
+.sectionHead > div {
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .sectionTitle {

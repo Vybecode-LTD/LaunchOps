@@ -8,6 +8,7 @@ from decimal import Decimal
 import asyncpg
 from fastapi import HTTPException
 
+from config import get_settings
 from database import DATABASE_UNAVAILABLE_ERRORS, get_pool
 from services import pricing
 
@@ -53,22 +54,65 @@ def _next_month(start: datetime) -> datetime:
     return datetime(start.year + (start.month == 12), start.month % 12 + 1, 1, tzinfo=UTC)
 
 
+def effective_budget(own: Decimal | None) -> tuple[Decimal | None, str]:
+    """The monthly budget that actually applies to an organisation, and where it comes from.
+
+    Returns `(amount, source)`: the organisation's own budget when it has set one
+    (`"organisation"`), otherwise the platform default (`"default"`), or no cap at all when the
+    default is switched off with 0 (`"none"`). Enforcement and the usage summary both call this,
+    so the budget an owner is shown is always the one that stops their operations.
+    """
+    if own is not None:
+        return own, "organisation"
+    default = get_settings().default_monthly_ai_budget_usd
+    return (default, "default") if default > 0 else (None, "none")
+
+
+def ensure_budget_allowed(amount: Decimal | None, *, is_admin: bool) -> None:
+    """403 when someone other than a platform admin sets a budget above the platform default.
+
+    Registration makes every new account the owner of its own organisation, and an organisation's own
+    budget wins over the default. Without this, anyone could sign up and lift the cap on the
+    deployment's single API key with one request (BUG-031). Lowering or matching the default, or
+    clearing a budget, only ever reduces what the key can spend, so owners may always do those. With
+    the default switched off (0) there is no ceiling to enforce.
+    """
+    if amount is None or is_admin:
+        return
+    ceiling = get_settings().default_monthly_ai_budget_usd
+    if ceiling > 0 and amount > ceiling:
+        raise HTTPException(
+            403,
+            f"An organisation can set a monthly AI budget of up to ${ceiling:,.2f}. A platform administrator can set a higher one.",
+        )
+
+
 async def ensure_within_budget(org_id: str, org_name: str) -> None:
-    """429 when the organisation has a monthly budget and this month's cost has reached it."""
+    """429 when this month's cost has reached the organisation's budget, or the platform default.
+
+    An organisation created by registration has no budget of its own, and every deployment bills AI to
+    one API key, so without a default anyone who signs up could spend on that key without limit. The
+    organisation's own budget always wins; the default only covers those that never set one.
+    """
     pool = await get_pool()
-    budget = await pool.fetchval("SELECT monthly_ai_budget_usd FROM organisations WHERE id = $1", uuid.UUID(org_id))
+    own = await pool.fetchval("SELECT monthly_ai_budget_usd FROM organisations WHERE id = $1", uuid.UUID(org_id))
+    budget, source = effective_budget(own)
     if budget is None:
         return
+    its_own = source == "organisation"
     start = _month_start(datetime.now(UTC).date())
     spent = await pool.fetchval(
         "SELECT COALESCE(SUM(cost_usd), 0) FROM ai_usage WHERE org_id = $1 AND created_at >= $2 AND created_at < $3",
         uuid.UUID(org_id), start, _next_month(start),
     )
     if spent >= budget:
-        raise HTTPException(
-            429,
-            f"{org_name} has used its AI budget for {start:%B} (${budget:,.2f}). An owner can raise it in Settings → Usage.",
-        )
+        which = "its AI budget" if its_own else "the default AI budget"
+        # Owners can raise their own budget only while it is still under the default; beyond that,
+        # and for the default itself, only a platform admin can. Name whoever can actually help.
+        ceiling = get_settings().default_monthly_ai_budget_usd
+        owner_can_raise = its_own and not (ceiling > 0 and budget >= ceiling)
+        remedy = "An owner can raise it in Settings → Usage." if owner_can_raise else "A platform administrator can raise it."
+        raise HTTPException(429, f"{org_name} has used {which} for {start:%B} (${budget:,.2f}). {remedy}")
 
 
 async def set_budget(org_id: str, amount: Decimal | None) -> None:
@@ -112,7 +156,9 @@ async def summary(org_id: str, month: datetime) -> dict:
     args = (uuid.UUID(org_id), month, _next_month(month))
     where = "u.org_id = $1 AND u.created_at >= $2 AND u.created_at < $3"
     total = await pool.fetchrow(f"SELECT {TOTALS} FROM ai_usage u WHERE {where}", *args)
-    budget = await pool.fetchval("SELECT monthly_ai_budget_usd FROM organisations WHERE id = $1", args[0])
+    own = await pool.fetchval("SELECT monthly_ai_budget_usd FROM organisations WHERE id = $1", args[0])
+    effective, source = effective_budget(own)
+    default = get_settings().default_monthly_ai_budget_usd
 
     async def breakdown(key_sql: str, label_sql: str, joins: str = "") -> list[dict]:
         rows = await pool.fetch(
@@ -124,7 +170,13 @@ async def summary(org_id: str, month: datetime) -> dict:
 
     return {
         "month": f"{month:%Y-%m}",
-        "budget_usd": float(budget) if budget is not None else None,
+        # What the organisation set itself, which the budget form edits.
+        "budget_usd": float(own) if own is not None else None,
+        # The platform default, when one is switched on.
+        "default_budget_usd": float(default) if default > 0 else None,
+        # What actually stops operations, and whose it is: show this, not budget_usd.
+        "effective_budget_usd": float(effective) if effective is not None else None,
+        "budget_source": source,
         "total": _totals(total),
         "by_operation": await breakdown("u.operation", "u.operation"),
         "by_project": await breakdown("u.product_id", "COALESCE(p.name, 'A deleted project')", "LEFT JOIN products p ON p.id = u.product_id"),

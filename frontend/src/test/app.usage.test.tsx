@@ -133,6 +133,25 @@ describe("Usage", () => {
     expect(within(month).getByText("Operations and reports run this month will show here with what they cost.")).toBeInTheDocument();
   });
 
+  it("tells a new organisation which budget applies before anything has run", async () => {
+    // With no usage the page shows an empty state instead of the month's summary, which was the only
+    // place the budget appeared — so a brand-new organisation, the one most likely to be on the
+    // platform default, saw no sign of its cap until an operation had already cost something.
+    renderApp("/settings/usage", makeState({ defaultBudget: 25 }));
+
+    const month = await region(formatUsageMonth(thisMonth));
+    expect(
+      await within(month).findByText("The platform's default budget of $25.00 applies: operations stop when a month's cost reaches it."),
+    ).toBeInTheDocument();
+  });
+
+  it("says there is no cap before anything has run, when there really is none", async () => {
+    renderApp("/settings/usage", makeState());
+
+    const month = await region(formatUsageMonth(thisMonth));
+    expect(await within(month).findByText("No monthly budget, so operations don't stop for cost. Set one below.")).toBeInTheDocument();
+  });
+
   it("says how many calls have no cost estimate because their model has no known price", async () => {
     const state = makeState({
       aiUsage: [usage({ cost_usd: 2 }), usage({ model: "claude-future-9", cost_usd: null }), usage({ model: "claude-future-9", cost_usd: null })],
@@ -307,5 +326,67 @@ describe("When the AI budget is used up", () => {
 
     expect(await screen.findByText("Run again failed")).toBeInTheDocument();
     expect(screen.getByText(refusal)).toBeInTheDocument();
+  });
+});
+
+// DEFAULT_MONTHLY_AI_BUDGET_USD caps any organisation that hasn't set its own budget. The page used to
+// read only the organisation's stored budget, which is null under the default, so it told owners
+// their operations would never stop for cost while they were in fact capped.
+describe("The platform's default budget", () => {
+  it("shows the default an organisation without its own budget is held to, not 'no budget'", async () => {
+    const state = makeState({ defaultBudget: 25, aiUsage: [usage({ cost_usd: 10 })] });
+    renderApp("/settings/usage", state);
+
+    const month = await region(formatUsageMonth(thisMonth));
+    expect(await within(month).findByText("$25.00")).toBeInTheDocument();
+    expect(within(month).getByText("Within budget")).toBeInTheDocument();
+    expect(
+      within(month).getByText("This is the platform's default budget. You can set a lower one below; only a platform administrator can set a higher one."),
+    ).toBeInTheDocument();
+    expect(within(month).queryByText("No monthly budget, so operations don't stop for cost. Set one below.")).not.toBeInTheDocument();
+  });
+
+  it("says the default applies again when an organisation removes its own budget", async () => {
+    const state = makeState({ defaultBudget: 25, budgets: { "org-1": 60 } });
+    const { user } = renderApp("/settings/usage", state);
+
+    const panel = await region("Monthly budget");
+    await user.click(within(panel).getByRole("button", { name: "Remove budget" }));
+
+    expect(await screen.findByText("Budget removed")).toBeInTheDocument();
+    expect(screen.getByText("The platform's default budget of $25.00 applies again.")).toBeInTheDocument();
+    expect(screen.queryByText("AI operations no longer stop for cost.")).not.toBeInTheDocument();
+  });
+
+  it("tells an owner who isn't a platform admin that they can't go above the default", async () => {
+    // BUG-031: every account that registers owns its own organisation, so letting an owner raise
+    // their budget past the default would let anyone lift the cap on the deployment's API key.
+    const state = makeState({ defaultBudget: 25 });
+    state.user = { ...state.user, role: "user" };
+    const { user } = renderApp("/settings/usage", state);
+
+    const panel = await region("Monthly budget");
+    await user.type(within(panel).getByLabelText("Budget in US dollars"), "1000");
+    await user.click(within(panel).getByRole("button", { name: "Save budget" }));
+
+    expect(await within(panel).findByRole("alert")).toHaveTextContent(
+      "An organisation can set a monthly AI budget of up to $25.00. A platform administrator can set a higher one.",
+    );
+    expect(state.budgets?.["org-1"]).toBeUndefined();
+  });
+
+  it("stops an organisation at the default and says which budget it reached", async () => {
+    const project = makeProject();
+    const state = makeState({ projects: [project], defaultBudget: 5, aiUsage: [usage({ product_id: project.id, cost_usd: 5.2 })] });
+    const { user } = renderApp(`/projects/${project.id}/operations?run=blog`, state);
+
+    await user.click(await screen.findByRole("button", { name: "Run blog post draft" }));
+
+    const month = new Date().toLocaleString("en-US", { month: "long", timeZone: "UTC" });
+    const sheet = screen.getByRole("dialog", { name: "Run blog post draft" });
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(
+      `Northstar Ventures has used the default AI budget for ${month} ($5.00). A platform administrator can raise it.`,
+    );
+    expect(state.queue).toEqual([]);
   });
 });

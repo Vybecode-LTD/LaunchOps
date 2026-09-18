@@ -84,16 +84,19 @@ export function UsageSettings() {
         ) : !summary ? (
           <Skeleton height={160} />
         ) : summary.total.calls === 0 ? (
-          <EmptyState title={`No AI usage in ${monthName}`}>
-            {month === thisMonth
-              ? "Operations and reports run this month will show here with what they cost."
-              : "No operations or reports ran that month."}
-          </EmptyState>
+          <>
+            <EmptyState title={`No AI usage in ${monthName}`}>
+              {month === thisMonth
+                ? "Operations and reports run this month will show here with what they cost."
+                : "No operations or reports ran that month."}
+            </EmptyState>
+            {month === thisMonth && <BudgetStatement summary={summary} />}
+          </>
         ) : (
           <MonthSummary summary={summary} current={month === thisMonth} />
         )}
       </Panel>
-      {usage.data && <BudgetPanel key={usage.data.budget_usd ?? "none"} budget={usage.data.budget_usd} />}
+      {usage.data && <BudgetPanel key={usage.data.budget_usd ?? "none"} budget={usage.data.budget_usd} defaultBudget={usage.data.default_budget_usd} />}
       {summary && summary.total.calls > 0 && (
         <>
           <Breakdown title="By operation" nameHeader="Operation" rows={summary.by_operation} name={(row) => operationLabel(row.key)} />
@@ -106,8 +109,28 @@ export function UsageSettings() {
   );
 }
 
+/**
+ * Which budget applies, in one sentence. Used when the month has nothing to chart: the summary is the
+ * only other place the budget appears, so without this a brand-new organisation — the one most likely
+ * to be on the platform default — saw no sign of its cap until an operation had already cost something.
+ */
+function BudgetStatement({ summary }: { summary: UsageSummary }) {
+  const { effective_budget_usd: budget, budget_source: source } = summary;
+  if (budget === null) {
+    return <p className={styles.budgetText}>No monthly budget, so operations don&apos;t stop for cost. Set one below.</p>;
+  }
+  const whose = source === "default" ? "The platform's default budget" : "Your organisation's budget";
+  return (
+    <p className={styles.budgetText}>
+      {whose} of {formatUsd(budget)} applies: operations stop when a month&apos;s cost reaches it.
+    </p>
+  );
+}
+
 function MonthSummary({ summary, current }: { summary: UsageSummary; current: boolean }) {
-  const { total, budget_usd: budget } = summary;
+  // The budget that actually stops operations, not only the one the organisation set: under the
+  // platform default the stored budget is null, and reading it said operations never stop for cost.
+  const { total, effective_budget_usd: budget, budget_source: source } = summary;
   const use = budget === null ? null : budgetUse(total.cost_usd, budget);
   const stats: Array<[string, number]> = [
     ["Calls", total.calls],
@@ -154,6 +177,12 @@ function MonthSummary({ summary, current }: { summary: UsageSummary; current: bo
                   ? "AI operations can't start again until next month, unless the budget is raised."
                   : "Operations stop when the month's cost reaches the budget."}
               </p>
+              {source === "default" && (
+                <p className={styles.budgetText}>
+                  This is the platform&apos;s default budget. You can set a lower one below; only a platform administrator can
+                  set a higher one.
+                </p>
+              )}
             </>
           )}
         </div>
@@ -180,7 +209,7 @@ function MonthSummary({ summary, current }: { summary: UsageSummary; current: bo
   );
 }
 
-function BudgetPanel({ budget }: { budget: number | null }) {
+function BudgetPanel({ budget, defaultBudget }: { budget: number | null; defaultBudget: number | null }) {
   const setBudget = useSetBudget();
   const toast = useToast();
   const [value, setValue] = useState(budget === null ? "" : budget.toFixed(2));
@@ -196,7 +225,14 @@ function BudgetPanel({ budget }: { budget: number | null }) {
       onSuccess: () =>
         toast.show(
           amount === null
-            ? { title: "Budget removed", description: "AI operations no longer stop for cost." }
+            ? {
+                title: "Budget removed",
+                // Removing an organisation's own budget hands it back to the platform default, if one is on.
+                description:
+                  defaultBudget !== null
+                    ? `The platform's default budget of ${formatUsd(defaultBudget)} applies again.`
+                    : "AI operations no longer stop for cost.",
+              }
             : { title: "Budget saved", description: `AI operations stop when a month's cost reaches ${formatUsd(amount)}.` },
         ),
       onError: (err) => setError(errorMessage(err)),
@@ -217,7 +253,7 @@ function BudgetPanel({ budget }: { budget: number | null }) {
         <FieldStack>
           <Field
             label="Budget in US dollars"
-            hint="When a month's estimated cost reaches it, operations and reports can't start until the next month or until an owner raises it."
+            hint="When a month's estimated cost reaches it, operations and reports can't start until the next month or until the budget is raised."
             error={error}
           >
             {(props) => (
