@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 import fastapi
 
 import config
+import database
 
 # ─── Baseline: approval queue ───
 
@@ -445,6 +446,68 @@ async def test_queue_list_limit(client, register, auth, create_product, make_que
         resp = await client.get(f"/api/queue?limit={limit}", headers=auth(token))
         assert resp.status_code == 422, (limit, resp.text)
     assert (await client.get("/api/queue?limit=500", headers=auth(token))).status_code == 200
+
+
+# ─── The playbook's record of what's finished: a summary of a project's results ───
+
+
+def _by_operation(rows: list[dict]) -> list[dict]:
+    return sorted(rows, key=lambda row: (row["workflow_id"], row["status"]))
+
+
+async def test_summary_counts_a_projects_results_by_operation_and_status(
+    client, register, auth, create_product, make_queue_item,
+):
+    token, user = await register()
+    one = await create_product(token, name="One")
+    two = await create_product(token, name="Two")
+    for status in ("pending", "pending", "approved"):
+        await make_queue_item(user, one, "blog", status=status)
+    await make_queue_item(user, one, "trend", status="failed")
+    await make_queue_item(user, two, "blog", status="approved")
+
+    resp = await client.get(f"/api/queue/summary?product_id={one['id']}", headers=auth(token))
+
+    assert resp.status_code == 200, resp.text
+    assert _by_operation(resp.json()) == [
+        {"product_id": one["id"], "workflow_id": "blog", "status": "approved", "count": 1},
+        {"product_id": one["id"], "workflow_id": "blog", "status": "pending", "count": 2},
+        {"product_id": one["id"], "workflow_id": "trend", "status": "failed", "count": 1},
+    ]
+
+
+async def test_summary_counts_results_older_than_the_newest_500(
+    client, register, auth, create_product, make_queue_item,
+):
+    """A page of results holds the newest 500 at most. Read from one, an operation whose only approved
+    result was older looked unfinished, and the playbook recommended running it again."""
+    token, user = await register()
+    product = await create_product(token)
+    old = await make_queue_item(user, product, "competitor", status="approved")
+    pool = await database.get_pool()
+    await pool.execute(
+        "INSERT INTO queue (product_id, org_id, user_id, workflow_id, status, created_at)"
+        " SELECT $1, $2, $3, 'trend', 'pending', NOW() + make_interval(secs => n) FROM generate_series(1, 500) AS n",
+        uuid.UUID(product["id"]), uuid.UUID(product["org_id"]), uuid.UUID(user["id"]),
+    )
+    newest = await client.get(f"/api/queue?product_id={product['id']}&limit=500", headers=auth(token))
+    assert old["id"] not in {item["id"] for item in newest.json()}
+
+    resp = await client.get(f"/api/queue/summary?product_id={product['id']}", headers=auth(token))
+
+    assert resp.status_code == 200, resp.text
+    assert _by_operation(resp.json()) == [
+        {"product_id": product["id"], "workflow_id": "competitor", "status": "approved", "count": 1},
+        {"product_id": product["id"], "workflow_id": "trend", "status": "pending", "count": 500},
+    ]
+
+
+async def test_summary_needs_a_project_in_the_organisation(client, register, auth):
+    token, _ = await register()
+    for product_id in (uuid.uuid4(), "not-a-uuid"):
+        resp = await client.get(f"/api/queue/summary?product_id={product_id}", headers=auth(token))
+        assert resp.status_code == 404, (product_id, resp.text)
+    assert (await client.get("/api/queue/summary", headers=auth(token))).status_code == 422
 
 
 # ─── F-3: a daily sending limit per account ───

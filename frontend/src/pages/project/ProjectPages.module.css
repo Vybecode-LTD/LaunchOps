@@ -105,6 +105,13 @@ a.listTitle:hover {
 
 /* ─── Operations ─── */
 
+/* Playbook or the full catalogue — sits above whichever view is showing. */
+.opsViewBar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-5);
+}
+
 .opsLayout {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);

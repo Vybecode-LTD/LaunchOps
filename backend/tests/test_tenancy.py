@@ -51,6 +51,7 @@ async def test_queue_items_are_isolated(client, world):
     path = f"/api/queue/{world.item['id']}"
     assert (await client.get("/api/queue", headers=world.bob)).json() == []
     assert (await client.get(f"/api/queue?product_id={world.product['id']}", headers=world.bob)).json() == []
+    assert (await client.get(f"/api/queue/summary?product_id={world.product['id']}", headers=world.bob)).status_code == 404
     assert (await client.get(path, headers=world.bob)).status_code == 404
     assert (await client.patch(path, headers=world.bob, json={"status": "approved"})).status_code == 404
     assert (await client.delete(path, headers=world.bob)).status_code == 404

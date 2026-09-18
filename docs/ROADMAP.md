@@ -1,8 +1,8 @@
 ---
 document: ROADMAP
-version: 1.1.3
-last-updated: 2026-09-18T03:32:06Z
-last-audit: 2026-09-18T02:45:00Z
+version: 1.1.4
+last-updated: 2026-09-18T06:39:21Z
+last-audit: 2026-09-18T06:35:00Z
 managed-by: session-orchestrator/roadmap-manager
 ---
 
@@ -121,10 +121,11 @@ under 15 minutes with no manual workarounds.
 **Part of this milestone is being pulled forward.** The guided launch playbook the owner chose
 for the Operations screen on 2026-09-17 — a stepper through the whole launch with progress,
 gates and dependencies — is close to **Campaign Playbooks** above. It is tracked under
-**Next up** (item 1) rather than duplicated here. Its domain layer is in pull request #5 (T-9)
-and its screen is built on branch `feat/playbook-ui`, but neither is on `main` yet. It is also
-one fixed order that advises, not a job graph with approval gates and three shipped playbooks,
-so the item stays unticked and M4 stays at 0%.
+**Next up** (item 1) rather than duplicated here. Its domain layer reached `main` with pull
+request #5 (T-9), though no screen there uses it yet; its screen is on pull request #6 (T-10),
+open and not merged. It is also one fixed order that advises and never blocks — the owner's
+decision on gates, 2026-09-18, under **Decided** — not a job graph with approval gates and
+three shipped playbooks, so the item stays unticked and M4 stays at 0%.
 
 ### M5 — Phase 5 · Enterprise hardening (not started) — 0%
 
@@ -139,15 +140,18 @@ Scope from the plan, §6 Phase 5. Ongoing after v2, driven by what the first pai
 
 ## Active
 
-**T-9 comes first: merging pull request #5 caps a spending exposure that is live in
-production** — once it deploys, every self-registered organisation is held to the $25 monthly
-default, which its owner can lower or clear but not raise. That caps each organisation, not the
-total (B-14, under **Blocked**). The rest are operational follow-ups from the deployment session —
-none of them code changes, but account, DNS and Railway housekeeping that only the owner can do.
+**T-10 comes first: merging pull request #6 takes BUG-032's fix to production and ships the
+launch playbook** (**Next up**, item 1). T-9 is done: pull request #5 merged on 2026-09-18 and
+production serves its build, so every organisation without a budget of its own is held to the
+$25 monthly default — each organisation, not the total (B-14, under **Decided**). T-9's
+signed-in check of Settings → Usage was not done, and moved to T-10. The rest are operational
+tasks that only the owner can do — account and Railway housekeeping, none of them code changes.
+**T-4 is still owed at the end of this session.**
 
 | # | Task | Priority | Status | Notes |
 |---|---|---|---|---|
-| T-9 | Merge pull request #5 (branch `fix/spend-cap-and-mobile-overflow`) once CI passes, then verify on the live site that Settings → Usage shows the $25 default | P1 | Next | **Heads the list because it caps a spending exposure that is live in production.** The pull request is **open, not merged, not deployed**: `main` is at `0ce65dd`, and production runs `bc6143c`'s application code. It fixes three **shipped** defects, BUG-028 to BUG-030 in `docs/BUGS.md`: an organisation without a budget of its own could spend without limit on the deployment's `ANTHROPIC_API_KEY` — any self-registered account included, since open registration stays on (T-2) — and that is **live in production until this merges**; four screens scrolled sideways on a phone; competitor results rendered empty columns and headings. **Since `a53b26e`, the $25 cap holds for self-registered organisations too.** Before it, the $25 default held only organisations that never touched their budget: registration makes each new account the Owner of the organisation it creates, and an Owner could set any budget, which then won over the default (BUG-031, moot in production only because production has no default to lift). The owner decided on 2026-09-17 that an organisation's owners may set any budget up to the platform default, lower it or clear it, and only a platform admin may set one above it; `a53b26e` enforces that on `PUT /api/organisation/budget` with a 403. CodeRabbit's review of `7dbc35d` found one change that check refuses although it would only lower the cap: an owner who isn't a platform admin cutting a budget that is above the default to an amount still above it. It fails safe and does not block the merge; it is BUG-032 (open, LOW), and its fix a follow-up under **Backlog**. The pull request leaves two owner questions in **Blocked**, neither of which holds up the merge: the total across organisations (B-14) and a platform admin's reach into organisations they don't belong to (B-15). Budgets already stored are left as they are — the rule applies to changes — but production has had no default to escape, so no stranger has had a reason to set a high one. It also adds the launch playbook's domain module (**Next up**, item 1). **The code is all pushed:** the last code commit on pull request #5 is `7dbc35d`, its eleventh commit. Before merging, read CI with `gh pr checks 5` and merge only once the three jobs (backend, frontend and the secret scan) are green on whatever the head is by then — any commit pushed after `7dbc35d`, a documentation batch included, needs its own green run. Merge with a **merge commit, not a squash**, so `.gitleaksignore`'s per-commit fingerprints keep resolving and `feat/playbook-ui` — stacked on `a53b26e`, which the merge brings into `main` — can be rebased onto `main` as its one commit (**Next up**, item 1). Then verify, signed in as an Owner and **never by registering a probe account** (T-1), in an organisation with no budget of its own. Since `7dbc35d` the check no longer needs a month with usage, but what Settings → Usage shows depends on whether the current month has any. **With none yet**, as in a brand-new organisation: the empty state and the sentence "The platform's default budget of $25.00 applies: operations stop when a month's cost reaches it." — and **no** note about platform administrators. **Once the month has usage**: the summary's $25.00 budget with its meter, and the note "This is the platform's default budget. You can set a lower one below; only a platform administrator can set a higher one." Either one passes. The ceiling itself is covered by tests, not checked live: the owner is the platform admin, who may exceed it, and a live check would need a second account. `DEFAULT_MONTHLY_AI_BUDGET_USD` defaults to 25, so Railway needs no new variable. |
+| T-10 | Merge pull request #6 (branch `feat/playbook-ui`) once CI passes, then verify on the live site, signed in as an Owner, that the Operations screen opens on the playbook and Settings → Usage shows the $25 default | P1 | Next | **Heads the list because merging it takes BUG-032's fix to production and ships the launch playbook** (**Next up**, item 1). BUG-032 reached production with pull request #5 (T-9); it fails safe, and it stays live until #6 merges and deploys. Pull request #6 is **open, not merged**, and based on `main` at `477eaa4`; nothing on it is on `main` or in production. Its commits, oldest first: `53456fc` opens the Operations screen on the playbook; `08705de` lets owners lower any budget (BUG-032) and stops every message promising that an administrator will raise one (B-15); `4af499c` answers Codex's review of the playbook — a stage that becomes current opens, a launch date that has passed reads "the launch date was 3 days ago" rather than "launch is -3 days away", and completion counts every result, through a new route, `GET /api/queue/summary`; `b607021` answers CodeRabbit's review — a budget is checked and written under one row lock, and Settings → Usage promises a raise only to someone who can make one. **The last code commit on pull request #6 is `b607021`**; the 1.1.4 documentation is committed on top of it, on the same pull request. Replies to both reviews on GitHub wait for the owner's go-ahead. All three CI jobs (backend, frontend with Playwright, and the secret scan) passed on `08705de`, and again on `b607021` (green by 2026-09-18T05:57:07Z); the documentation commit on top of it gets its own run, which is the one the merge waits for. Read it with `gh pr checks 6`, and merge only once all three are green on the pull request's latest commit. Merge with a **merge commit, not a squash**, so `.gitleaksignore`'s per-commit fingerprints keep resolving. Then verify on the live site, **signed in as an Owner — never by registering a probe account** (T-1): the Operations screen opens on the playbook with a "Next up" card; and, in an organisation with no budget of its own, Settings → Usage shows the $25 platform default. The second check is T-9's, carried over because the assistant cannot sign in. |
+| T-9 | Merge pull request #5 (branch `fix/spend-cap-and-mobile-overflow`) once CI passes, then verify on the live site that Settings → Usage shows the $25 default | P1 | Done 2026-09-18 | Merged into `main` as merge commit **`477eaa4`** at 2026-09-18T04:43:03Z — a merge commit, not a squash — after all three CI jobs passed on the pull request's last commit, `ce12024` (the 1.1.3 documentation), by 03:38:11Z. **Production serves `477eaa4`'s build**, checked on the live site rather than in the Railway dashboard, whose deployment record was not read: at 04:43:44Z the site's JavaScript bundle changed to `index-D1A5232b.js`, whose Settings → Usage chunk contains "default budget of", text from `43ab3e6` that only pull request #5's code has; at 05:14:16Z it served the same bundle and `GET /health` answered 200 `{"status":"ok"}`; and at 06:09:38Z the same chunk also held the sentence `7dbc35d` added and still pull request #5's note naming a platform administrator: all of pull request #5's code, none of pull request #6's. So BUG-028 to BUG-031 are fixed on `main` and in production, and every organisation without a budget of its own is held to the $25 default — each organisation, not the total (B-14, under **Decided**). BUG-032 came in with the merge; it fails safe, and its fix is on pull request #6 (T-10). **Not done: the signed-in check of Settings → Usage**, because the assistant cannot sign in; **it moved to T-10.** |
 | T-1 | Delete the account `guard-check@example.com` and "Guard check's organisation" | P1 | Next | A verification probe created it after the admin account existed. Platform admin removes it in Settings → Team & access. Never probe registration against the live site again. |
 | T-2 | Confirm who holds the first (admin) account, and decide whether open registration stays on | P1 | Done 2026-09-17 | Both halves confirmed by the owner. The platform admin (`users.role = 'admin'`, and the `ADMIN_EMAIL` holder) is **`color8studios@gmail.com`**. **Open registration stays on** — a deliberate decision, not an oversight: the platform-wide switch in `app_config` is unchanged and remains enabled. `ADMIN_EMAIL` already protects the first (admin) account, so the accepted residual risk is that anyone who reaches `launchops.run` can self-register and create their own organisation. |
 | T-3 | Update the Spaceship CNAME for `launchops.run` to `xesm2hmr.up.railway.app` | P1 | Done 2026-09-17 | Re-adding the domain to fix a stalled certificate had produced a new target; the Spaceship record now points at `xesm2hmr.up.railway.app`, and the change was verified independently against public DNS (Google `8.8.8.8`) the same day. Verification was by **address comparison**, because the flattened apex exposes no CNAME to read directly: `launchops.run` answers with an A record of `69.46.46.46`, **identical to** `xesm2hmr.up.railway.app` (`69.46.46.46`) and **different from** the old `5rlc9k25.up.railway.app` (`69.46.46.62`). |
@@ -160,9 +164,9 @@ none of them code changes, but account, DNS and Railway housekeeping that only t
 ## Blocked / needs the owner
 
 Nothing here can move without a decision. Each links to where the question is written up.
-Fourteen are open: B-1 to B-12, and B-14 and B-15, which came out of the budget work in pull
-request #5 (B-13 is decided). Once a decision is made and carried out the item moves to
-**Decided** below, so this table is only ever the outstanding list.
+Twelve are open: B-1 to B-12. B-13, B-14 and B-15 are decided. Once a decision is made the item
+moves to **Decided** below, with where carrying it out stands, so this table is only ever the
+outstanding list.
 
 | # | Question | Source | Working default until answered |
 |---|---|---|---|
@@ -170,7 +174,7 @@ request #5 (B-13 is decided). Once a decision is made and carried out the item m
 | B-2 | Organisation model semantics — one organisation per corporate partner with many ventures, or one organisation per startup under an umbrella | Plan §8.2 | Organisation = partner, workspace = venture; no parent organisations (D1). |
 | B-3 | Email posture — per-workspace SMTP or a platform sender with verified domains | Plan §8.3 | Both exist: per-organisation SMTP for the Outbox, a platform mailer for resets and invitations (D8). |
 | B-4 | Social scope for v2 — X and LinkedIn only via official APIs, everything else copy-and-post | Plan §8.4 | Not built; gates Phase 3 social work. |
-| B-5 | Models and budgets — Sonnet 5 default, Opus 5 for market analysis and pricing, budget per organisation | Plan §8.5 | In place and configurable (D12). **Decided 2026-09-17 — who may exceed the platform default:** an organisation's owners may set any budget up to it, lower it or clear it; only a platform admin may set one above it. `a53b26e` enforces that (BUG-031), in pull request #5 (T-9). Two related questions are open as B-14 and B-15. **Still needs confirmation:** the model defaults, and the $25 amount itself — the monthly platform default for an organisation without a budget of its own (`DEFAULT_MONTHLY_AI_BUDGET_USD`), which arrives with the same pull request. |
+| B-5 | Models and budgets — Sonnet 5 default, Opus 5 for market analysis and pricing, budget per organisation | Plan §8.5 | In place and configurable (D12). **Decided — who may set a budget:** on 2026-09-17, an organisation's owners may set any budget up to the platform default, lower it or clear it, and only a platform admin may set one above it; on 2026-09-18, owners may also lower a budget stored above the default to any lower amount. **Built, and where:** `a53b26e`, the BUG-031 fix, enforces the ceiling on `PUT /api/organisation/budget` with a 403, and has been on `main` and in production since pull request #5 merged (T-9). It brought BUG-032 with it: an owner who isn't a platform admin can't lower a budget stored above the default to an amount still above it — from $500 to $400, say — only to the default or below, or clear it. BUG-032 fails safe; it is fixed on pull request #6 in `08705de`, and stays live in production until #6 merges and deploys (T-10). `b607021`, on the same pull request, checks and writes a budget in one transaction with the organisation's row locked, so two changes made at once can't raise what the first one set. **Still needs confirmation:** the model defaults, and the $25 amount itself — the monthly platform default for an organisation without a budget of its own (`DEFAULT_MONTHLY_AI_BUDGET_USD`), in production since the same merge. B-14 and B-15, which came out of this work, are decided (**Decided**). |
 | B-6 | Design sign-off — who signs off the interface, given the four-screen canvas was skipped | Plan §8.6 | The working build and screenshots are the review surface; sign-off still outstanding. |
 | B-7 | Domain and deploy shape — services and whether a staging environment is wanted | Plan §8.7 | Live on Railway as one web service plus Postgres, worker in-process; no staging. |
 | B-8 | Brand kernel: does a project's brand override the organisation's voice field by field, or as a whole? | D15 | Not built; blocks the brand kernel. |
@@ -178,13 +182,12 @@ request #5 (B-13 is decided). Once a decision is made and carried out the item m
 | B-10 | Brand kernel: should each result record the brand version it used? | D15 | Not built; ties D15 to the result history in D16. |
 | B-11 | Should organisation owners also be able to create password reset links? | D8 | Platform admins only, because a person can belong to several organisations and an owner who could reset a password could reach that member's other organisations. |
 | B-12 | Billing: what is metered and charged, so billing settings can be designed | Plan §6 Phase 2, Progress | Usage and budgets are visible per organisation; no billing surface. |
-| B-14 | Total AI spend across organisations: the monthly budget caps each organisation, and nothing caps the total. Is a platform-wide monthly cap wanted, or a tighter limit on sign-ups, or is a cap per organisation enough? | T-2, T-9 | Once pull request #5 merges (T-9), every organisation is capped each month — at the $25 platform default unless it has a budget of its own — but nothing caps the sum. Open registration stays on (T-2) and each open sign-up creates an organisation of its own, so every new account adds its own $25 a month on the deployment's single `ANTHROPIC_API_KEY`; the only brake on how many is the sign-up rate limit of 10 new accounts an hour per address. |
-| B-15 | Should a platform admin be able to set the budget of an organisation they don't belong to? The decision of 2026-09-17 (B-5) lets only a platform admin set one above the platform default, but the budget route is Owner-only, so as built they can do it only in an organisation where they are an Owner. | B-5, T-9 | As built in pull request #5: a platform admin sets budgets only where they are an Owner, so for anyone else's organisation its owners would first have to invite the admin in as one. Yet the 403 for a budget above the default, the 429 when an organisation on the default runs out and the note on Settings → Usage all name a platform administrator as the one who can go higher, and none mentions that requirement. A yes means a budget control for platform admins across organisations; a no means rewording those three messages. Either way it is a follow-up to pull request #5, not part of it. |
 
 ## Decided
 
-Items that were blocked on an owner decision, now decided and carried out. They are kept for the
-record: none of them is waiting on anyone, and none counts towards the open decisions above.
+Items that were blocked on an owner decision and are now decided. They are kept for the record:
+none of them waits on another decision, and none counts towards the open decisions above. Where
+carrying a decision out is still in flight, its entry says where it stands.
 
 ### B-13 — Merge the session-end batch (the BUG-027 refresh-token fix and the handoff documents) — done 2026-09-17
 
@@ -203,10 +206,54 @@ record: none of them is waiting on anyone, and none counts towards the open deci
   `/health` answers 200 `{"status":"ok"}`, and `POST /api/auth/refresh` with no cookie answers 401
   session-ended. **The BUG-027 security fix is live in production.**
 
+### B-14 — A cap on total AI spend across organisations — decided 2026-09-18
+
+- **Question:** the monthly budget caps each organisation, and nothing caps the total. Is a
+  platform-wide monthly cap wanted, or a tighter limit on sign-ups, or is a cap per
+  organisation enough?
+- **Decision:** **no total cap.** Each organisation stays capped by its own monthly budget, or
+  the $25 platform default, as pull request #5 built it (T-9); nothing is added across
+  organisations.
+- **The owner's reason:** AI usage is to be charged to customers at a markup, so more spend by
+  customers means more revenue.
+- **What the reasoning depends on:** billing, which is not built (B-12 is open; billing
+  settings are a Phase 2 follow-up, **Next up** item 6). Until billing exists, each
+  self-registered organisation can spend up to $25 a month on the deployment's one
+  `ANTHROPIC_API_KEY` with nothing recovering it, and open registration (T-2; at most 10 new
+  accounts an hour per network address) adds organisations with nothing capping the sum. That
+  exposure is the consequence of the decision.
+
+### B-15 — A platform admin setting the budget of an organisation they don't belong to — decided 2026-09-18
+
+- **Question:** only a platform admin may set a budget above the platform default (B-5), but
+  the budget route is Owner-only, so as built they can do it only in an organisation where
+  they are an Owner. Yet the 403 for a budget above the default, the 429 when an organisation
+  on the default runs out and the note on Settings → Usage all named a platform administrator
+  as the one who could go higher.
+- **Decision:** **no** ("Absolutely not"). A platform admin keeps setting budgets only where
+  they are an Owner, as built, and the messages that promised otherwise are reworded.
+- **Carried out on pull request #6 (T-10), not yet on `main` or in production:** `08705de`
+  stops every message promising an administrator. The 403s say only what an organisation can
+  set; the 429 at the default, or at an organisation's own budget at or above it, ends
+  "Operations can start again next month."; and the note on Settings → Usage offers a higher
+  budget only to a platform admin. `b607021` extends it: Settings → Usage promises a raise
+  only to someone who can make one (`canRaiseBudget` in `frontend/src/lib/domain/usage.ts`).
+
+### Playbook gates — advise, never block — decided 2026-09-18
+
+- **Question:** should a gate in the guided launch playbook ever block a run? It was the open
+  question in **Next up**, item 1.
+- **Decision:** **no.** The playbook advises and never blocks: it recommends the next
+  operation and names unfinished groundwork, and every operation still runs from wherever it
+  is.
+- **Carried out on pull request #6 (T-10):** the playbook as built (`53456fc`) blocks nothing,
+  so nothing more is needed; it reaches production when #6 merges and deploys.
+
 ## Next up
 
-In order. Items 1 to 3 are the owner's product choices of 2026-09-17 and wait on nothing in
-**Blocked**; items 4 to 7 follow once the owner decisions above land.
+In order. Items 1 to 3 are the owner's product choices of 2026-09-17 (item 3 now also covers
+the project tab bar, whose fix is not chosen yet) and wait on nothing in **Blocked**; items 4
+to 7 follow once the owner decisions above land.
 
 The choices came out of an audit aimed at presenting LaunchOps to a potential acquirer. For the
 Operations screen the owner chose a **full guided launch playbook** — a stepper through the
@@ -214,33 +261,50 @@ whole launch with progress, gates and dependencies — over two simpler options:
 derived only from the launch phase, or a static category order. Alongside it they chose **cost
 and duration per operation** and **the launch board as cards on a phone**.
 
-1. **The guided launch playbook, on the Operations screen.** **Built, and awaiting its own pull
-   request once #5 merges.** It is one commit on branch `feat/playbook-ui`, **not yet pushed or
-   opened as a pull request** — kept apart so the security fix in #5 isn't held up. Today that
-   commit is `f6261a6`, stacked on `a53b26e`. Once #5 merges, the branch is rebased onto `main`,
-   so **its hash changes**: the pull request will carry a new one, not `f6261a6`. The screen
-   opens on a **"Next up"** card: the one operation to run now,
-   its stage, why it is next, and whether the stage is behind. Below it are the **five stages as
-   an ordered list** — understand the market, fix the positioning, write the story, line up
-   distribution, prepare the push — each with its progress, and each operation with its own
-   (Done, In review, Running, Failed). **"All operations"** (`?view=all`) keeps the category
-   catalogue. It builds on `frontend/src/lib/domain/playbook.ts` (18 tests, part of T-9), which
-   places seventeen of the eighteen operations in those stages and works out each one's state
-   and what to run next; the screen adds 12 tests, and the accessibility and phone-width suites
-   cover both views. The one tool, `repurpose`, sits apart under "Always available": it stores
-   nothing, so its use cannot be observed. **Still open for the owner: whether a gate should
-   ever block a run.** Today the playbook only advises — it names unfinished groundwork, but
-   every operation still runs from wherever it is. **This pulls part of M4 forward:** it is
-   close to Phase 4's **Campaign Playbooks**; see the note under M4.
+1. **The guided launch playbook, on the Operations screen.** **Built, and on pull request #6
+   (T-10)** — open and not merged, so none of it is on `main` or in production yet. The screen
+   came in with `53456fc`, and `4af499c` answers Codex's review of it; the pull request also
+   carries the budget fixes `08705de` and `b607021` (B-5). The Operations screen opens on a
+   **"Next up"** card: the one operation to run now, its stage, what it produces, and a "Run …"
+   button for Editors and above. The card says when the stage is behind its window ("…and
+   launch is 11 days away", or "…and the launch date was 3 days ago"), when the stage is only
+   waiting on work that is running or in review (with a link to Review), and when every step
+   is done. Below it are the **five stages as an ordered list** — understand the market, fix
+   the positioning, write the story, line up distribution, prepare the push — each with its
+   window, its progress and a pill (Done, Now, Behind, Later), and each operation with its
+   own progress (Done, In review, Running, Failed). The current stage is open and the others
+   collapse to one line. A stage that becomes current while the screen is open opens too, and
+   the one it leaves stays open: closing it would pull its operations, and the focus on them,
+   out from under someone using them. The one tool, `repurpose`, sits apart under "Always
+   available": it saves nothing, so its use cannot be observed and counts towards nothing.
+   **"All operations"** (`?view=all`) keeps the category catalogue. Completion is read from a
+   new route, **`GET /api/queue/summary?product_id=…`** — counts per operation and status over
+   **every** result of the project — instead of a page of the newest 500 results, where an
+   operation whose only approved result was older could look unfinished and be recommended
+   again. While results load the screen says "Working out what's next…" rather than recommend
+   from an empty list, and if they fail to load it shows a notice and still guides from the
+   reports saved on the project. It builds on `frontend/src/lib/domain/playbook.ts` (18
+   tests, on `main` since pull request #5 merged), which places seventeen of the eighteen
+   operations in those stages and works out each one's state and what to run next; the
+   accessibility and phone-width browser suites cover both views. **Gates are decided: the
+   playbook advises and never blocks** (**Decided**, 2026-09-18). **This pulls part of M4
+   forward:** it is close to Phase 4's **Campaign Playbooks**; see the note under M4.
 2. **Cost and duration per operation.** **Only estimate bands are honest until a migration
    lands.** The `ai_usage` ledger keeps a row per API response and has no run identifier, so
    it cannot tell one operation run from one API call, and one run can make several calls.
    Adding `result_id` to `ai_usage` would fix that, and would also let each result show what
    it cost.
-3. **The launch board as cards on a phone.** At phone width the Portfolio launch board shows
-   only its project column; the rest is reachable only by scrolling the table sideways, with
-   nothing to say so. `2d57b35` (part of T-9) stopped the page itself overflowing but left the
-   board a table; collapsing it to cards at narrow widths is the fix the owner chose.
+3. **The launch board as cards on a phone, and the project tab bar.** Two phone-width
+   limitations, both recorded in `docs/BUGS.md`. **The launch board (LIM-003):** at phone
+   width the Portfolio launch board shows only its project column; the rest is reachable only
+   by scrolling the table sideways, with nothing to say so. `2d57b35` (pull request #5, T-9)
+   stopped the page itself overflowing but left the board a table; collapsing it to cards at
+   narrow widths is the fix the owner chose. **The project tab bar (LIM-004):** the project's
+   tabs (`.tabnav` in `frontend/src/components/ui/Display.module.css`) scroll with their
+   scrollbar hidden, so on a phone Outbox, Launch plan and Settings are reachable only by
+   swiping, with no cue — seen again on 2026-09-18 in a 390px screenshot of the Operations
+   screen, where the tabs end at "Review" with the next one cut off. It has no chosen fix
+   yet: a visible scroll cue, or wrapping the tabs.
 4. **Phase 2 follow-up — brand kernel (D15).** One versioned brand and company object per
    workspace, merging `brands`, `products.company_details` and the organisation's brand voice,
    so brand facts stop drifting across three editing surfaces. Blocked by B-8, B-9 and B-10.
@@ -256,13 +320,6 @@ and duration per operation** and **the launch board as cards on a phone**.
 
 Not scheduled, recorded so they are not lost.
 
-- **BUG-032** (open, LOW; `docs/BUGS.md`), a follow-up to pull request #5 from CodeRabbit's
-  review of `7dbc35d`. An owner who isn't a platform admin can't lower a budget that is above
-  the platform default to an amount still above it — from $500, set by a platform admin, to
-  $400, say — only to the default ($25) or less, or by clearing it: `ensure_budget_allowed`
-  compares the new amount with the platform default, not with the organisation's current
-  budget. It fails safe, since every change it wrongly refuses would have lowered the cap, and
-  the fix belongs in a later pull request.
 - An automated test that exercises the real Anthropic API. Today every test uses a fake
   transport and an autouse guard fails any test that reaches the network; the live check on
   2026-09-17 was manual and one-off.

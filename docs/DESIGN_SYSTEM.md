@@ -112,6 +112,16 @@ Fonts are bundled with `@fontsource-variable`; nothing loads from a third-party 
   contacts), each set is a `fieldset` whose placard is its `legend`, so each field is announced with its group.
 - **Say why an action isn't available.** A control that's disabled for a reason outside the user's role (the daily
   sending limit, sending switched off on the server) is described by the notice that explains it.
+- **Promise only what the viewer can do.** A message about getting past a limit offers a step this viewer can take.
+  Settings → Usage says operations can start again "unless the budget is raised" only to someone who can raise it
+  (`canRaiseBudget`); anyone else reads that they start again next month, and no message names an administrator the
+  reader can't reach.
+- **Recommend, never gate.** Where there's a best order, show it as advice. The Operations screen opens on the launch
+  playbook (`components/operations/Playbook.tsx`): one "Next up" card with the operation to run now and the reason —
+  including when its stage is behind its window, in words ("the launch date was 3 days ago") — then the five stages as
+  an ordered list, the current one open and the rest one line each. Unfinished groundwork is named, but every operation
+  still runs from wherever it is. When progress moves the current stage, the new one opens and the one it leaves stays
+  as it is, so nothing is pulled out from under the user. "All operations" keeps the catalogue by category.
 - **Offer only what the role allows.** A control the user's organisation role can't use isn't rendered.
   Where leaving it out would leave a confusing gap (a result's review actions, the run sheet, a project's
   delete panel), a `RoleNote` says what needs which role: "Sending or deleting email needs the Approver role

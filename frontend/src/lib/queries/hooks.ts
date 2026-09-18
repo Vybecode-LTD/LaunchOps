@@ -157,6 +157,20 @@ export function useQueue(params: { product_id?: string; status?: QueueStatus; li
   });
 }
 
+/**
+ * How many of a project's results each operation has in each status, counted over all of them: the
+ * playbook's record of what's finished. A page of results holds the newest 500 at most, which could
+ * leave out an operation's only approved result. Polled like the results while any is running.
+ */
+export function useQueueSummary(productId: string) {
+  const { connected } = useLiveUpdates();
+  return useQuery({
+    queryKey: keys.queueSummary(productId),
+    queryFn: () => queueApi.summary(productId),
+    refetchInterval: (query) => queuePollInterval(query.state.data, connected),
+  });
+}
+
 /** Cancel a running operation. The lists refetch either way: it failed, is stopping, or had already finished. */
 export function useCancelOperation() {
   const queryClient = useQueryClient();

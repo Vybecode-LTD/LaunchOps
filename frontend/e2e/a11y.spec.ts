@@ -28,6 +28,8 @@ const SCREENS: Array<{
   { name: "Portfolio", path: () => "/portfolio" },
   { name: "Project overview", path: (p) => `/projects/${p.vybe.id}` },
   { name: "Operations", path: (p) => `/projects/${p.vybe.id}/operations` },
+  // The playbook is the default view; the category catalogue is one switch away and needs its own scan.
+  { name: "All operations", path: (p) => `/projects/${p.vybe.id}/operations?view=all` },
   { name: "Run sheet", path: (p) => `/projects/${p.vybe.id}/operations?run=market_analysis`, ready: "dialog" },
   { name: "Reports", path: (p) => `/projects/${p.vybe.id}/reports` },
   { name: "Market analysis report", path: (p) => `/projects/${p.vybe.id}/reports/market-analysis`, section: /^Sources/ },

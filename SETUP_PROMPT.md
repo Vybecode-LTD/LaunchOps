@@ -20,9 +20,11 @@ My environment:
   (set `TEST_DATABASE_URL` if it isn't the default in backend/tests/conftest.py).
 - Never write anything into OneDrive or the Documents/Desktop folders.
 
-Before changing anything, run the quick check and tell me the result:
-  frontend: npm run check
-  backend:  python -m pytest -q
+Before changing anything, run the quick check and tell me the result (docs/HANDOFF.md, "Start here"):
+  frontend: npm run lint; npm run typecheck; npx vitest run --maxWorkers=2
+  backend:  python -m pytest -q   (start the scratch test cluster first: it is stopped at session start)
+Not `npm run check`: at default concurrency the Vitest suite fails intermittently on this machine
+(docs/TESTING.md, gap 14). Run one test suite at a time, never two at once.
 
 Bug fixes need a failing test first. Keep ESLint at zero warnings. Update docs at the point of change,
 and remind me to "perform handoff" before the session ends.

@@ -29,6 +29,7 @@ const SCREENS: Array<{
   { name: "Portfolio", path: () => "/portfolio" },
   { name: "Project overview", path: (p) => `/projects/${p.vybe.id}` },
   { name: "Operations", path: (p) => `/projects/${p.vybe.id}/operations` },
+  { name: "All operations", path: (p) => `/projects/${p.vybe.id}/operations?view=all` },
   { name: "Run sheet", path: (p) => `/projects/${p.vybe.id}/operations?run=market_analysis`, ready: "dialog" },
   { name: "Reports", path: (p) => `/projects/${p.vybe.id}/reports` },
   { name: "Market analysis report", path: (p) => `/projects/${p.vybe.id}/reports/market-analysis` },

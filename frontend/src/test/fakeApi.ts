@@ -19,6 +19,7 @@ import type {
   OrgRole,
   Project,
   QueueItem,
+  QueueSummaryRow,
   Source,
   Template,
   UsageBreakdown,
@@ -356,7 +357,7 @@ function budgetRefusal(state: FakeState, membership: Membership): Response | nul
       detail: `${membership.name} has used ${source === "organisation" ? "its AI budget" : "the default AI budget"} for ${month} (${usd(budget)}). ${
         source === "organisation" && !(ceiling > 0 && budget >= ceiling)
           ? "An owner can raise it in Settings → Usage."
-          : "A platform administrator can raise it."
+          : "Operations can start again next month."
       }`,
     },
     { status: 429 },
@@ -698,6 +699,20 @@ export function handlers(state: FakeState): HttpHandler[] {
       const productId = url.searchParams.get("product_id");
       const status = url.searchParams.get("status");
       return HttpResponse.json(state.queue.filter((q) => (!productId || q.product_id === productId) && (!status || q.status === status)));
+    }),
+    // Mirrors GET /api/queue/summary: every result of one project, counted by operation and status.
+    http.get(`${API}/api/queue/summary`, async ({ request }) => {
+      await record(request);
+      const productId = new URL(request.url).searchParams.get("product_id") ?? "";
+      if (!project(productId)) return HttpResponse.json({ detail: "Product not found" }, { status: 404 });
+      const rows = new Map<string, QueueSummaryRow>();
+      for (const q of state.queue.filter((item) => item.product_id === productId)) {
+        const key = `${q.workflow_id} ${q.status}`;
+        const row = rows.get(key) ?? { product_id: productId, workflow_id: q.workflow_id, status: q.status, count: 0 };
+        row.count += 1;
+        rows.set(key, row);
+      }
+      return HttpResponse.json([...rows.values()]);
     }),
     http.patch(`${API}/api/queue/:id`, async ({ request, params }) => {
       const body = (await record(request)) as { status: QueueItem["status"]; notes: string };
@@ -1045,15 +1060,22 @@ export function handlers(state: FakeState): HttpHandler[] {
         if (Math.abs(amount * 100 - Math.round(amount * 100)) > 1e-6) return invalid("Decimal input should have no more than 2 decimal places");
         if (amount >= 1e10) return invalid("Decimal input should have no more than 12 digits in total");
       }
-      // Mirrors usage.ensure_budget_allowed: only a platform admin may go above the default (BUG-031).
+      // Mirrors usage.ensure_budget_allowed: above the default only a platform admin may go (BUG-031),
+      // except as a decrease from a budget already above it (BUG-032); no message promises an admin (B-15).
+      const orgId = orgOf(request).id;
       const ceiling = state.defaultBudget ?? 0;
       if (amount !== null && ceiling > 0 && amount > ceiling && state.user.role !== "admin") {
-        return HttpResponse.json(
-          { detail: `An organisation can set a monthly AI budget of up to ${usd(ceiling)}. A platform administrator can set a higher one.` },
-          { status: 403 },
-        );
+        const current = state.budgets?.[orgId] ?? null;
+        if (current === null || current <= ceiling) {
+          return HttpResponse.json({ detail: `The most an organisation can set is ${usd(ceiling)} a month.` }, { status: 403 });
+        }
+        if (amount > current) {
+          return HttpResponse.json(
+            { detail: `This organisation's budget can be lowered, but not raised above its current ${usd(current)}.` },
+            { status: 403 },
+          );
+        }
       }
-      const orgId = orgOf(request).id;
       state.budgets = { ...state.budgets, [orgId]: amount };
       audit(request, "organisation.budget_changed", amount === null ? "Removed the monthly AI budget" : `Set the monthly AI budget to ${usd(amount)}`);
       return HttpResponse.json({ monthly_ai_budget_usd: amount });
