@@ -68,8 +68,9 @@ def effective_budget(own: Decimal | None) -> tuple[Decimal | None, str]:
     return (default, "default") if default > 0 else (None, "none")
 
 
-async def ensure_budget_allowed(org_id: str, amount: Decimal | None, *, is_admin: bool) -> None:
-    """403 when an owner who isn't a platform admin sets a budget they may not.
+def ensure_budget_allowed(current: Decimal | None, amount: Decimal | None, *, is_admin: bool) -> None:
+    """403 when an owner who isn't a platform admin changes the organisation's budget from `current` to
+    `amount`, and may not.
 
     Registration makes every new account the owner of its own organisation, and an organisation's own
     budget wins over the default, so without a ceiling anyone could sign up and lift the cap on the
@@ -86,8 +87,6 @@ async def ensure_budget_allowed(org_id: str, amount: Decimal | None, *, is_admin
     if ceiling <= 0 or amount <= ceiling:
         return
     # Above the default: allowed only as a decrease from a budget already above it.
-    pool = await get_pool()
-    current = await pool.fetchval("SELECT monthly_ai_budget_usd FROM organisations WHERE id = $1", uuid.UUID(org_id))
     if current is not None and current > ceiling:
         if amount <= current:
             return
@@ -124,9 +123,19 @@ async def ensure_within_budget(org_id: str, org_name: str) -> None:
         raise HTTPException(429, f"{org_name} has used {which} for {start:%B} (${budget:,.2f}). {remedy}")
 
 
-async def set_budget(org_id: str, amount: Decimal | None) -> None:
+async def set_budget(org_id: str, amount: Decimal | None, *, is_admin: bool) -> None:
+    """Set or clear an organisation's own budget, if `ensure_budget_allowed` lets this owner.
+
+    The check and the write hold the organisation's row between them. Checked apart from the write, two
+    changes at once could both pass against the same old budget — two owners lowering $500 to $400 and
+    to $450 — and the later write would raise what the earlier one had set.
+    """
     pool = await get_pool()
-    await pool.execute("UPDATE organisations SET monthly_ai_budget_usd = $1, updated_at = NOW() WHERE id = $2", amount, uuid.UUID(org_id))
+    org = uuid.UUID(org_id)
+    async with pool.acquire() as conn, conn.transaction():
+        current = await conn.fetchval("SELECT monthly_ai_budget_usd FROM organisations WHERE id = $1 FOR UPDATE", org)
+        ensure_budget_allowed(current, amount, is_admin=is_admin)
+        await conn.execute("UPDATE organisations SET monthly_ai_budget_usd = $1, updated_at = NOW() WHERE id = $2", amount, org)
 
 
 def parse_month(value: str | None) -> datetime:

@@ -9,6 +9,7 @@ import { useSetBudget, useUsage } from "@/lib/queries/hooks";
 import { useNow } from "@/lib/hooks/useClock";
 import {
   budgetUse,
+  canRaiseBudget,
   chosenUsageMonth,
   formatCount,
   formatUsageMonth,
@@ -31,6 +32,9 @@ import styles from "./UsageSettings.module.css";
 export function UsageSettings() {
   const { current, can } = useOrganisation();
   const isOwner = can("owner");
+  // Only a platform admin can set a budget above the default, and only where they are an owner — as
+  // they are here, since this page is for owners. Nobody else can go above it (B-15).
+  const isAdmin = useAuth().user?.role === "admin";
   const now = useNow(60_000);
   const [params, setParams] = useSearchParams();
   const thisMonth = usageMonthOf(now);
@@ -58,6 +62,7 @@ export function UsageSettings() {
   const monthName = formatUsageMonth(month);
   // While another month loads, the previous month's figures stand in: show them only for the budget, which isn't monthly.
   const summary = usage.isPlaceholderData ? undefined : usage.data;
+  const canRaise = usage.data ? canRaiseBudget(usage.data, isAdmin) : false;
 
   return (
     <div className={settingsStyles.stack}>
@@ -94,10 +99,17 @@ export function UsageSettings() {
             {month === thisMonth && <BudgetStatement summary={summary} />}
           </>
         ) : (
-          <MonthSummary summary={summary} current={month === thisMonth} />
+          <MonthSummary summary={summary} current={month === thisMonth} isAdmin={isAdmin} canRaise={canRaise} />
         )}
       </Panel>
-      {usage.data && <BudgetPanel key={usage.data.budget_usd ?? "none"} budget={usage.data.budget_usd} defaultBudget={usage.data.default_budget_usd} />}
+      {usage.data && (
+        <BudgetPanel
+          key={usage.data.budget_usd ?? "none"}
+          budget={usage.data.budget_usd}
+          defaultBudget={usage.data.default_budget_usd}
+          canRaise={canRaise}
+        />
+      )}
       {summary && summary.total.calls > 0 && (
         <>
           <Breakdown title="By operation" nameHeader="Operation" rows={summary.by_operation} name={(row) => operationLabel(row.key)} />
@@ -128,11 +140,18 @@ function BudgetStatement({ summary }: { summary: UsageSummary }) {
   );
 }
 
-function MonthSummary({ summary, current }: { summary: UsageSummary; current: boolean }) {
-  // Only a platform admin can set a budget above the default, and only where they are an owner — as
-  // they are here, since this page is for owners. Nobody else can go above it (B-15), so the note
-  // mustn't suggest an administrator will.
-  const isAdmin = useAuth().user?.role === "admin";
+function MonthSummary({
+  summary,
+  current,
+  isAdmin,
+  canRaise,
+}: {
+  summary: UsageSummary;
+  current: boolean;
+  isAdmin: boolean;
+  /** Whether this owner can raise the budget that applies (`canRaiseBudget`). */
+  canRaise: boolean;
+}) {
   // The budget that actually stops operations, not only the one the organisation set: under the
   // platform default the stored budget is null, and reading it said operations never stop for cost.
   const { total, effective_budget_usd: budget, budget_source: source } = summary;
@@ -179,7 +198,9 @@ function MonthSummary({ summary, current }: { summary: UsageSummary; current: bo
               />
               <p className={styles.budgetText}>
                 {current && use.tone === "crit"
-                  ? "AI operations can't start again until next month, unless the budget is raised."
+                  ? canRaise
+                    ? "AI operations can't start again until next month, unless the budget is raised."
+                    : "AI operations can't start again until next month."
                   : "Operations stop when the month's cost reaches the budget."}
               </p>
               {source === "default" && (
@@ -215,7 +236,7 @@ function MonthSummary({ summary, current }: { summary: UsageSummary; current: bo
   );
 }
 
-function BudgetPanel({ budget, defaultBudget }: { budget: number | null; defaultBudget: number | null }) {
+function BudgetPanel({ budget, defaultBudget, canRaise }: { budget: number | null; defaultBudget: number | null; canRaise: boolean }) {
   const setBudget = useSetBudget();
   const toast = useToast();
   const [value, setValue] = useState(budget === null ? "" : budget.toFixed(2));
@@ -259,7 +280,11 @@ function BudgetPanel({ budget, defaultBudget }: { budget: number | null; default
         <FieldStack>
           <Field
             label="Budget in US dollars"
-            hint="When a month's estimated cost reaches it, operations and reports can't start until the next month or until the budget is raised."
+            hint={
+              canRaise
+                ? "When a month's estimated cost reaches it, operations and reports can't start until the next month or until the budget is raised."
+                : "When a month's estimated cost reaches it, operations and reports can't start until the next month."
+            }
             error={error}
           >
             {(props) => (

@@ -359,6 +359,27 @@ describe("The platform's default budget", () => {
     expect(within(month).queryByText(/platform administrator/)).not.toBeInTheDocument();
   });
 
+  it("doesn't tell an owner on the default that raising the budget would restart operations", async () => {
+    // Only a platform admin can go above the default, so for anyone else operations start again next month.
+    const state = makeState({ defaultBudget: 25, aiUsage: [usage({ cost_usd: 26 })] });
+    state.user = { ...state.user, role: "user" };
+    renderApp("/settings/usage", state);
+
+    const month = await region(formatUsageMonth(thisMonth));
+    expect(await within(month).findByText("AI operations can't start again until next month.")).toBeInTheDocument();
+    // Nor does the budget field's hint.
+    expect(screen.queryByText(/raised/)).not.toBeInTheDocument();
+  });
+
+  it("still tells an owner whose own budget is below the default that raising it would", async () => {
+    const state = makeState({ defaultBudget: 25, budgets: { "org-1": 10 }, aiUsage: [usage({ cost_usd: 11 })] });
+    state.user = { ...state.user, role: "user" };
+    renderApp("/settings/usage", state);
+
+    const month = await region(formatUsageMonth(thisMonth));
+    expect(await within(month).findByText("AI operations can't start again until next month, unless the budget is raised.")).toBeInTheDocument();
+  });
+
   it("lets an owner lower a budget that is above the default", async () => {
     // BUG-032: lowering only ever reduces what the key can spend, even when the new amount is still
     // above the default — for instance a budget set before the default existed.

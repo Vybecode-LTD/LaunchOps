@@ -361,11 +361,10 @@ async def set_budget(data: BudgetUpdate, request: Request) -> dict:
     """Set or clear the monthly AI budget in US dollars (Owner). Operations stop once a month's cost reaches it.
 
     Owners may set up to the platform default, clear their budget or lower it; only a platform admin may
-    go higher: see `usage.ensure_budget_allowed`.
+    go higher: see `usage.ensure_budget_allowed`, which `usage.set_budget` applies under a row lock.
     """
     current = await access.membership(request, "owner")
-    await usage.ensure_budget_allowed(current.org_id, data.monthly_ai_budget_usd, is_admin=request.state.user.get("role") == "admin")
-    await usage.set_budget(current.org_id, data.monthly_ai_budget_usd)
+    await usage.set_budget(current.org_id, data.monthly_ai_budget_usd, is_admin=request.state.user.get("role") == "admin")
     amount = data.monthly_ai_budget_usd
     await audit.record(
         current.org_id, request.state.user, "organisation.budget_changed",

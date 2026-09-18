@@ -1,3 +1,4 @@
+import type { UsageSummary } from "@/lib/api/types";
 import { getOperation } from "./operations";
 
 /*
@@ -59,6 +60,21 @@ export function budgetUse(cost: number, budget: number): { percent: number; tone
   // The backend stops operations once cost >= budget, so a budget of 0 is used up from the start.
   const percent = budget > 0 ? (cost / budget) * 100 : 100;
   return { percent, tone: percent >= 100 ? "crit" : percent >= BUDGET_WARN_PERCENT ? "warn" : "ok" };
+}
+
+/**
+ * Whether an owner can raise the budget that applies, so the page never promises a raise they can't
+ * make. Mirrors backend/services/usage.py: a platform admin can set any budget, and anyone else only up
+ * to the platform default — so an owner on the default, or with a budget of their own at or above it,
+ * can't raise it. With no default there's no ceiling for anyone.
+ */
+export function canRaiseBudget(
+  summary: Pick<UsageSummary, "budget_source" | "effective_budget_usd" | "default_budget_usd">,
+  isAdmin: boolean,
+): boolean {
+  const ceiling = summary.default_budget_usd;
+  if (isAdmin || ceiling === null) return true;
+  return summary.budget_source === "organisation" && (summary.effective_budget_usd ?? 0) < ceiling;
 }
 
 /** The largest budget the API stores: 12 digits, 2 of them after the decimal point. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   budgetUse,
+  canRaiseBudget,
   chosenUsageMonth,
   formatCount,
   formatUsageMonth,
@@ -65,6 +66,21 @@ describe("usage figures", () => {
     expect(budgetUse(60, 50)).toEqual({ percent: 120, tone: "crit" });
     // Operations stop once cost reaches the budget, so a budget of nothing is used up at once.
     expect(budgetUse(0, 0)).toEqual({ percent: 100, tone: "crit" });
+  });
+});
+
+describe("canRaiseBudget", () => {
+  it("lets a platform admin raise any budget, and anyone raise one while the platform sets no ceiling", () => {
+    expect(canRaiseBudget({ budget_source: "default", effective_budget_usd: 25, default_budget_usd: 25 }, true)).toBe(true);
+    expect(canRaiseBudget({ budget_source: "organisation", effective_budget_usd: 500, default_budget_usd: null }, false)).toBe(true);
+    expect(canRaiseBudget({ budget_source: "none", effective_budget_usd: null, default_budget_usd: null }, false)).toBe(true);
+  });
+
+  it("lets anyone else raise only a budget of their own that is below the platform default", () => {
+    expect(canRaiseBudget({ budget_source: "organisation", effective_budget_usd: 10, default_budget_usd: 25 }, false)).toBe(true);
+    expect(canRaiseBudget({ budget_source: "organisation", effective_budget_usd: 25, default_budget_usd: 25 }, false)).toBe(false);
+    expect(canRaiseBudget({ budget_source: "organisation", effective_budget_usd: 500, default_budget_usd: 25 }, false)).toBe(false);
+    expect(canRaiseBudget({ budget_source: "default", effective_budget_usd: 25, default_budget_usd: 25 }, false)).toBe(false);
   });
 });
 
