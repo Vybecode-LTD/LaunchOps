@@ -4,11 +4,13 @@
 
 ---
 
-## Progress (updated 2026-09-18)
+## Progress (updated 2026-09-19)
 
-The Phase 0–2 work is on `main`: merged from pull request #1 (merge commit `24eff91`) on 2026-09-17, after CI passed, with the documentation and one later fix following in #2 (`f143f1c`) and #3 (`bc6143c`). A later batch of fixes — the platform default AI budget and the ceiling on raising it, phone-width layout, empty result states and the playbook's domain module — followed in pull request #5, merged on 2026-09-18 (`477eaa4`) and live in production. The launch playbook's screen, the owner's budget decisions of 2026-09-18 and the fixes from both automated reviews of it are on pull request #6, **not yet merged**; the quality-gate figures below are measured on its branch, at its last code commit, `b607021`.
+The Phase 0–2 work is on `main`: merged from pull request #1 (merge commit `24eff91`) on 2026-09-17, after CI passed, with the documentation and one later fix following in #2 (`f143f1c`) and #3 (`bc6143c`). A later batch of fixes — the platform default AI budget and the ceiling on raising it, phone-width layout, empty result states and the playbook's domain module — followed in pull request #5, merged on 2026-09-18 (`477eaa4`). The launch playbook's screen, the owner's budget decisions of 2026-09-18 and the fixes from both automated reviews of it followed in pull request #6, merged the same day (`199121c`). Both are live in production. The quality-gate figures below were measured on `main`, at `199121c`, on 2026-09-19.
 
-The Operations screen on pull request #6 opens on a guided launch playbook: the one operation to run next and why, then five stages in the order a launch runs in, each with its progress. It advises and never blocks — the owner's decision on gates. It reads what's finished from `GET /api/queue/summary`, a count of every result a project has, rather than from a page of results capped at 500. This pulls part of Phase 4's Campaign Playbooks forward (§6).
+**Next, by the owner's decision of 2026-09-19: sharing** — access to a single project, view-only share links and more than one organisation per account, none of which exists yet. The plan is `docs/SHARING_PLAN.md`.
+
+The Operations screen opens on a guided launch playbook: the one operation to run next and why, then five stages in the order a launch runs in, each with its progress. It advises and never blocks — the owner's decision on gates. It reads what's finished from `GET /api/queue/summary`, a count of every result a project has, rather than from a page of results capped at 500. This pulls part of Phase 4's Campaign Playbooks forward (§6).
 
 The later fix in #3 came after the Phase 0–2 merge. Reconciling the documentation at session end turned up an
 intermittent failure in the refresh-token tests, and behind it a real defect: `POST /api/auth/refresh`
@@ -41,7 +43,7 @@ passed and deployed to production at 19:47 UTC the same day.
 | Jobs | Durable jobs in PostgreSQL, run inside the web process or by `python -m worker`. A job survives restarts. It's retried when a retry might help (after 30 s, then 2 min; 3 attempts). It can be cancelled, and it stops after 15 minutes per attempt. |
 | Live updates | `GET /api/events` streams changes to results and the Outbox, so Review, the Outbox and the activity list update straight away. While the stream is connected, polling slows to every 30 s. |
 | AI layer | Uses the official SDK.<br>**Results:** every operation returns a structured result, validated before it's stored.<br>**Sources:** web research ends with a strict submit tool and lists only sources its searches returned.<br>**Caching and resuming:** the stable parts of each prompt are cached, and paused research resumes.<br>**Models:** Sonnet 5 by default; market analysis and pricing use Opus 5. |
-| Usage and cost | Every API call is recorded with an estimated cost for its tokens and web searches. Settings → Usage shows a month by operation, project, member and model, and which budget applies. A monthly budget stops new operations once it's reached: the organisation's own, or, for an organisation without one, the platform default (`DEFAULT_MONTHLY_AI_BUDGET_USD`, 25). Clearing an organisation's budget falls back to the default. An owner can set a budget up to the default, clear it or lower it; only a platform admin can set one above it (BUG-028, BUG-031). On pull request #6, not yet on `main`: an owner can also lower a budget that is already above the default (BUG-032), the check and the write hold the organisation's row between them, and no message promises a raise the reader can't make. |
+| Usage and cost | Every API call is recorded with an estimated cost for its tokens and web searches. Settings → Usage shows a month by operation, project, member and model, and which budget applies. A monthly budget stops new operations once it's reached: the organisation's own, or, for an organisation without one, the platform default (`DEFAULT_MONTHLY_AI_BUDGET_USD`, 25). Clearing an organisation's budget falls back to the default. An owner can set a budget up to the default, clear it or lower it; only a platform admin can set one above it (BUG-028, BUG-031). An owner can also lower a budget that is already above the default (BUG-032), the check and the write hold the organisation's row between them, and no message promises a raise the reader can't make. |
 
 Exit criteria:
 
@@ -127,10 +129,10 @@ Exit criteria:
 |---|---|
 | Old `App.jsx` deleted | Done. |
 | Playwright covers the golden path per screen | Done: 12 main-task tests and 3 smoke tests against the production build, sharing one fake of the backend contract with the component tests. |
-| Accessibility (plan said Lighthouse ≥ 90) | Replaced by a stricter gate: axe-core WCAG 2.2 A/AA scans of every enumerated screen in both themes — 28 on pull request #6's branch — with zero violations required. |
+| Accessibility (plan said Lighthouse ≥ 90) | Replaced by a stricter gate: axe-core WCAG 2.2 A/AA scans of every enumerated screen in both themes — 28 of them — with zero violations required. |
 | Design canvas signed off before code | Skipped. The working build and screenshots are the review surface; sign-off is still needed (decision 6). |
 
-### Quality gates today (measured on pull request #6's branch, at `b607021`, 2026-09-18)
+### Quality gates today (measured on `main`, at `199121c`, 2026-09-19)
 
 | Gate | Status |
 |---|---|
@@ -143,11 +145,17 @@ Exit criteria:
 
 ### Next
 
+0. **Sharing — the owner's priority, set 2026-09-19, to start immediately in the next session.** Three features that don't
+   exist today: access to a single project, view-only share links for a project or report, and more than one organisation per
+   account. The brief, the decisions to settle first (S1–S15, B-16 in `docs/ROADMAP.md`) and the test plan are in
+   `docs/SHARING_PLAN.md`.
 1. Decisions for the owner:
    - section 8
    - the brand kernel questions in `docs/PHASE1_DESIGN.md` D15
    - whether organisation owners should also be able to create reset links (D8)
    - billing: what is metered and charged (B-12 in `docs/ROADMAP.md`)
+   - the sharing decisions S1–S15 (B-16), above all S2 (how to stop extra organisations multiplying the $25 default) and
+     S15 (one permission function in the database, as the owner's colleague advised)
    - **decided 2026-09-18** (`docs/ROADMAP.md` → Decided): no cap on total AI spend across organisations (B-14) — the owner
      means to charge usage on at a markup, a reason that holds once billing exists; no budget-setting by a platform admin in
      an organisation they don't belong to (B-15); and the playbook advises, never blocks
@@ -170,9 +178,9 @@ Exit criteria:
      scrolled sideways on a phone, and competitor results rendered empty columns — and BUG-031, which would have let any
      self-registered owner lift the new cap themselves. Every organisation without a budget of its own is now held to the $25
      default in production
-   - **merge pull request #6 (T-10)** once CI passes on its latest commit, with a merge commit, not a squash. It ships the
-     playbook screen and takes BUG-032's fix to production; then check the live site signed in as an Owner, never by
-     registering a probe account
+   - **done 2026-09-18:** pull request #6 merged (`199121c`, a merge commit) and deployed (T-10): the playbook screen, BUG-032's
+     fix and the review fixes are in production. **Still owed by the owner:** T-10's check of the live site, signed in as an
+     Owner, never by registering a probe account
    - delete the account `guard-check@example.com` and "Guard check's organisation", created on the live site by a sign-up probe
      after the admin account already existed (T-1)
    - rotate the Railway project token again (T-4). The exposed token was deleted and a replacement issued, but the replacement was

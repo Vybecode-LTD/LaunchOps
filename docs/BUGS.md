@@ -1,8 +1,8 @@
 ---
 document: BUGS
-version: 1.1.4
-last-updated: 2026-09-18T06:39:21Z
-last-audit: 2026-09-18T06:35:00Z
+version: 1.2.0
+last-updated: 2026-09-19T15:49:21Z
+last-audit: 2026-09-19T16:06:00Z
 managed-by: session-orchestrator/bug-fix-tracker
 ---
 
@@ -21,9 +21,9 @@ with one request. All four were fixed on branch `fix/spend-cap-and-mobile-overfl
 request #5, which merged into `main` as `477eaa4` on 2026-09-18 and is in production. BUG-032,
 from the same session, was found in review after pull request #5's code was frozen, so the merge
 took it to production. It fails safe. The owner decided on 2026-09-18 that it is a defect, and it
-is fixed on branch `feat/playbook-ui`, in pull request #6, which is **open and not merged**: the
-fix is neither on `main` nor in production, and the defect stays live there until pull request #6
-merges and deploys.
+was fixed on branch `feat/playbook-ui`, in pull request #6, which merged into `main` as `199121c`
+at 2026-09-18T19:08:32Z and is in production: the defect was live there from pull request #5's
+deployment until pull request #6's, both on 2026-09-18.
 
 **Every fix in this project lands with a test that failed before the fix and passed after it.**
 Every fixed bug below did, except BUG-023, a `.gitignore` change verified by a tracking check
@@ -31,10 +31,13 @@ instead. For BUG-028 to BUG-032 the commit messages record the tests failing fir
 entries for BUG-029, BUG-031 and BUG-032 say what was seen failing. The regression tests named in
 BUG-001 to BUG-027 were read and confirmed to exist on 2026-09-17, those named in BUG-028 to
 BUG-031 were located on their branch the same evening, and those named in BUG-032 were located on
-pull request #6's branch, at `b607021`, on 2026-09-18. The suites themselves were not run as part
-of writing this file (the first session's own runs: 550 backend tests passing at 98.31% coverage,
-601 frontend tests passing at 99.19% lines, 69 Playwright tests passing; BUG-032's entry gives the
-runs at `b607021`).
+pull request #6's branch, at `b607021`, on 2026-09-18. **On 2026-09-19 every regression test this
+registry names was located by name on `main`, at `199121c`,** and the line numbers pull request #6
+moved were updated to `main`'s, except in passages that say they describe the code as it was
+before pull request #6. The suites themselves were not run as part of writing this file (the
+first session's own runs: 550 backend tests passing at 98.31% coverage, 601 frontend tests
+passing at 99.19% lines, 69 Playwright tests passing; BUG-032's entry gives the runs at
+`b607021` and on `main` at `199121c`).
 
 **IDs** follow the order of the session brief's "Bugs found and fixed" table (BUG-001 to BUG-017),
 then the nine fixed earlier in the rebuild (BUG-018 to BUG-026), then BUG-027, found after that
@@ -42,40 +45,51 @@ table at the end of the same session. BUG-028 to BUG-030 follow the order of the
 brief, BUG-031 was found after it, and BUG-032 in review after that. Entries are grouped by
 severity, so the most serious one is first.
 
-**32 bugs are registered, and all 32 are fixed; one fix, BUG-032's, is not on `main` yet.**
+**32 bugs are registered, and all 32 are fixed, on `main` and in production. None is open
+anywhere.**
 
 | Status | Count |
 |---|---|
-| 🔴 Open (no fix yet) | 0, including on pull request #6's branch |
-| ✅ Fixed and verified, on `main` and in production | 31 — BUG-001 to BUG-031 |
-| ✅ Fixed and verified on branch `feat/playbook-ui` only — pull request #6, open: **not on `main`, not in production, where the defect stays live until it merges** | 1 — BUG-032 (LOW; it fails safe) |
+| 🔴 Open (no fix yet) | 0 |
+| ✅ Fixed and verified, on `main` and in production | 32 — BUG-001 to BUG-032 |
 | Known limitations (not bugs) | 4 — LIM-001 to LIM-004 |
 
 ---
 
 ## Open Bugs
 
-**None is open:** every registered bug has a fix, and nothing is open on pull request #6's branch.
-The automated reviews of that branch found three problems in its new playbook screen: a stage that
-became current stayed closed, a launch date that had passed read as a negative countdown, and
-completion was read from only the newest 500 results. All three are fixed on the branch, before
-it merges. They were never on `main`, so `docs/CHANGELOG.md` records them and this registry does
-not. The race the same reviews found in BUG-032's fix is recorded in BUG-032's entry, because it
-was a hole in that bug's own fix.
+**None is open:** every registered bug is fixed on `main` and in production, and no bug is open
+on any branch. The automated reviews of pull request #6 found three problems in its new playbook
+screen: a stage that became current stayed closed, a launch date that had passed read as a
+negative countdown, and completion was read from only the newest 500 results. All three were
+fixed on its branch, in `4af499c`, before it merged, so they were never on `main` or in
+production: `docs/CHANGELOG.md` records them and this registry does not. The race the same
+reviews found in BUG-032's fix is recorded in BUG-032's entry, because it was a hole in that
+bug's own fix.
 
-**One fix is not in production yet: BUG-032 (LOW).** Pull request #5's merge took the defect to
-production, and it stays there until pull request #6 merges and Railway deploys it (T-10 in
-`docs/ROADMAP.md`). It fails safe: an owner whose budget is above the $25 default can lower it
-only to $25 or below, or clear it. Its entry is under Fixed Bugs, LOW.
+**One review thread on pull request #6 is still open, and it is not a bug:** CodeRabbit's, from
+its review of `705c834`, at `frontend/src/test/fakeApi.ts:709`. The test fake's
+`GET /api/queue/summary` looks a project up by id alone, so it answers 200 for another
+organisation's project, where production answers 404. Production is right, and tested
+(`backend/tests/test_queue.py::test_summary_needs_a_project_in_the_organisation` and
+`backend/tests/test_tenancy.py::test_queue_items_are_isolated`); the gap is the fake's fidelity,
+which `docs/TESTING.md` records. Fixing the fake's scoping is planned as the sharing work's first
+code change (`docs/ROADMAP.md` → Next up), and will close the thread.
 
-**BUG-028 to BUG-031 are fixed on `main` and in production:** pull request #5 merged and deployed
-on 2026-09-18. Every organisation without a budget of its own is now held to the $25 platform
-default, which its owner can lower or clear but not raise; only a platform admin can set a budget
-above it. That caps each organisation, not the total, and by the owner's decision of 2026-09-18
-nothing caps the total (B-14): see BUG-028.
+**BUG-028 to BUG-032 are all fixed on `main` and in production.** Pull request #5 merged and
+deployed on 2026-09-18 with the fixes for BUG-028 to BUG-031: every organisation without a
+budget of its own is now held to the $25 platform default, which its owner can lower or clear
+but not raise; only a platform admin can set a budget above it. That caps each organisation, not
+the total, and by the owner's decision of 2026-09-18 nothing caps the total (B-14): see BUG-028.
+Pull request #6 merged into `main` as `199121c` at 2026-09-18T19:08:32Z, and production has
+served its build since 19:09:32Z, checked from the live site. It carries BUG-032's fix: an owner
+can now lower any budget to any lower amount, one stored above the default included. Until then
+the defect was live in production, failing safe: an owner whose budget was above the $25 default
+could lower it only to $25 or below, or clear it. BUG-032's entry is under Fixed Bugs, LOW.
 
 Remaining work is tracked in `docs/ROADMAP.md`, not here, and is not bug work: the tasks under
-**Active**, T-10 first, and the owner decisions still open under **Blocked**, B-1 to B-12.
+**Active**, among them T-10's check of the live site signed in as an Owner, which the owner still
+owes, and the owner decisions still open under **Blocked**, B-1 to B-12 and B-16.
 
 ### Known limitations
 
@@ -101,10 +115,10 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
 #### LIM-002 — Frontend branch coverage is 90.24% and no gate enforces it
 - **Severity:** LOW
 - **What it is:** `frontend/vitest.config.ts` sets a threshold on lines only (95%). Branches are at
-  90.24% (3,110 of 3,446) at `b607021`, the last code commit on pull request #6, up from 90.13% at
-  `7dbc35d` (the code on `main`) and the 89.97% this entry first recorded. The statement, function
-  and line figures are in `docs/TESTING.md`, section 5. Branches can fall without failing
-  `npm run coverage` or CI.
+  90.24% (3,110 of 3,446) on `main` at `199121c`, measured on 2026-09-19, the same as at
+  `b607021`, pull request #6's last code commit; they were 90.13% at `7dbc35d`, pull request #5's,
+  and 89.97% when this entry was first recorded. The statement, function and line figures are in
+  `docs/TESTING.md`, section 5. Branches can fall without failing `npm run coverage` or CI.
 - **Risk:** untested conditional paths — error branches and fallbacks most likely — accumulate
   silently.
 - **Status:** ⬜ Accepted. Add a branch threshold once the current figure is raised, so the gate
@@ -189,7 +203,7 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
     operation had already cost something, and T-9's post-merge check in `docs/ROADMAP.md`, that
     Settings → Usage shows the $25 default, would have failed on it. The current month now says,
     under the empty state, which budget applies and whose it is: the platform's default, the
-    organisation's own, or none (`BudgetStatement`, `frontend/src/pages/settings/UsageSettings.tsx:117`).
+    organisation's own, or none (`BudgetStatement`, `frontend/src/pages/settings/UsageSettings.tsx:130`).
     BUG-031's note on who can set a higher budget is not part of that sentence.
 - **Regression tests** (each written to fail first, as `522e40d`, `43ab3e6` and `7dbc35d` record):
   `backend/tests/test_usage.py::test_an_organisation_without_its_own_budget_is_capped_by_the_platform_default`,
@@ -206,8 +220,8 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
   `frontend/src/test/app.usage.test.tsx`:
   - "The platform's default budget" (line 335): "shows the default an organisation without its own
     budget is held to, not 'no budget'" (line 336), "says the default applies again when an
-    organisation removes its own budget" (line 349) and "stops an organisation at the default and
-    says which budget it reached" (line 378).
+    organisation removes its own budget" (line 400) and "stops an organisation at the default and
+    says which budget it reached" (line 429).
   - "Usage", for `7dbc35d`: "tells a new organisation which budget applies before anything has run"
     (line 136) and "says there is no cap before anything has run, when there really is none"
     (line 148). Before `7dbc35d`, a month with no usage held only the empty state in its panel, so
@@ -217,16 +231,19 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
 - **On `main` and in production:** all three commits are in pull request #5 (branch
   `fix/spend-cap-and-mobile-overflow`), merged into `main` as `477eaa4` at 2026-09-18T04:43:03Z,
   with a merge commit, not a squash, after all three CI jobs had passed on the pull request's last
-  commit, `ce12024` (the 1.1.3 documentation), by 03:38:11Z. Production serves `477eaa4`'s build:
-  at 04:43:44Z the live site's JavaScript bundle changed to `index-D1A5232b.js`, whose Settings →
-  Usage chunk contains "default budget of", text from `43ab3e6` that only pull request #5's code
-  has; at 05:14:16Z the same bundle was served and `GET /health` answered 200 `{"status":"ok"}`;
-  and at 06:09:38Z the same chunk also held the sentence `7dbc35d` added and still the note from
-  pull request #5 naming a platform administrator: all of pull request #5's code, none of pull
-  request #6's. The Railway dashboard's deployment record was not read, and Settings → Usage has
-  not been checked on the live site signed in as an Owner: that check is part of T-10 in
-  `docs/ROADMAP.md`. Until the merge, production ran `bc6143c`'s application code, with no default
-  budget, and the defect was live there.
+  commit, `ce12024` (the 1.1.3 documentation), by 03:38:11Z. Production served `477eaa4`'s build
+  until pull request #6 deployed: at 04:43:44Z the live site's JavaScript bundle changed to
+  `index-D1A5232b.js`, whose Settings → Usage chunk contains "default budget of", text from
+  `43ab3e6` that only pull request #5's code has; at 05:14:16Z the same bundle was served and
+  `GET /health` answered 200 `{"status":"ok"}`; and at 06:09:38Z the same chunk also held the
+  sentence `7dbc35d` added and still the note from pull request #5 naming a platform
+  administrator: all of pull request #5's code, none of pull request #6's. Since 19:09:32Z the
+  same day, production has served `199121c`'s build, pull request #6's merge, which keeps all
+  three commits (see BUG-032). The Railway dashboard's deployment records were not read, and
+  Settings → Usage has not been checked on the live site signed in as an Owner: that check is part
+  of T-10 in `docs/ROADMAP.md`, and the owner still owes it. Until pull request #5's merge,
+  production ran `bc6143c`'s application code, with no default budget, and the defect was live
+  there.
 - **Caps the exposure only together with BUG-031's fix, and caps it rather than closing it.** The
   default caps organisations that never set a budget. But every account that registers is the Owner
   of the organisation registration creates, and until `a53b26e` an Owner could set any budget up to
@@ -275,7 +292,11 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
   default.** The owner chose this over a separate platform-wide maximum, over accepting the risk,
   and over closing open registration, which stays on (T-2 in `docs/ROADMAP.md`).
 - **Fix:** `a53b26e`. `7dbc35d` later brought two pieces of wording into line with it: the budget
-  field's hint and a test's docstring.
+  field's hint and a test's docstring. The bullets below describe the fix as pull request #5 took
+  it to `main`, with `7dbc35d`'s line numbers. Pull request #6 has since changed it: an owner can
+  lower a budget stored above the default (BUG-032), the check and the write run under a row
+  lock, and no message promises an administrator (B-15). BUG-032's entry describes that code,
+  with `main`'s line numbers.
   - `usage.ensure_budget_allowed(amount, is_admin=...)` (`backend/services/usage.py:71`) runs in
     `PUT /api/organisation/budget` before the budget is stored
     (`backend/routers/organisations.py:366`). When anyone but a platform admin
@@ -285,8 +306,8 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
     off (`0`) there is no platform-default ceiling, only `BudgetUpdate`'s $9,999,999,999.99. It
     compares the amount with the default alone, never with the organisation's current budget, so
     it also refuses a decrease that stays above the default: **BUG-032**, which the owner decided
-    on 2026-09-18 is a defect. It is fixed on pull request #6's branch and live in production until
-    that pull request merges.
+    on 2026-09-18 is a defect. Pull request #6 fixed it, and the fix is on `main` and in
+    production.
   - The 429 when a budget is reached names whoever can actually help
     (`backend/services/usage.py:110-115`): "An owner can raise it in Settings → Usage." only while
     the organisation's own budget is under the default, or there is no default; otherwise "A
@@ -303,28 +324,29 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
     changes, and an organisation's own budget still wins at enforcement. Production had no default
     until pull request #5 deployed on 2026-09-18, so until then no stranger had a reason to set a
     high budget. That is reasoning: no check of the production database for such budgets is
-    recorded, and BUG-032 gives the query that lists them. Until pull request #6 merges, an owner
-    who isn't a platform admin can lower such a budget only to the default or below: BUG-032.
-- **Regression tests** in `backend/tests/test_usage.py`. They use a new `stranger` fixture
-  (line 278): a second registrant, an ordinary user who owns only the organisation registration made
-  for them. The file's `owner` fixture registers first, so it is the platform admin, whom the new
-  rule exempts.
+    recorded, and BUG-032 gives the query that lists them. Until pull request #6 deployed, later
+    the same day, an owner who isn't a platform admin could lower such a budget only to the
+    default or below: BUG-032.
+- **Regression tests** in `backend/tests/test_usage.py`, with `main`'s line numbers. They use a
+  new `stranger` fixture (line 280): a second registrant, an ordinary user who owns only the
+  organisation registration made for them. The file's `owner` fixture registers first, so it is
+  the platform admin, whom the new rule exempts.
   - **Written to fail first** (as `a53b26e` records):
-    `::test_an_owner_cannot_raise_their_budget_above_the_platform_default` (line 289) and
-    `::test_a_refusal_at_the_default_says_only_an_admin_can_raise_it` (line 337; `08705de`, on
-    pull request #6, renames it `::test_a_refusal_at_the_default_promises_no_one_can_raise_it`,
-    for B-15's wording). **Seen failing:** against the old code, the first showed a stranger's
+    `::test_an_owner_cannot_raise_their_budget_above_the_platform_default` (line 291) and
+    `::test_a_refusal_at_the_default_says_only_an_admin_can_raise_it`, which `08705de`, in pull
+    request #6, renamed `::test_a_refusal_at_the_default_promises_no_one_can_raise_it` (line 339)
+    for B-15's wording. **Seen failing:** against the old code, the first showed a stranger's
     $1,000,000 budget request succeeding.
   - **Guards on legitimate use, which pass with or without the fix:**
-    `::test_an_owner_can_set_a_budget_up_to_the_platform_default` (line 305: lower, match and
-    clear), `::test_a_platform_admin_can_set_a_budget_above_the_platform_default` (line 316) and
-    `::test_with_the_default_switched_off_an_owner_sets_any_budget` (line 328).
+    `::test_an_owner_can_set_a_budget_up_to_the_platform_default` (line 307: lower, match and
+    clear), `::test_a_platform_admin_can_set_a_budget_above_the_platform_default` (line 318) and
+    `::test_with_the_default_switched_off_an_owner_sets_any_budget` (line 330).
   - Frontend: `frontend/src/test/app.usage.test.tsx` → "tells an owner who isn't a platform admin
-    that they can't go above the default" (line 361).
+    that they can't go above the default" (line 412).
   - `a53b26e` also changes the wording three of BUG-028's tests expect, to the new 429 and the new
     Settings → Usage text.
 - **The test that encoded the bypass,**
-  `::test_an_organisations_own_budget_wins_over_the_platform_default` (line 188), still passes: its
+  `::test_an_organisations_own_budget_wins_over_the_platform_default` (line 190), still passes: its
   `owner` is the platform admin, which is now the only way above the default. Its docstring, which
   still stated the old rule at `a53b26e`, was corrected in `7dbc35d`: it now says the test passes
   because its owner is the platform admin, and that for an ordinary owner the default is a ceiling
@@ -336,18 +358,19 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
   budget but there was no default for it to lift: the exposure was open there without this request
   (BUG-028). The fix caps the exposure per organisation and does not close it; by the owner's
   decision nothing caps the total (B-14, in BUG-028). One flaw in the rule reached production with
-  it, failing safe: an owner who isn't a platform admin cannot lower a budget stored above the
-  default to an amount still above it. That is BUG-032, fixed on pull request #6's branch only.
+  it, failing safe: an owner who isn't a platform admin could not lower a budget stored above the
+  default to an amount still above it. That is BUG-032, fixed by pull request #6, which merged and
+  deployed later the same day.
 - **Left in place:** the budget route reaches only organisations the caller belongs to
   (`access.membership` resolves the caller's own memberships, `backend/services/access.py:78-93`),
   and nothing else writes a budget. So a platform admin can go above the default only in an
-  organisation where they hold the Owner role. For any other organisation, the 403 and the 429 point
-  to a platform administrator who has no control over its budget until they are given that role
-  there. Not recorded as a bug. The owner decided on 2026-09-18 that it stays so (B-15 in
+  organisation where they hold the Owner role. For any other organisation, the 403 and the 429
+  pointed to a platform administrator who has no control over its budget until they are given that
+  role there. Not recorded as a bug. The owner decided on 2026-09-18 that it stays so (B-15 in
   `docs/ROADMAP.md`: a platform admin does not set the budget of an organisation they don't belong
-  to), and `08705de`, on pull request #6, rewords the 403, the 429 and the note on Settings → Usage
-  so that none promises an administrator (see BUG-032). Until pull request #6 merges, production's
-  messages still name one.
+  to), and `08705de`, in pull request #6, reworded the 403, the 429 and the note on Settings →
+  Usage so that none promises an administrator (see BUG-032). Production's messages have not
+  named one since pull request #6 deployed on 2026-09-18.
 
 ---
 
@@ -593,7 +616,7 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
 - **Fix:** each contact is a `<fieldset>` with a `<legend>` naming it
   (`frontend/src/components/operations/RunSheet.tsx:338-365`).
 - **Regression test:** `frontend/src/test/app.operations.test.tsx` → "writes a press release with the
-  contacts you give" (line 123), which reaches each contact through
+  contacts you give" (line 126), which reaches each contact through
   `getByRole("group", { name: "Media contact" })` and the two others
 - **Status:** ✅ Fixed and verified
 
@@ -695,7 +718,8 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
   a 390px viewport", "Research result with sources fits a 390px viewport" (the review result) and
   "SEO report fits a 390px viewport". **Seen failing:** the spec's first run failed on the SEO
   report, which is how that overflow was found; the other three were measured in Chromium before
-  the fix (`2d57b35`'s message). The spec takes Playwright from 69 tests to 96.
+  the fix (`2d57b35`'s message). The spec takes Playwright from 69 tests to 96; pull request #6
+  added a 28th screen, "All operations".
 - **Status:** ✅ Fixed and verified — on `main` and in production
 - **On `main` and in production:** `2d57b35` is in pull request #5, merged into `main` as `477eaa4`
   on 2026-09-18 and served in production since (see BUG-028). No check of the four screens on the
@@ -715,7 +739,7 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
   what you have sent rather than as sending being switched off.
 - **Fix:** both ends special-case 0. Backend 429:
   "Sending email is switched off on this server: its daily limit is 0. Ask the administrator to raise
-  MAX_EMAILS_PER_DAY." (`backend/routers/queue.py:275`); the Outbox shows the matching notice
+  MAX_EMAILS_PER_DAY." (`backend/routers/queue.py:299`); the Outbox shows the matching notice
   (`frontend/src/pages/outbox/OutboxPage.tsx:28,56`).
 - **Regression tests:** `backend/tests/test_queue.py::test_a_daily_limit_of_zero_says_sending_is_switched_off`,
   and `frontend/src/test/app.outbox.test.tsx` → "says sending is switched off when the server's daily
@@ -782,16 +806,17 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
   it reviewing `7dbc35d`, the last code commit on pull request #5, in a comment graded Minor on
   `backend/services/usage.py` line 83 (2026-09-18T02:33Z). Confirmed by reading the code; nothing
   was run.
-- **Fixed:** 2026-09-18, in `08705de`, on branch `feat/playbook-ui` (pull request #6). The fix as
-  first written had a race, which CodeRabbit's review of pull request #6 found and `b607021`
-  closed the same day (below).
-- **Component:** `backend/services/usage.py`: on `main`, `ensure_budget_allowed` (line 71) and its
-  comparison at line 83. `PUT /api/organisation/budget` calls it
+- **Fixed:** 2026-09-18, in `08705de`, on branch `feat/playbook-ui` (pull request #6, merged into
+  `main` as `199121c` the same day). The fix as first written had a race, which CodeRabbit's
+  review of pull request #6 found and `b607021` closed the same day (below).
+- **Component:** `backend/services/usage.py`: before the fix, `ensure_budget_allowed` (line 71)
+  and its comparison at line 83. `PUT /api/organisation/budget` called it
   (`backend/routers/organisations.py:366`), and nothing else checks or rewrites a stored budget.
-  The fake backend copies the comparison (`frontend/src/test/fakeApi.ts:1048-1050`). Settings →
+  The fake backend copied the comparison (`frontend/src/test/fakeApi.ts:1048-1050`). Settings →
   Usage adds no limit of its own: it sends the amount and shows the 403 as the field's error
-  (`frontend/src/pages/settings/UsageSettings.tsx:238`). These line numbers are `main`'s, whose
-  code is `7dbc35d`'s; the fix's are given under Fix.
+  (`frontend/src/pages/settings/UsageSettings.tsx:238`). These line numbers describe the code as
+  it was before the fix, at `7dbc35d`, which was `main`'s from pull request #5's merge until pull
+  request #6's; the fix's, which are `main`'s now, are given under Fix.
 - **Affected case: a budget stored above the default,** which an Owner who isn't a platform admin
   lowers to an amount still above the default. In the code, a budget gets above the default in
   three ways:
@@ -799,10 +824,10 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
     production ran `bc6143c`'s application code, whose budget route had no ceiling below
     `BudgetUpdate`'s $9,999,999,999.99, so any owner may have stored more than $25. Pull request #5
     kept stored budgets: the ceiling applies only to changes, and an organisation's own budget
-    still wins at enforcement (BUG-031). Since it deployed, those owners get the 403 trying to
-    lower such a budget to any amount still above $25. Whether any such budget exists is not
-    known: no check of the production database is recorded. The owner can list any from Railway's
-    Postgres console:
+    still wins at enforcement (BUG-031). From then until pull request #6 deployed, later the same
+    day, those owners got the 403 trying to lower such a budget to any amount still above $25.
+    Whether any such budget exists is not known: no check of the production database is recorded.
+    The owner can list any from Railway's Postgres console:
     `SELECT id, name, monthly_ai_budget_usd FROM organisations WHERE monthly_ai_budget_usd > 25;`
   - **A platform admin set it.** The budget route is Owner-only, so that is an organisation where
     the admin holds the Owner role, and the case needs a second Owner there who isn't a platform
@@ -810,9 +835,9 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
     By the owner's decision on B-15 (2026-09-18), a platform admin does not set the budget of an
     organisation they don't belong to.
   - **The platform default was lowered, or switched on from 0,** after the budget was set.
-- **Reproduction** on `main` (`477eaa4`), in the test suite or on a local instance, **never against
-  the live site** (T-1 in `docs/ROADMAP.md`), with `DEFAULT_MONTHLY_AI_BUDGET_USD` at its default
-  of 25:
+- **Reproduction** (before the fix): against `477eaa4`, pull request #5's merge, in the test suite
+  or on a local instance, **never against the live site** (T-1 in `docs/ROADMAP.md`), with
+  `DEFAULT_MONTHLY_AI_BUDGET_USD` at its default of 25:
   1. Give an organisation a budget of $500: as a platform admin who holds the Owner role there,
      send `PUT /api/organisation/budget` with `{"monthly_ai_budget_usd": 500}` (it answers 200),
      or store it directly, as an owner in production could have before the ceiling existed.
@@ -820,19 +845,19 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
      `{"monthly_ai_budget_usd": 400}`, or enter 400 in Settings → Usage.
 - **Expected:** 200, and a $400 budget. A decrease can only reduce what the deployment's key can
   spend.
-- **Actual,** on `main` and in production until pull request #6 merges: **403**, "An organisation
-  can set a monthly AI budget of up to $25.00. A platform administrator can set a higher one." The
-  budget stays at $500. That owner can only set $25 or less, or clear it, which falls back to the
-  $25 default.
-- **Root cause:** `usage.ensure_budget_allowed(amount, is_admin=...)` compares the requested amount
+- **Actual,** before the fix, on `main` and in production from pull request #5's merge and
+  deployment until pull request #6's: **403**, "An organisation can set a monthly AI budget of up
+  to $25.00. A platform administrator can set a higher one." The budget stays at $500. That owner
+  can only set $25 or less, or clear it, which falls back to the $25 default.
+- **Root cause:** `usage.ensure_budget_allowed(amount, is_admin=...)` compared the requested amount
   with the **platform default**, `if ceiling > 0 and amount > ceiling`, and never with the
-  organisation's **current** budget, which it is not given. So for anyone but a platform admin
-  every amount above the default is refused, a decrease included. No test covers a decrease that
-  stays above the default:
+  organisation's **current** budget, which it was not given. So for anyone but a platform admin
+  every amount above the default was refused, a decrease included. No test covered a decrease
+  that stays above the default:
   `backend/tests/test_usage.py::test_an_owner_can_set_a_budget_up_to_the_platform_default`
-  (line 305) starts from an organisation with no budget of its own.
+  (line 307) starts from an organisation with no budget of its own.
 - **Fix:** `08705de` carries out the owner's decision, and `b607021` closes a race in it. Both are
-  on pull request #6.
+  in pull request #6, merged into `main` as `199121c`; the line numbers below are `main`'s.
   - **`08705de`:** an owner who isn't a platform admin may set any budget up to the platform
     default, clear it, **or lower a budget already above the default** to any lower amount.
     Raising such a budget further is still refused, and the 403 says why: "This organisation's
@@ -903,15 +928,30 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
   passed, 98.33% of application code (3,356 statements, 56 missed; `services/usage.py` 98%, 85
   statements, 2 missed); frontend Vitest 652 passed in 51 files, 99.19% lines
   (`npm run coverage -- --maxWorkers=2`, run twice, identical; `docs/TESTING.md`, gap 14); ruff,
-  ESLint and `tsc -b` clean. CI's three jobs passed on `08705de`, and again on `b607021`. The
-  documentation commit on top of it gets its own run, read with `gh pr checks 6`, and the merge
-  waits until all three pass on the pull request's latest commit.
-- **Status:** ✅ Fixed and verified on the branch — **not yet on `main` or in production**
-- **Not on `main` yet, and live in production:** `08705de` and `b607021` are on branch
-  `feat/playbook-ui`, in pull request #6, **open and not merged**; the last code commit on pull
-  request #6 is `b607021`. The defect came in with `a53b26e`, BUG-031's fix, so pull request #5's
-  merge (`477eaa4`, deployed 2026-09-18) took it to production. It stays live there, failing safe,
-  until pull request #6 merges and Railway deploys it: T-10 in `docs/ROADMAP.md`.
+  ESLint and `tsc -b` clean. CI's three jobs passed on `08705de`, again on `b607021`, on the pull
+  request's last commit, `705c834` (the 1.1.4 documentation; all three green by
+  2026-09-18T06:43:43Z), and on the push of the merge, `199121c`, to `main` (run 35384260825).
+  **On `main` at `199121c`**, whose tree is identical to `705c834`'s, the suites were run again on
+  2026-09-19, one at a time, with the same results: ruff clean and 570 backend tests passed at
+  98.33%; ESLint and `tsc -b` clean and 652 frontend tests passed in 51 files at 99.19% lines; 99
+  Playwright tests passed in Chromium at `--workers=4`.
+- **Status:** ✅ Fixed and verified — on `main` and in production
+- **On `main` and in production:** `08705de` and `b607021` are in pull request #6 (branch
+  `feat/playbook-ui`), merged into `main` as `199121c` at 2026-09-18T19:08:32Z, with a merge
+  commit, not a squash, and the owner's go-ahead, after all three CI jobs had passed on the pull
+  request's last commit, `705c834`. `199121c`'s tree is identical to `705c834`'s, so the code on
+  `main` is exactly the code measured at `b607021`. Production serves `199121c`'s build, checked
+  from the live site: at 19:09:32Z, about a minute after the merge, its JavaScript bundle was
+  `index-P8sStBDZ.js`, whose Settings → Usage chunk (`UsageSettings-J658VHHI.js`) contains
+  `08705de`'s and `b607021`'s wording ("and the most an organisation can set", "As a platform
+  administrator, you can set a higher one" and "…can't start again until next month.") and no
+  longer pull request #5's note naming a platform administrator ("only a platform administrator
+  can"), and `GET /health` answered 200. On 2026-09-19 the site served the same bundle, and
+  `/health` answered 200 again. The Railway dashboard's deployment record was not read, and
+  Settings → Usage has not been checked on the live site signed in as an Owner: that check is
+  part of T-10 in `docs/ROADMAP.md`, and the owner still owes it. The defect came in with
+  `a53b26e`, BUG-031's fix, so pull request #5's merge (`477eaa4`) took it to production, where
+  it was live, failing safe, until pull request #6 deployed the same day.
 
 ---
 
@@ -956,9 +996,9 @@ into the BUG sequence.
 - **Lifecycle icons:** 🔴 Open → 🟡 Investigating → 🔵 Fix in progress → ✅ Fixed and verified,
   with 🔄 Reopened and ⬜ Won't fix / Accepted. A fix that is only on an unmerged branch reads
   "✅ Fixed and verified on the branch", names its pull request and says it is not on `main` or in
-  production; where the defect itself is already live in production, as BUG-032's is, the entry
-  says so. Once the fix merges and deploys, the entry records that, as BUG-027's and BUG-028 to
-  BUG-031's do.
+  production; where the defect itself is already live in production, as BUG-032's was until pull
+  request #6 deployed, the entry says so. Once the fix merges and deploys, the entry records
+  that, as BUG-027's and BUG-028 to BUG-032's do.
 - **Verification means the regression test was located**, by name, in the suite it claims to be in.
   Where it cannot be found, the entry says so rather than naming a test that does not exist, and the
   test is written before the entry can read "Fixed and verified" (this is what happened to BUG-007).

@@ -1,8 +1,8 @@
 ---
 document: AUDIT-LOG
-version: 1.1.4
-last-updated: 2026-09-18T06:39:21Z
-last-audit: 2026-09-18T06:35:00Z
+version: 1.2.0
+last-updated: 2026-09-19T16:18:23Z
+last-audit: 2026-09-19T16:06:00Z
 managed-by: session-orchestrator/doc-reconciler
 ---
 
@@ -15,6 +15,205 @@ checked, what was found, what was fixed and what was left for a document's owner
 `git show`, and the source itself — never against another document. Where two documents disagree,
 the code decides. No test suite is ever run to produce these figures: they are read from the
 session's own completed runs, because a second run against the shared test database corrupts it.
+
+---
+
+## Audit — 2026-09-19T16:06:00Z — closing audit of documentation 1.2.0: the session-end handoff, pull request #6 merged
+
+**Trigger:** the closing pass over documentation 1.2.0, the session-end handoff. Six document
+owners brought the seven managed documents to 1.2.0 in parallel, alongside edits to the plan and
+`SETUP_PROMPT.md` and a new, unmanaged brief, `docs/SHARING_PLAN.md`, so the documents could
+disagree with each other; and the session's facts file gained a section of corrections, its
+section 9, after the owners had started. On the owner's clock (UTC-4) it is 12:06 on
+2026-09-19.
+**Scope:** the seven managed documents and the six unmanaged ones — the plan, `SOURCE_MAP.md`,
+`docs/DESIGN_SYSTEM.md`, `docs/PHASE1_DESIGN.md`, `SETUP_PROMPT.md` and `docs/SHARING_PLAN.md`:
+versions; `main`, production and both pull requests' state; the bug count; B-16 and the open
+decisions; T-10 and T-4; the sharing priority and its agreement with the brief; the local
+cluster's path, port and commands; testing gaps 1–17 and the red CI run on `0ce65dd`; every
+figure; stale current-state wording; and durable phrasing. Section 9's corrections were applied
+wherever they reach, and at least ten of the brief's file:line claims were checked against the
+code at `199121c` (all fourteen were).
+**Method:** each claim checked against the session's facts file and chronicle, against the other
+documents, and against the repository — files on disk, `git log`, `git show`, `git diff` and
+`git grep` at `199121c`, `7dbc35d` and `0ce65dd` — and, for pull request, review and CI state,
+against GitHub. Figures and live-site observations are the facts file's, recorded as given:
+nothing was run.
+**Repository state, at open (15:50Z) and at close:** HEAD is `docs/handoff-2026-09-19` at
+`199121c`, which is also `main` and `origin/main`. The branch is not on `origin` yet and no pull
+request is open: by section 9, the handoff's commit, push and pull request come after this audit,
+and the documents already describe that state. At open eight tracked documents were modified and
+`docs/SHARING_PLAN.md` was untracked; at close there are ten, `SOURCE_MAP.md` and this log
+modified by this reconciler. No application code differs from `199121c`.
+`.github/workflows/test-pipeline.yml` is untracked by design.
+**This reconciler made no commit, stage, stash, push or branch switch, and ran no test suite,
+linter, build, server or database.** Its GitHub queries were read-only GETs — `gh pr view 5` and
+`6`, `gh pr list`, `gh run list` on `main` and `feat/playbook-ui`, `gh run view` of the red run and
+of `705c834`'s, and `gh api` of both pull requests' review comments and #6's comments. It posted
+nothing and sent nothing to the production site. Findings continue the numbering.
+
+### Findings
+
+| # | Severity | Document | Issue | Resolution |
+|---|---|---|---|---|
+| 46 | MEDIUM | `CLAUDE.md` (Current State → Next, item 2), `docs/CHANGELOG.md` (1.2.0 → Shipped, the T-10 bullet) | **T-10's signed-in check given with one case only:** Settings → Usage showing the $25 default "and, to a platform admin, the note 'This is the platform's default budget. As a platform administrator, you can set a higher one below.'" That note belongs to the month's summary, which appears only in a month with AI usage (`frontend/src/pages/settings/UsageSettings.tsx:102`, the note at `:209`); in the current month before any usage the page shows the empty state and `BudgetStatement` instead (`:94–99`), "The platform's default budget of $25.00 applies: operations stop when a month's cost reaches it." (`:138`). An owner checking a quiet organisation early in a month would look for a note that cannot appear (facts, section 9). `docs/ROADMAP.md` (T-10) and `docs/HANDOFF.md` (Next steps, item 2) already gave both | **Fixed in both:** where the default shows depends on the month, either case passes, and each case's wording, as the roadmap and the handoff give it |
+| 47 | MEDIUM | `docs/HANDOFF.md` (the opening), `docs/ROADMAP.md` (Next up, item 1), `docs/CHANGELOG.md` (1.2.0 → Next — sharing), `docs/SHARING_PLAN.md` (What the owner asked for, row 3) | **"Organisations are created only at registration."** `_create_account` (`backend/routers/auth.py:92–111`) creates one at registration (`:160`) and when a platform admin creates a user (`:380`); registering through an invitation (`backend/routers/organisations.py:315`) creates an account that joins the inviting organisation and no organisation of its own; nothing else inserts into `organisations` except migration `0003`. The brief contradicted itself — its table said "Today only registration creates one", while its What exists today section says it right (facts, section 9). `CLAUDE.md` already had it right | **Fixed in all four:** one is created only with a new account, at registration or when a platform admin creates a user |
+| 48 | LOW | `docs/HANDOFF.md` (Known open; Key locations) | "Testing gaps 1 to 16", with gap 17 described after the list without its number, and the Key locations row "section 6: gaps 1 to 16". `docs/TESTING.md` section 6 runs to 17, the fake backend's weak organisation scoping (facts, section 9). The changelog's "gaps 1 to 16 stand as recorded, and 17 is new" is right, and was left | **Fixed:** "1 to 17" in both, with 17 named in the list |
+| 49 | LOW | `docs/CHANGELOG.md` (1.2.0 → Verified, the red run) | "`0ce65dd` changed only documentation (1.1.2)". `0ce65dd`, pull request #4's merge, carried documentation **1.1.1**: its `docs/CHANGELOG.md` is at `version: 1.1.1`, as is the pull request's last commit, `6a54c04`. 1.1.2 is `c7358fb`, the first commit on pull request #5's branch, and the changelog's own table calls it the reconciliation "after the pull request #4 merge". The sentence's point holds: `git diff 0ce65dd^1 0ce65dd` touches eight documents and no code | **Fixed:** 1.1.1 |
+| 50 | LOW | `docs/SHARING_PLAN.md` (What exists today) | "`useOrganisation().can(role)` on 37 lines in 25 files". At `199121c` it is **38 lines** in 25 files, none of them tests: 37 counts only the calls with a literal role and leaves out `OverviewPage.tsx:126`, `can(step.minimum)`, whose `can` comes from the same hook (line 58) | **Fixed:** 38 |
+| 51 | LOW | `docs/SHARING_PLAN.md` | **LF line endings**, where every other document in the working tree has CRLF (`* text=auto` with `core.autocrlf=true`: LF in the index, CRLF on disk). The commit would have normalised it either way, with a warning | **Fixed:** converted to CRLF, which leaves the committed content unchanged |
+| 52 | LOW | `SOURCE_MAP.md` (outside the managed set) | The map's `docs/` row lists every document except the new `SHARING_PLAN.md`, which `CLAUDE.md`'s Project Structure lists. And its header, "Last updated 2026-09-17 (Phase 1: foundation)", has not changed since `d7752c3`, though `705c834` added the playbook, the summary route and `canRaiseBudget` to the map | **Fixed:** the brief added to the row; the header now reads "Last updated 2026-09-19 (after pull request #6)" |
+| 53 | LOW | all seven managed documents | Stamps. All seven `last-audit` read 2026-09-18T06:35:00Z, and this log was still at 1.1.4. `docs/ROADMAP.md`'s `last-updated` (15:39:15Z) and `docs/HANDOFF.md`'s (15:40:23Z) predate their owners' last saves (15:40:49Z and 15:41:20Z): finding 45's pattern again | **Fixed:** all seven `last-audit` set to this entry's timestamp; this log set to 1.2.0; `last-updated` set to the time of this reconciler's edits on the five managed documents it edited — `CLAUDE.md`, `docs/ROADMAP.md`, `docs/CHANGELOG.md`, `docs/HANDOFF.md` and this log — which also retires the two early stamps. `docs/BUGS.md` and `docs/TESTING.md` gained only the `last-audit` stamp, so their `last-updated`, which match their owners' last saves, stand |
+
+**Totals:** 8 findings — 0 critical, 0 high, 2 medium, 6 low.
+**Auto-fixed by this reconciler: 8** (46 to 53): 12 passages in six documents — `CLAUDE.md` 1,
+`docs/CHANGELOG.md` 3, `docs/HANDOFF.md` 3, `docs/ROADMAP.md` 1, `docs/SHARING_PLAN.md` 2 and
+`SOURCE_MAP.md` 2 — plus the brief's line endings and the frontmatter stamps. **Left for an
+owner: none.**
+
+### Before the documentation commit
+
+- **Nothing serious remains.** Outside dated history, no document calls pull request #6 open or
+  unmerged, puts anything "on pull request #6 only", calls BUG-032 open or live, or presents the
+  56433 cluster as current, and every document names `199121c` as `main` and production.
+- **Moderate, fixed:** 46 and 47, both corrections from section 9, which arrived after the owners
+  had started.
+- **Minor, fixed:** 48 to 53.
+
+### Verified — what holds against the repository and GitHub
+
+- **Versions.** All seven managed documents are at 1.2.0 — six by their owners, this log by this
+  entry — and `CLAUDE.md`'s in-body literals (the changelog row, "Doc version") match.
+- **Pull requests and CI, from GitHub.** #6 is MERGED, at 2026-09-18T19:08:32Z, as `199121c`: a
+  true merge commit (parents `477eaa4` and `705c834`) whose tree is `705c834`'s, and
+  `b607021..705c834` touches only documents, so `main`'s application code is `b607021`'s. #5 is
+  MERGED, at 04:43:03Z, as `477eaa4`. CI on `705c834` (run 35315869294): secret scan 06:40:10Z,
+  backend 06:41:28Z, frontend 06:43:43Z. On `main`, the pushes of `199121c` (run 35384260825) and
+  `477eaa4` (35308026206) passed, and `0ce65dd`'s (35269583667, 2026-09-17T20:14:13Z) failed the
+  frontend job alone, at `e2e/golden.spec.ts:105`, `check()` on line 110: "Clicking the checkbox
+  did not change its state", 68 passed and 1 failed — as all four documents that record it say.
+  `feat/playbook-ui` and `fix/spend-cap-and-mobile-overflow` exist locally and on `origin`.
+- **Review threads, from GitHub.** #5 has twelve top-level review comments and twelve replies. #6
+  has six — Codex's three on `08705de` (`Playbook.tsx:229`, `:187`, `OperationsPage.tsx:27`),
+  CodeRabbit's two on `08705de` (`usage.py:90`, `Playbook.tsx:229`) and CodeRabbit's one on
+  `705c834` (`fakeApi.ts:709`) — with nine replies, and one comment, at 19:08:20Z, answering the note
+  outside the diff. #6's description names all five commits, the figures and the open
+  point. Resolution shows only through GraphQL, which was not queried, so "all 12 resolved" and "5
+  of 6" are carried from the facts file.
+- **Section 9's premises, in the code at `199121c`.** The Settings → Usage note sits in the
+  month's summary (`UsageSettings.tsx:102`, `:209–210`), which a month without usage replaces
+  with the empty state and, in the current month, `BudgetStatement` (`:94–99`). `_create_account`
+  is the only code that creates an organisation at runtime (finding 47).
+- **The sharing brief against the code at `199121c`:** all fourteen file:line claims hold —
+  `access.py:59–93` (`membership()` and `_resolve`: `X-Org-Id`, else the first membership, 403
+  with none) and `:96–101` (`load()`, 404); `0003_organisations.py:39–47` (`memberships`, where
+  organisation roles live); `organisations.py:34` (7 days) and `:192–243` (`token_urlsafe(32)`, stored
+  as a SHA-256 hash by `_token_hash`, one pending invitation per address, withdrawal);
+  `main.py:73–75` and `:135–146` (the public patterns and `is_public`); `routes.tsx:19`
+  (`/invite/:token` outside `RequireAuth`); `auth.py:92–111` and `:499–506` (the transfer's first
+  owner membership); `usage.py:75–80` (the ceiling's one-organisation reasoning);
+  `products.py:36–40` (`_public_product`); `client.ts:142–151` (the 401's renewal and sign-out);
+  and `fakeApi.ts:709`, inside the fake summary route. So do nine claims without a line:
+  `database.select()`'s equality filters and default `LIMIT 100`; events whose data is
+  `{id, status}`, with the type as the event name and no `product_id` (`routers/events.py:33–34`);
+  `frame-ancestors 'none'` (`main.py:69`); rate limits kept per process; `ai_usage`'s
+  organisation, user and project columns; `usage.ensure_within_budget`; the switcher rendering
+  nothing, and a 403, for an account with no organisation; the fake's `/register`; and the count
+  of `can(` call sites, which was off by one (finding 50).
+- **The local cluster.** `CLAUDE.md`, `docs/TESTING.md` and `docs/HANDOFF.md` give the same start
+  command character for character — `%LOCALAPPDATA%\LaunchOps-dev\postgres`, port 56432, the log
+  beside it, output redirected — and `SETUP_PROMPT.md` names the same path and port and points at
+  `docs/TESTING.md` section 2. `pg_isready` and `pg_ctl` resolve on this machine's `PATH`, so the
+  short forms in `CLAUDE.md`, `docs/HANDOFF.md` and the changelog work as well as
+  `docs/TESTING.md`'s full paths, and the data directory exists. The stop command is given without
+  a redirect everywhere, as section 9 allows. Whether the cluster is running was not checked.
+- **Figures.** Every figure in the thirteen documents matches the facts file: 570, 98.33%, 3,356
+  and 56; 652 in 51 files, with 97.13%, 90.24%, 96.59% and 99.19% and their counts; 99 = 3 + 12 +
+  56 + 28; ruff, ESLint and `tsc -b` clean. The plan rounds to 98.3% and 99.2%, as before.
+- **IDs and counts agree across the documents.** T-10 open for the owner's signed-in check, T-4
+  owed now, T-1 open, T-5 to T-8 optional, T-2, T-3 and T-9 done. Thirteen owner decisions open —
+  B-1 to B-12 and B-16 — in `CLAUDE.md`, the roadmap, the changelog, the handoff, the plan and
+  `docs/BUGS.md`; B-13 to B-15 and the playbook's gates decided. 32 bugs, all fixed on `main` and
+  in production; LIM-001 to LIM-004. B-16's fourteen decisions match S1–S14 in the brief one for
+  one, and the order — the decisions first, S2 above all, then the fake backend's scoping, then
+  features 3, 2 and 1, each on its own branch — reads alike in `CLAUDE.md`, the handoff, the
+  roadmap, the changelog, the plan and the brief. Sharing is prominent: `CLAUDE.md`'s table row,
+  Active task and What Needs To Happen Next; the handoff's first section; the roadmap's Active
+  opening, Next up item 1 and B-16. As section 9 says, it joins no milestone or goal: that is
+  left for the owner.
+- **`docs/BUGS.md`'s line numbers**, at the commit each passage names. On `main`: `auth.py:102`,
+  `:102–104` and `:153–154`, `config.py:43` and `:73`, `usage.py:57`, `:65–66`, `:71` and `:126`
+  with the lock at `:136`, `organisations.py:367`, `models.py:49` and `:66`,
+  `UsageSettings.tsx:130`, `lib/domain/usage.ts:71`, `fakeApi.ts:1063`, and the tests at
+  `test_usage.py:280`, `:307`, `:339`, `:357`, `:373` and `:387`, `app.usage.test.tsx:136`, `:148`,
+  `:335`, `:336`, `:348`, `:362`, `:374`, `:383`, `:400` and `:429`, and `usage.test.ts:72`. At
+  `7dbc35d`, as labelled: `usage.py:71`, `:83` and `:110–115`, `organisations.py:366`,
+  `fakeApi.ts:1048–1050`, and `UsageSettings.tsx:181–184`, `:238` and `:256`.
+- **Stale-state sweep.** Outside dated history — the changelog's 1.1.4 and earlier, this log, and
+  `docs/BUGS.md`'s "until pull request #6 deployed", which is accurate history — nothing is left
+  of "on pull request #6 only", "not merged", "live until #6 merges" or a current 56433 cluster:
+  every 56433 and `pgdata` mention is the old clusters' history or the runs that used them. The new
+  text has no "head" and no commit count.
+- **Nothing secret, no probe.** None of the 881 lines the batch adds, `docs/SHARING_PLAN.md`
+  included, carries a token, key prefix or UUID; its only long strings are test names. Every
+  mention of registering on the live site forbids it or records the probe behind T-1, and the
+  local dev database's first account is to come from a local sign-up.
+- **Carried, not re-checked:** the live-site observations (from 2026-09-18T19:09:32Z, and on
+  2026-09-19), the test runs on `main` and the local cluster's state — all from the facts file,
+  because this audit runs nothing and sends nothing to production.
+
+### Concurrency
+
+**None.** Every document's last save predates the audit's opening at 15:50:48Z; the last was
+`docs/BUGS.md`, at 15:49:21Z. A hash snapshot taken at 16:00:51Z, before the first edit, still
+matched at 16:02:51Z for the seven documents this reconciler did not edit, and the six it edited
+differed only by its own edits. GitHub did not move: no pull request open, `main` at `199121c`.
+
+### The previous entry's follow-ups — closed
+
+| # | Item | State |
+|---|---|---|
+| 1 | The owner — finding 44 | **Done** after that audit (06:36Z). `SETUP_PROMPT.md` runs the three frontend commands, not `npm run check`, and since 1.2.0 names the new cluster |
+| 2 | `doc-versioner` — finding 45's stamps | **Done** after that audit. The pattern recurs as finding 53 |
+| 3 | **Standing:** the documentation commit and its push | **Happened.** 1.1.4 was committed as `705c834`; CI passed on it (run 35315869294, green by 06:43:43Z); and pull request #5's last three threads got their replies, citing it |
+| 4 | **Standing:** the merge of pull request #6 (T-10) | **Happened**, as `199121c`, and every sentence that entry listed was brought current: `CLAUDE.md`'s Phase line, Active task, Open bugs, the Key behaviours split, the Screens table, the `DEFAULT_MONTHLY_AI_BUDGET_USD` row and the footer; the handoff's opening; the roadmap's T-10, M4 note, Next up, B-5 and B-15; `docs/BUGS.md`'s opening, count table and BUG-032; the plan's Progress and usage row; and D12 in `docs/PHASE1_DESIGN.md`, whose "fixed on pull request #6" stays true. The live Settings → Usage chunk lost pull request #5's note and carries #6's, as that entry predicted (facts, section 1) |
+| — | T-4 and T-1 | **Still open.** T-4 is owed at the end of this session |
+
+### Left open
+
+1. **The owner:** T-10's signed-in check, T-4 (owed at the end of this session) and T-1, as every
+   document says.
+2. **Standing — three coming events will each falsify a known set of sentences; re-check that set
+   as each lands.**
+   - **The handoff's commit, push and pull request** (facts, section 9). The documents already
+     describe them; once they are done, `gh pr view docs/handoff-2026-09-19`, which
+     `docs/HANDOFF.md` gives the next session, should find the pull request.
+   - **That pull request's merge.** Every "until it merges" and "awaits the owner's go-ahead" for
+     the handoff branch: `CLAUDE.md`'s footer, `docs/HANDOFF.md`'s last Where the project stands
+     bullet and its Key locations Repo row, and the changelog's 1.2.0 Where it stands.
+   - **The owner settling B-16.** Each decision goes in the brief and under the roadmap's Decided;
+     B-16 leaves the Blocked table once all fourteen are settled, and "thirteen open" then changes
+     in `CLAUDE.md` and the roadmap.
+
+### After the audit: S15 (16:13Z)
+
+After this audit closed, `docs/SHARING_PLAN.md` gained **S15, one permission function in the
+database**, added by the session's coordinator at the owner's request, from the owner's
+colleague's advice; the coordinator also brought the plan's two mentions to S1–S15. This
+reconciler checked S15 against `199121c` — `membership()`, `load()` and `ensure()` are as it
+says — and made two points exact: each list route adds its own `org_id` filter, and `LIMIT 100`
+is `database.select()`'s default. It then brought S1–S14 to S1–S15 in `CLAUDE.md`,
+`docs/ROADMAP.md` (B-16 now has fifteen decisions), `docs/HANDOFF.md` (which also lists S15 among
+the points not to miss, as the recommended approach for per-project access) and
+`docs/CHANGELOG.md` (which also records the addition), and refreshed `last-updated` on those four
+and on this log; `last-audit` stands. The brief was already CRLF throughout. The Verified line
+"B-16's fourteen decisions match S1–S14" and the Left open item's "all fourteen" record what was
+true when this audit checked them.
+
+At 16:18Z, after the owner's go-ahead to merge the handoff's pull request once CI passes, its merge
+status — and, beside it, `main` being `199121c` — was reworded to hold before and after that merge,
+in `CLAUDE.md`'s Last-verified line, `docs/HANDOFF.md`'s Where the project stands and Key
+locations, and the changelog's 1.2.0 Where it stands.
 
 ---
 

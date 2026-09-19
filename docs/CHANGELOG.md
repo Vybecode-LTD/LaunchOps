@@ -1,8 +1,8 @@
 ---
 document: CHANGELOG
-version: 1.1.4
-last-updated: 2026-09-18T06:39:21Z
-last-audit: 2026-09-18T06:35:00Z
+version: 1.2.0
+last-updated: 2026-09-19T16:20:14Z
+last-audit: 2026-09-19T16:06:00Z
 managed-by: session-orchestrator/doc-versioner
 ---
 
@@ -18,12 +18,257 @@ Newest first. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 | Version | What it covers |
 |---|---|
+| **1.2.0** | The session-end handoff of 2026-09-19: pull request #6 merged (`199121c`) and deployed, putting the launch playbook, `GET /api/queue/summary` and BUG-032's fix in production, where all 32 registered bugs are now fixed; both pull requests' reviews answered on GitHub, one test-only thread left open; every suite re-run on `main`, and a red CI run on `0ce65dd` that no earlier version recorded; the local test database moved out of the temp folder; the owner's priority for the next session, sharing — its brief in `docs/SHARING_PLAN.md`, its decisions B-16; and a sixth audit |
 | **1.1.4** | Pull request #5 merged (`477eaa4`) and deployed, putting BUG-028 to BUG-031 in production, and BUG-032 with them; pull request #6, not merged when this was written, up to its last code commit `b607021`: the launch playbook on the Operations screen, `GET /api/queue/summary`, BUG-032 fixed, the budget's check and write under one row lock, and budget messages that promise only what the reader can do; the owner's decisions of 2026-09-18 — no cap on the total (B-14), no platform admin setting the budget of an organisation they don't belong to (B-15), and a playbook that advises and never blocks; both pull requests' reviews; LIM-004; and a fifth audit |
 | **1.1.3** | Pull request #5, not merged when this was written, up to its last code commit `7dbc35d`: the default AI budget and the rule that only a platform admin may go above it (BUG-028, BUG-031), a cap per organisation rather than on the total (B-14); four screens fixed at phone width (BUG-029); empty competitor columns (BUG-030); the playbook domain module; the automated review's fixes, with BUG-032 left open; a fourth audit; and gap 14, the Vitest suite unreliable at default concurrency on this machine |
 | **1.1.2** | Correction and reconciliation after the pull request #4 merge: six stale current-state claims put right, T-2 and T-3 settled and T-4 retitled, a third audit, and the test-cluster notes |
 | **1.1.1** | The merge of pull request #3 and what followed: BUG-027 in production, six documents reconciled to the merged state, a second audit, and three corrections to the 1.1.0 entry |
 | **1.1.0** | The second pass of the 2026-09-17 handoff: the BUG-027 security fix, one more regression test, and the first documentation audit |
 | **1.0.0** | The documentation baseline written earlier in that same session, covering the Phase 0–2 rebuild through to production |
+
+---
+
+## [1.2.0] — 2026-09-19
+
+_The session-end handoff. Pull request #6 merged and deployed, which puts the launch playbook,
+`GET /api/queue/summary` and BUG-032's fix in production and leaves no registered bug open; both
+pull requests' automated reviews answered on GitHub; every suite re-run on `main`, matching 1.1.4's
+figures, and a red CI run on `main` that no earlier version recorded; the local test database moved
+out of the temp folder that broke it; and the owner's priority for the next session, sharing, with
+its brief in a new document, `docs/SHARING_PLAN.md`. **No application code changed for this
+version:** `main`'s tree at `199121c` is `705c834`'s, and this documentation reaches `main` on a
+branch and pull request of its own (Where it stands, at the end)._
+
+### Shipped — pull request #6, merged and deployed
+
+- **Pull request #6 merged into `main` as `199121c` at 2026-09-18T19:08:32Z**, from branch
+  `feat/playbook-ui`, with the owner's go-ahead — a **merge commit, not a squash**, so
+  `.gitleaksignore`'s per-commit fingerprints still resolve. Its last commit when it merged was
+  `705c834`, the 1.1.4 documentation, on which CI had passed: all three jobs green by
+  2026-09-18T06:43:43Z. CI passed again on the push to `main` (run 35384260825). At that point
+  `main` = `origin/main` = `199121c`.
+- **The code on `main` is exactly the code 1.1.4 measured at `b607021`:**
+  `git diff 705c834 199121c` is empty, and `705c834` changed only documentation.
+- **Production serves `199121c`'s build — verified from the live site, not from Railway.** From
+  **2026-09-18T19:09:32Z**, about a minute after the merge, https://launchops.run served the bundle
+  `index-P8sStBDZ.js`. Its Settings → Usage chunk (`UsageSettings-J658VHHI.js`) contains
+  `08705de`'s and `b607021`'s wording — "and the most an organisation can set", "As a platform
+  administrator, you can set a higher one" and "…can't start again until next month." — and no
+  longer pull request #5's note naming a platform administrator ("only a platform administrator
+  can"); its Operations chunk (`OperationsPage-1azU3X9R.js`) contains the playbook's text ("Working
+  out what's next", "Always available"); and the call to `/api/queue/summary` is in a shared chunk
+  (`Display-D2gG6dyx.js`). `GET /health` answered 200. **Re-checked on 2026-09-19:** the same
+  bundle, and `GET /health` 200. **The Railway dashboard's deployment record was not read.**
+- **So everything on pull request #6 is on `main` and in production**, all of it recorded under
+  1.1.4 while it was on the branch only: the guided launch playbook on the Operations screen,
+  `GET /api/queue/summary`, BUG-032's fix — owners can lower any budget — B-15's wording, in which
+  no message promises an administrator, the budget's check and write under one row lock, and
+  `canRaiseBudget`.
+- **All 32 registered bugs are fixed on `main` and in production; none is open.** BUG-032, the last
+  one live, came in with `a53b26e` and reached production with pull request #5's merge (`477eaa4`);
+  its fix, `08705de`, reached production with this one.
+- **T-10: the merge and the deployment are done; the signed-in check is not.** It needs someone who
+  signs in, which the assistant does not do, so it is the owner's: sign in as an Owner — **never
+  with a new probe account** (T-1) — and see the Operations screen open on a "Next up" card above
+  the five stages; in an organisation with no budget of its own, see Settings → Usage show the $25
+  platform default. Where it shows it depends on the month, and either case passes: in a month
+  with AI usage, beside the costs, where a platform admin also sees the note "This is the
+  platform's default budget. As a platform administrator, you can set a higher one below."; in the
+  current month before any usage, in the sentence "The platform's default budget of $25.00
+  applies: operations stop when a month's cost reaches it." That includes T-9's check, which moved
+  into T-10 under 1.1.4.
+
+### Decided — by the owner
+
+1. **Merge pull request #6 (T-10): yes** — 2026-09-18. Done, above.
+2. **Answer pull request #6's review threads on GitHub: yes** — 2026-09-18. 1.1.4 recorded that
+   posting on #6 waited for this go-ahead, as it had for #5. Done (Reviewed, below).
+3. **Sharing — 2026-09-19: build access to a single project, view-only share links and more than
+   one organisation per account, and start on them immediately in the next session.** None of the
+   three exists today (Next — sharing, below).
+
+- **Still open for the owner — thirteen: B-1 to B-12, and B-16, new.** Plan section 8 (B-1 to
+  B-7), the brand kernel (B-8 to B-10, D15), whether organisation owners should also create reset
+  links (B-11, D8), and billing (B-12), which matters most now: B-14's reasoning — usage charged on
+  to customers at a markup — depends on billing, and billing isn't built. **B-16 is the sharing
+  decisions, S1 to S15** in `docs/SHARING_PLAN.md`, to settle with the owner at the start of the
+  next session, before any code; S2, the spending guard, must be decided before more organisations
+  ship. B-13, B-14 and B-15 are decided.
+
+### Reviewed — both pull requests, final state
+
+- **Pull request #5: all twelve review threads answered and resolved.** The last three —
+  CodeRabbit's review of `ce12024`, on `CLAUDE.md:186`, `docs/ROADMAP.md:173` and
+  `docs/CHANGELOG.md:198`, which 1.1.4's documentation answered — got their replies on 2026-09-18
+  once `705c834` was pushed, citing it, and were resolved. Its two comments outside the diff had
+  been answered in one comment earlier that day, as 1.1.4 records.
+- **Pull request #6: all six review threads answered, five resolved.** With the owner's go-ahead,
+  replies went up on 2026-09-18 to the five threads from the review of `08705de` — Codex's three
+  P2s and CodeRabbit's two, all fixed in code (1.1.4, Reviewed — pull request #6) — and to the
+  thread from CodeRabbit's review of `705c834`, with one comment answering CodeRabbit's comment
+  outside the diff. The pull request's description was updated to list its commits, `53456fc` to
+  `705c834`, the figures and the open thread.
+- **The one left open is CodeRabbit's, at `frontend/src/test/fakeApi.ts:709`**, from its review of
+  `705c834`: the fake backend's `GET /api/queue/summary` looks a project up by id alone, so it
+  answers 200 for another organisation's project where production answers 404. **Test-only;
+  production is right**, and the backend suite covers it —
+  `test_queue.py::test_summary_needs_a_project_in_the_organisation` and
+  `test_tenancy.py::test_queue_items_are_isolated`. It was answered and left open: its fix is
+  folded into the sharing work, which scopes the fake backend like the real one before anything
+  else is built (Next — sharing, below).
+
+### Verified — on `main` at `199121c`, 2026-09-19
+
+_One suite at a time. Every figure matches 1.1.4's, measured at `b607021`, as it should: the code
+is the same._
+
+- **Backend:** ruff clean; `python -m pytest --cov` → **570 passed, 98.33%** of 3,356 statements,
+  56 missed, behind the 95% gate — run **without `TEST_DATABASE_URL`**, against the new local
+  cluster on the default port, 56432 (Changed, below).
+- **Frontend:** ESLint at zero warnings; `tsc -b` clean; `npm run coverage -- --maxWorkers=2` →
+  **652 passed in 51 files**: lines 99.19% (3,317 of 3,344), statements 97.13% (3,825 of 3,938),
+  branches 90.24% (3,110 of 3,446), functions 96.59% (1,502 of 1,555).
+- **Playwright**, in Chromium through the temporary local-browser configuration (`docs/TESTING.md`,
+  section 2), deleted afterwards, at `--workers=4`: **99 passed** — 3 smoke, 12 golden path, 56
+  accessibility (28 screens × 2 themes) and 28 at a 390px phone width.
+- **CI on `main`:** the pushes of `477eaa4` (run 35308026206) and `199121c` (run 35384260825)
+  passed.
+- **A red run on `main` that no earlier version recorded:** the push of `0ce65dd`, pull request
+  #4's merge, at 2026-09-17T20:14Z (run 35269583667), failed its frontend job at
+  `e2e/golden.spec.ts:105`, "launch plan: ticking an item saves the checklist", with "Clicking the
+  checkbox did not change its state". `0ce65dd` changed only documentation (1.1.1), so the merge
+  did not cause it: it is **gap 13's flake**, seen here before the occurrence gap 13 was written up
+  from, `a2124a9`'s run 35281944055. `908f46d` has since made the test assert with a retry instead
+  of `check()` (1.1.3, Changed), and both pushes to `main` since, `477eaa4` and `199121c`, passed.
+
+### Changed — the local test database, moved out of the temp folder
+
+- **The old scratch clusters are broken, and abandoned rather than deleted.** Both lived in an
+  earlier session's scratchpad under the temp folder —
+  `%LOCALAPPDATA%\Temp\claude\C--DEV-LaunchOps\b0f4a290-…\scratchpad\pgdata` on port 56432, and
+  `pgdata2` beside it on 56433 — the paths 1.1.2 warned were not durable. Windows' temp clean-up
+  removed their empty directories, and on 2026-09-19 `pgdata2` refused to start: "could not open
+  directory pg_replslot: No such file or directory", and the same for `pg_tblspc`.
+- **The new cluster is `%LOCALAPPDATA%\LaunchOps-dev\postgres`** — outside the temp folder, the
+  repository and OneDrive — created on 2026-09-19 with PostgreSQL 18.4's
+  `initdb -U postgres -A trust -E UTF8 --no-locale`. It listens on **56432**, the port in
+  `backend/tests/conftest.py`'s default and in `backend/.env`'s `DATABASE_URL`, and holds two
+  databases: `launchops_test`, for the test suite, and `launchops`, for the local development
+  server. `launchops` is empty — migrations run when the backend starts — and has no accounts, so
+  using it means signing up locally, **never on the live site**. Its log is
+  `%LOCALAPPDATA%\LaunchOps-dev\postgres.log`.
+- **Starting it:** PostgreSQL 18's `pg_ctl` with `-D` at the cluster, `-l` at its log and
+  `-o "-p 56432"`, then `start` — in Git Bash **with its output redirected**
+  (`> /dev/null 2>&1`), which is what stops the call hanging on the shell's pipe, the old "pg_ctl
+  looks hung" problem. Check it with `pg_isready -h 127.0.0.1 -p 56432`, and stop it with
+  `pg_ctl -D <the same path> stop -m fast`. The full command is in `docs/HANDOFF.md` (Start here)
+  and `docs/TESTING.md`, section 2. With the cluster up, `python -m pytest` needs **no**
+  `TEST_DATABASE_URL`.
+- **It is stopped when a session ends**, so expect it stopped at the next session's start, and
+  after any reboot.
+
+### Known, not fixed
+
+- **Gap 17, new in `docs/TESTING.md`: the fake backend scopes project data by organisation only in
+  part.** Only its `GET /api/products` filters by organisation, and it shows projects without an
+  `org_id` in every organisation; its queue, Outbox, templates, captures, calendar and brands
+  aren't filtered by organisation; some routes find a project or result by id alone —
+  `GET /api/queue/summary` among them, which is pull request #6's open thread; and the Playwright
+  bridge drops `X-Org-Id`, so browser tests always act in the user's first organisation. **So no
+  frontend test can catch one organisation's project data showing in another's**: organisation
+  isolation is tested only in the backend, where it holds (`test_tenancy.py`, and the
+  cross-organisation cases in `test_organisations.py`). The sharing work fixes it first.
+- **Gap 13 records its earliest occurrence**, the red run on `0ce65dd` (Verified, above).
+- **LIM-001 to LIM-004 stay open**, LIM-003 and LIM-004 among the work already chosen (Where it
+  stands, at the end).
+
+### Next — sharing, the owner's priority (2026-09-19)
+
+- **Today sharing is organisation-wide only.** An Owner invites someone by email or by link, with
+  a role — Viewer, Editor, Approver or Owner — and an invitation lasts 7 days; the person then sees
+  every project in the organisation. **There is no access to a single project, no view-only share
+  link and no way to create a second organisation**: one is created only with a new account, at
+  registration or when a platform admin creates a user (`_create_account`).
+- **The owner wants all three built, starting immediately in the next session** — the decision
+  above, and `docs/ROADMAP.md` → Next up, item 1.
+- **The brief is `docs/SHARING_PLAN.md`**, new, and unmanaged like `docs/PHASE1_DESIGN.md`: what
+  the owner asked for; what exists today, mapped from the code at `199121c`; **decisions S1 to
+  S15, to settle with the owner before any code is written** (B-16), each with a proposed default
+  and none decided; what each feature touches; the test plan; and the risks. The proposed order is
+  its feature 3, more organisations, then 2, share links, then 1, per-project access — each on its
+  own branch and pull request.
+- **What must not be missed**, as the plan records it:
+  - **S2, the spending guard.** Every organisation without a budget of its own is held to the $25
+    default, and B-14 decided there is no cap on the total, so free organisation creation
+    multiplies what one account can spend on the deployment's API key. Proposed, not built:
+    `MAX_ORGANISATIONS_PER_USER`, default 3, platform admins exempt.
+  - **A public page needs an allow-list of fields.** `_public_product` returns the whole product
+    row, `email_settings` (without the password) and `company_details` included.
+  - **A bad share token must answer 404, never 401.** A 401 makes the frontend client renew the
+    session and then sign the visitor out.
+  - **Live updates are per organisation, and events carry no `product_id`.** Per-project access
+    must add it, or a member of one project would learn of every project's results and emails.
+  - **The fake backend scopes weakly** (gap 17, Known, not fixed, above). Only its
+    `GET /api/products` filters by organisation, and the Playwright bridge drops `X-Org-Id`.
+    The plan fixes that first, which also closes pull request #6's open thread (Reviewed,
+    above).
+
+### Documentation
+
+- **1.2.0 is a minor version, not a patch:** it is the session-end handoff, which the
+  session-orchestrator's versioning raises by a minor version. 1.1.4 was committed in `705c834`
+  and merged with pull request #6, so it stays as the record of that state. All seven managed
+  documents are raised to 1.2.0 together.
+- **Between them, the seven managed documents** are brought up to `main` at `199121c`, to
+  production and to the next session: pull request #6 merged and deployed, all 32 registered bugs
+  fixed there, T-10's merge done and its signed-in check owed, B-16 opened, the figures
+  re-measured on `main`, the red run on `0ce65dd`, the new test cluster, gap 17, and sharing as
+  the next session's work.
+- **Outside the managed set, and so without versions of their own:**
+  - **`docs/SHARING_PLAN.md`**, new (Next — sharing, above).
+  - **`docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`**: Progress — pull request #6 merged and live,
+    with the quality gates measured on `main` at `199121c` — and Next, which now opens with
+    sharing, pointing at `docs/SHARING_PLAN.md`, adds the sharing decisions (B-16) to the owner's,
+    and records T-10's merge as done and its signed-in check as still owed.
+  - **`SETUP_PROMPT.md`**: the quick check now starts the local cluster before the backend tests,
+    and the environment notes say where the cluster lives, that it is stopped at session start
+    and that `docs/TESTING.md`, section 2, has the command to start it. The prompt also says that
+    `docs/HANDOFF.md` opens with what the owner wants done first.
+- **`docs/AUDIT-LOG.md`: a sixth reconciliation audit**, the closing pass over this documentation.
+  It runs after this entry is written, so its findings, and what was done about them, are
+  recorded in the log, not here.
+- **After the sixth audit, at the owner's request, `docs/SHARING_PLAN.md` gained S15**, one
+  permission function in the database, from the owner's colleague's advice; the references in
+  this entry and the other documents now read S1 to S15, and the log records the change.
+
+### Where it stands, when this was written (2026-09-19T15:47Z)
+
+- **`main` = `origin/main` = `199121c`**, the pull request #6 merge, and production serves its
+  build — confirmed from the live bundle, not from the Railway dashboard. Everything on pull
+  request #6 is on `main` and in production, and all 32 registered bugs are fixed there.
+- **This documentation was committed on branch `docs/handoff-2026-09-19`**, cut from `main` at
+  `199121c`, and holds only documentation. It reaches `main` through a pull request of its own,
+  merged with a merge commit once CI passes (the owner's go-ahead, 2026-09-19); every push to
+  `main` deploys, though this one changes no application code. `git log origin/main` shows whether
+  it has landed; if CI failed, the next session fixes the cause and merges, the merge being
+  already approved, then works from `main`.
+- **Next is sharing** (`docs/ROADMAP.md` → Next up, item 1): settle B-16's decisions, S1 to S15,
+  with the owner — S2 above all — then scope the fake backend like the real one, then build.
+- **Owed by the owner:** T-10's signed-in check; **T-4, rotating the Railway project token** — the
+  owner's settled practice at the end of every session, owed at the end of this one, with no token
+  value ever written anywhere; and T-1, deleting `guard-check@example.com` and its organisation.
+  T-5 to T-8 stay optional.
+- **Other work already chosen, unchanged:** cost and duration per operation, which needs a
+  `result_id` on `ai_usage`; the Portfolio launch board as cards on a phone (LIM-003); the project
+  tab bar on a phone (LIM-004); the Phase 2 follow-ups — the brand kernel (D15), result history
+  (D16) and billing settings; then Phase 3, real actions. Testing gaps 1 to 16 stand as recorded,
+  and 17 is new (Known, not fixed, above); locally, Vitest runs at `--maxWorkers=2` and
+  Playwright at `--workers=4`.
+- **The merged branches `feat/playbook-ui` and `fix/spend-cap-and-mobile-overflow` still exist**,
+  locally and on `origin`; deleting them is the owner's call. `.github/workflows/test-pipeline.yml`
+  stays untracked by design.
+- **Re-check with `git log --oneline -1 origin/main`, `gh pr list` and `git status` rather than
+  trusting this section.**
 
 ---
 
