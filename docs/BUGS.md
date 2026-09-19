@@ -1,8 +1,8 @@
 ---
 document: BUGS
-version: 1.2.0
-last-updated: 2026-09-19T15:49:21Z
-last-audit: 2026-09-19T16:06:00Z
+version: 1.2.1
+last-updated: 2026-09-19T17:18:24Z
+last-audit: 2026-09-19T17:18:00Z
 managed-by: session-orchestrator/bug-fix-tracker
 ---
 
@@ -88,8 +88,9 @@ the defect was live in production, failing safe: an owner whose budget was above
 could lower it only to $25 or below, or clear it. BUG-032's entry is under Fixed Bugs, LOW.
 
 Remaining work is tracked in `docs/ROADMAP.md`, not here, and is not bug work: the tasks under
-**Active**, among them T-10's check of the live site signed in as an Owner, which the owner still
-owes, and the owner decisions still open under **Blocked**, B-1 to B-12 and B-16.
+**Active** and the owner decisions still open under **Blocked**, B-1 to B-12 and B-16. T-10's
+check of the live site signed in as an Owner is done. The owner did it on 2026-09-19 and reported
+that it looks good: the Operations screen opens on the playbook, and Settings → Usage is right.
 
 ### Known limitations
 
@@ -167,9 +168,9 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
   (`backend/routers/auth.py:153-154`, `backend/config.py:43`). It is set on the Railway deployment.
 - **Regression test:** `backend/tests/test_auth.py::test_with_an_admin_email_only_that_address_can_create_the_first_account`
 - **Status:** ✅ Fixed and verified
-- **Follow-up (open item for the next session, not a bug):** the account `guard-check@example.com`
-  and "Guard check's organisation" were created by a verification probe against the live site after
-  the first admin account existed, and must be deleted by a platform admin in Settings → Team & access.
+- **Follow-up (not a bug), done 2026-09-19:** the account `guard-check@example.com` and "Guard
+  check's organisation" were created by a verification probe against the live site after the first
+  admin account existed. The owner deleted both on 2026-09-19 (T-1 in `docs/ROADMAP.md`).
 
 #### BUG-028 — Organisations without a budget could spend without limit on the deployment's API key
 - **Severity:** 🔴 **CRITICAL.** Security and cost: unbounded spending on the deployment's single
@@ -239,9 +240,9 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
   sentence `7dbc35d` added and still the note from pull request #5 naming a platform
   administrator: all of pull request #5's code, none of pull request #6's. Since 19:09:32Z the
   same day, production has served `199121c`'s build, pull request #6's merge, which keeps all
-  three commits (see BUG-032). The Railway dashboard's deployment records were not read, and
-  Settings → Usage has not been checked on the live site signed in as an Owner: that check is part
-  of T-10 in `docs/ROADMAP.md`, and the owner still owes it. Until pull request #5's merge,
+  three commits (see BUG-032). The Railway dashboard's deployment records were not read. On
+  2026-09-19 the owner checked Settings → Usage on the live site, signed in as an Owner, as T-10
+  in `docs/ROADMAP.md` asked, and reported that it looks good. Until pull request #5's merge,
   production ran `bc6143c`'s application code, with no default budget, and the defect was live
   there.
 - **Caps the exposure only together with BUG-031's fix, and caps it rather than closing it.** The
@@ -947,11 +948,12 @@ leaves in place, and LIM-004 predates that fix and was not part of it.
   administrator, you can set a higher one" and "…can't start again until next month.") and no
   longer pull request #5's note naming a platform administrator ("only a platform administrator
   can"), and `GET /health` answered 200. On 2026-09-19 the site served the same bundle, and
-  `/health` answered 200 again. The Railway dashboard's deployment record was not read, and
-  Settings → Usage has not been checked on the live site signed in as an Owner: that check is
-  part of T-10 in `docs/ROADMAP.md`, and the owner still owes it. The defect came in with
-  `a53b26e`, BUG-031's fix, so pull request #5's merge (`477eaa4`) took it to production, where
-  it was live, failing safe, until pull request #6 deployed the same day.
+  `/health` answered 200 again. The Railway dashboard's deployment record was not read. Also on
+  2026-09-19, the owner checked Settings → Usage on the live site, signed in as an Owner, as T-10
+  in `docs/ROADMAP.md` asked, and reported that it looks good. That check does not include this
+  bug's case, lowering a budget stored above the default, which the regression tests above cover.
+  The defect came in with `a53b26e`, BUG-031's fix, so pull request #5's merge (`477eaa4`) took
+  it to production, where it was live, failing safe, until pull request #6 deployed the same day.
 
 ---
 

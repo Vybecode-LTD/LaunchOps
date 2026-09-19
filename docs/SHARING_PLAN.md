@@ -70,9 +70,15 @@ Proposed defaults are marked; none is decided until the owner says so.
 - **S2. The spending guard (must decide).** Every organisation without a budget of its own is held to
   the $25 default, and B-14 decided there is no cap on the total. Letting an account create
   organisations freely multiplies what one account can spend on the deployment's API key, with no new
-  sign-up needed. Options: (a) cap how many organisations an account can own — *proposed:*
-  `MAX_ORGANISATIONS_PER_USER`, default 3, platform admins exempt; (b) one budget shared across the
-  organisations an account owns; (c) new organisations get no AI until a platform admin allows it.
+  sign-up needed. **The guard must count what an account has created, not what it owns now:** an Owner
+  can promote another member to Owner and then leave (`backend/routers/organisations.py:120-163`), so a
+  cap on owned organisations resets whenever two accounts pass ownership back and forth (Codex's review
+  of pull request #7). Options:
+  - (a) a creation quota per account that ownership changes can't reset. *Proposed:*
+    `MAX_ORGANISATIONS_CREATED_PER_USER`, default 3, counted from a `created_by` column on
+    `organisations`, with platform admins exempt;
+  - (b) one budget shared across the organisations an account has created;
+  - (c) new organisations get no AI until a platform admin allows it.
 - **S3. Deleting an organisation.** Nothing deletes one today except deleting the sole member's account.
   *Proposed:* include "delete organisation" (Owner, typed confirmation, like deleting a project).
 - **S4. Admin project transfer** targets the user's first owned organisation. *Proposed:* let the admin
@@ -93,7 +99,8 @@ Proposed defaults are marked; none is decided until the owner says so.
 **Feature 1 — per-project access**
 - **S10. The model.** *Proposed:* project members who are not organisation members ("guests"), in a new
   `project_members` table (`product_id`, `user_id`, `role`); organisation members keep seeing every
-  project.
+  project. A guest still needs an organisation to act in: see "What each feature touches" → Feature 1,
+  sign-in and organisation context.
 - **S11. Roles for a guest.** *Proposed:* Viewer, Editor or Approver on that project; project settings
   and deletion stay with organisation Owners.
 - **S12. What a guest sees.** *Proposed:* Portfolio, Review, the Outbox and the calendar filtered to
@@ -158,6 +165,13 @@ commit, never a squash.
   `services/access.py`, used by every project route; every list above joined against
   `accessible_products` (SQL, not `database.select`); `product_id` in events; the usage summary's
   by-project view; the admin transfer carrying grants.
+- Sign-in and organisation context (Codex's review of pull request #7): `/api/auth/me` returns only the
+  user's memberships (`access.memberships_of()`, `backend/routers/auth.py:336-339`), and `AuthProvider`
+  (`frontend/src/lib/auth/AuthProvider.tsx`) picks the organisation to send in `X-Org-Id` from that list.
+  A project-only guest has no membership, so they would have no organisation to act in, and
+  `access.membership()` would refuse them before any project check ran. The profile has to list project
+  grants too, with each project's organisation, and both `access.membership()` and the frontend's
+  organisation context have to represent guest access without granting membership.
 - Frontend: a project-aware `can()`; the rail, command palette, Portfolio, Review, Outbox and calendar
   showing only accessible projects; hiding organisation-level pages from guests; a project's Settings →
   Members.
@@ -172,8 +186,9 @@ the accessibility and phone-width suites for every new screen.
   guest on one project and prove they get 404 on the others through every route; a role matrix for
   project roles like `test_organisations.py`'s; share-link tests for expired, revoked, wrong and
   malformed tokens (all 404), the allow-list (no `email_settings`, no `company_details`), the rate
-  limit, and revocation taking effect at once; organisation-creation tests for S2's guard and S4's
-  transfer.
+  limit, and revocation taking effect at once; organisation-creation tests for S2's guard, including
+  that promoting another Owner and leaving doesn't reset it, and for S4's transfer; a guest's sign-in
+  profile lists their grant and nothing else in that organisation, and they reach their project.
 - **Fake backend first.** Before relying on frontend tests, make `fakeApi.ts` scope the way the backend
   does: filter every list by organisation (and, for feature 1, by project), look projects up within the
   organisation — which closes CodeRabbit's open thread on pull request #6 (`fakeApi.ts:709`) — and make
@@ -185,7 +200,8 @@ the accessibility and phone-width suites for every new screen.
 
 ## Risks
 
-- **Spending:** feature 3 without S2's guard multiplies the $25 default per account (B-14 has no total cap).
+- **Spending:** feature 3 without S2's guard multiplies the $25 default per account (B-14 has no total cap),
+  and a guard that an ownership transfer can reset is no guard.
 - **Data exposure:** a public link is unauthenticated by design; the allow-list, 404s and revocation are
   the defence, and they need tests, not review alone.
 - **Permission regressions:** feature 1 changes every access check. S15 puts the rule in one place, and

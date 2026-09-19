@@ -179,14 +179,14 @@ Exit criteria:
      self-registered owner lift the new cap themselves. Every organisation without a budget of its own is now held to the $25
      default in production
    - **done 2026-09-18:** pull request #6 merged (`199121c`, a merge commit) and deployed (T-10): the playbook screen, BUG-032's
-     fix and the review fixes are in production. **Still owed by the owner:** T-10's check of the live site, signed in as an
-     Owner, never by registering a probe account
-   - delete the account `guard-check@example.com` and "Guard check's organisation", created on the live site by a sign-up probe
-     after the admin account already existed (T-1)
-   - rotate the Railway project token again (T-4). The exposed token was deleted and a replacement issued, but the replacement was
-     pasted into chat too, so it is exposed the same way. The owner does this deliberately — `railway login` will not authorise on
-     this machine — and rotates at the end of every session, which bounds it. A token must never reach a commit: CI runs gitleaks
-     over the full git history
+     fix and the review fixes are in production. **Done 2026-09-19:** the owner checked the live site signed in as an Owner, and
+     it looks right (T-10)
+   - **done 2026-09-19:** the owner deleted the account `guard-check@example.com` and "Guard check's organisation", which a sign-up
+     probe had created on the live site (T-1)
+   - rotate the Railway project token at the end of every session (T-4). The owner pastes a project token into the session
+     deliberately — `railway login` will not authorise on this machine — and rotates it when the session ends, which bounds the
+     exposure; they reported rotating it at the end of the 2026-09-19 session. A token must never reach a commit: CI runs
+     gitleaks over the full git history
    - **done 2026-09-17:** the admin account and the registration policy (T-2 — the platform admin is `color8studios@gmail.com`,
      and open registration deliberately stays on), and the Spaceship CNAME (T-3)
    - consider turning on Wait for CI in the service's source settings, so only commits that pass CI deploy
