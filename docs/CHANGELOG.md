@@ -1,8 +1,8 @@
 ---
 document: CHANGELOG
-version: 1.2.0
-last-updated: 2026-09-19T16:20:14Z
-last-audit: 2026-09-19T16:06:00Z
+version: 1.2.1
+last-updated: 2026-09-19T17:04:13Z
+last-audit: 2026-09-19T17:18:00Z
 managed-by: session-orchestrator/doc-versioner
 ---
 
@@ -18,6 +18,7 @@ Newest first. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 | Version | What it covers |
 |---|---|
+| **1.2.1** | A patch after the 2026-09-19 handoff: pull request #7 merged (`c8da4f0`), with production's code unchanged; the owner's tasks done — T-10's signed-in check and T-1 — and the Railway token rotated at the session's end (T-4); every merged branch deleted; Codex's two points on pull request #7 folded into `docs/SHARING_PLAN.md` — S2's quota counts organisations created, not owned, and a project-only guest needs an organisation context; and a seventh audit |
 | **1.2.0** | The session-end handoff of 2026-09-19: pull request #6 merged (`199121c`) and deployed, putting the launch playbook, `GET /api/queue/summary` and BUG-032's fix in production, where all 32 registered bugs are now fixed; both pull requests' reviews answered on GitHub, one test-only thread left open; every suite re-run on `main`, and a red CI run on `0ce65dd` that no earlier version recorded; the local test database moved out of the temp folder; the owner's priority for the next session, sharing — its brief in `docs/SHARING_PLAN.md`, its decisions B-16; and a sixth audit |
 | **1.1.4** | Pull request #5 merged (`477eaa4`) and deployed, putting BUG-028 to BUG-031 in production, and BUG-032 with them; pull request #6, not merged when this was written, up to its last code commit `b607021`: the launch playbook on the Operations screen, `GET /api/queue/summary`, BUG-032 fixed, the budget's check and write under one row lock, and budget messages that promise only what the reader can do; the owner's decisions of 2026-09-18 — no cap on the total (B-14), no platform admin setting the budget of an organisation they don't belong to (B-15), and a playbook that advises and never blocks; both pull requests' reviews; LIM-004; and a fifth audit |
 | **1.1.3** | Pull request #5, not merged when this was written, up to its last code commit `7dbc35d`: the default AI budget and the rule that only a platform admin may go above it (BUG-028, BUG-031), a cap per organisation rather than on the total (B-14); four screens fixed at phone width (BUG-029); empty competitor columns (BUG-030); the playbook domain module; the automated review's fixes, with BUG-032 left open; a fourth audit; and gap 14, the Vitest suite unreliable at default concurrency on this machine |
@@ -25,6 +26,86 @@ Newest first. Format follows [Keep a Changelog](https://keepachangelog.com/).
 | **1.1.1** | The merge of pull request #3 and what followed: BUG-027 in production, six documents reconciled to the merged state, a second audit, and three corrections to the 1.1.0 entry |
 | **1.1.0** | The second pass of the 2026-09-17 handoff: the BUG-027 security fix, one more regression test, and the first documentation audit |
 | **1.0.0** | The documentation baseline written earlier in that same session, covering the Phase 0–2 rebuild through to production |
+
+---
+
+## [1.2.1] — 2026-09-19
+
+_A patch after the handoff. 1.2.0 merged; the owner's tasks are done — T-10's signed-in check and
+T-1 — and the owner reported rotating the Railway token at the session's end (T-4); every merged
+branch is deleted; and Codex's two points on pull request #7 are folded into
+`docs/SHARING_PLAN.md`. **No application code changed:** production still runs `199121c`'s code.
+Everything else — sharing as the next session's work, the figures, the bugs, the limitations, the
+testing gaps and the local test database — stands as 1.2.0 records it._
+
+### Merged — pull request #7, the 1.2.0 handoff
+
+- **Pull request #7 merged into `main` as `c8da4f0` at 2026-09-19T16:27:03Z**, from branch
+  `docs/handoff-2026-09-19` at `101f706` — a merge commit, with the owner's go-ahead, once all
+  three CI jobs had passed on `101f706`. CodeRabbit's review, which is not CI, was still pending
+  when it merged. CI passed again on the push to `main`.
+- **Production's code is unchanged:** the merge carried documentation only —
+  `git diff --stat 199121c c8da4f0` lists Markdown files alone. Checked from the live site at
+  2026-09-19T16:32:19Z: the same bundle, `index-P8sStBDZ.js`, and `GET /health` 200.
+
+### Done — the owner's tasks, 2026-09-19
+
+- **T-10 — done.** The owner signed in on the live site and reported that it looks good: the
+  Operations screen opens on the playbook, and Settings → Usage is right.
+- **T-1 — done.** The owner deleted the account `guard-check@example.com` and "Guard check's
+  organisation", which a sign-up probe had created on the live site.
+- **T-4 — the owner reported rotating the Railway project token at the end of the 2026-09-19
+  session.** It stays standing: the owner rotates the pasted token at the end of every session,
+  and no token value is ever written anywhere.
+- **All three are the owner's reports.** Active's open items are now T-4, at the end of each
+  session, and the optional T-5 to T-8.
+
+### Removed — every merged branch
+
+- **At the owner's request, on 2026-09-19, every merged branch was deleted, locally and on
+  `origin`** — the call 1.2.0 left to the owner — after checking that each was fully merged into
+  `main`, unprotected, and used by no open pull request or workflow:
+  `feature/launchops-v2-foundation` (#1), `chore/docs-deployment-status` (#2),
+  `fix/refresh-token-clock-skew` (#3), `docs/record-the-merge` (#4),
+  `fix/spend-cap-and-mobile-overflow` (#5), `feat/playbook-ui` (#6) and
+  `docs/handoff-2026-09-19` (#7). The pull requests keep their commits, GitHub can restore any
+  branch, and branch names in earlier entries stay as the record.
+- **`origin` has only `main`**, at `c8da4f0` (`git ls-remote --heads origin`). The one other
+  local branch is this update's (Documentation, below).
+
+### Changed — the sharing plan, after Codex's review of pull request #7
+
+- **Codex reviewed `101f706` with two P2 comments on `docs/SHARING_PLAN.md`.** Both threads are
+  unanswered on GitHub — there is no go-ahead to post — and both points are now in the plan as
+  proposals: like the rest of S1 to S15, nothing is decided until the owner settles B-16.
+- **S2: the spending guard must count the organisations an account has created, not those it owns
+  now.** An Owner can promote another member to Owner and then leave, which is allowed while
+  another Owner remains, so a cap on owned organisations resets whenever two accounts pass
+  ownership back and forth. Proposed option (a) is now `MAX_ORGANISATIONS_CREATED_PER_USER`,
+  default 3, counted from a new `created_by` column on `organisations`, platform admins exempt —
+  renamed from 1.2.0's `MAX_ORGANISATIONS_PER_USER`.
+- **A project-only guest (S10, feature 1) needs an organisation to act in.** `/api/auth/me` lists
+  only the organisations the user is a member of, and `AuthProvider` picks the one it sends in
+  `X-Org-Id` from that list, so `access.membership()` would refuse a guest before any project
+  check ran. So per-project access has to list a guest's project grants in the profile, each with
+  its project's organisation, and `access.membership()` and the frontend's organisation context
+  have to represent guest access without granting membership.
+- **The plan's tests and risks now cover both.**
+
+### Documentation
+
+- **1.2.1 is a patch:** state corrections after the handoff, which the session-orchestrator's
+  versioning raises by a patch. All seven managed documents are raised to 1.2.1 together.
+- **This documentation is on branch `docs/owner-tasks-2026-09-19`**, cut from `main` at
+  `c8da4f0`. It reaches `main` through its own pull request, merged with a merge commit once CI
+  passes (the owner's go-ahead, 2026-09-19), and the branch is deleted after the merge like the
+  others.
+- **`docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`**, outside the managed set: its task list, under
+  Next, records T-10 and T-1 done, and T-4 as the end-of-session practice, last done at the end
+  of the 2026-09-19 session.
+- **`docs/AUDIT-LOG.md`: a seventh reconciliation audit**, the closing pass over this
+  documentation. It runs after this entry is written, so its findings, and what was done about
+  them, are recorded in the log, not here.
 
 ---
 

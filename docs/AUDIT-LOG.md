@@ -1,8 +1,8 @@
 ---
 document: AUDIT-LOG
-version: 1.2.0
-last-updated: 2026-09-19T16:18:23Z
-last-audit: 2026-09-19T16:06:00Z
+version: 1.2.1
+last-updated: 2026-09-19T17:18:24Z
+last-audit: 2026-09-19T17:18:00Z
 managed-by: session-orchestrator/doc-reconciler
 ---
 
@@ -15,6 +15,128 @@ checked, what was found, what was fixed and what was left for a document's owner
 `git show`, and the source itself — never against another document. Where two documents disagree,
 the code decides. No test suite is ever run to produce these figures: they are read from the
 session's own completed runs, because a second run against the shared test database corrupts it.
+
+---
+
+## Audit — 2026-09-19T17:18:00Z — closing audit of documentation 1.2.1: after the handoff merged
+
+**Trigger:** the closing pass over documentation 1.2.1, a patch recording what happened after the
+1.2.0 handoff merged: pull request #7's merge as `c8da4f0`, the owner's tasks, the deletion of
+every merged branch, and Codex's two points on pull request #7, which the session's coordinator
+folded into `docs/SHARING_PLAN.md`. Six document owners brought their documents to 1.2.1, and the
+coordinator also edited the plan's task list. On the owner's clock (UTC-4) it is 13:18 on
+2026-09-19.
+**Scope:** the seven managed documents and the six unmanaged ones, against the facts file for 1.2.1
+and against each other: versions; T-10 and T-1 done and T-4 standing; every merged branch deleted;
+`c8da4f0` and its checks; S2's new name and reasoning; the guest organisation context; stale
+wording about T-10, T-1, surviving branches or `MAX_ORGANISATIONS_PER_USER`; and, the repository
+being public, local paths. The bug owner's flag on BUG-013 was taken up, and the coordinator's two
+additions to the brief were checked against the code at `c8da4f0`.
+**Method:** each claim checked against the facts file, against the other documents, and against
+the repository — `git log`, `git show`, `git diff`, `git grep` and `git ls-remote --heads origin`
+at `c8da4f0` — and, for pull request, CI and branch state, against GitHub. Live-site observations
+and the owner's reports are the facts file's, recorded as given: nothing was run.
+**Repository state, at open (17:07Z) and at close:** HEAD is `docs/owner-tasks-2026-09-19` at
+`c8da4f0`, which is also `main` and `origin/main`. GitHub has one branch, `main`, and no open pull
+request. At open eight tracked documents were modified — the six owners', the brief and the plan;
+at close there are nine, this log modified by this entry. No application code differs from
+`199121c`: `git diff 199121c c8da4f0` touches documents only. `.github/workflows/test-pipeline.yml`
+is untracked by design.
+**This reconciler made no commit, stage, stash, push or branch switch, and ran no test suite,
+linter, build, server or database.** Its GitHub queries were read-only GETs — `gh pr view` of #1
+to #7, `gh pr list`, `gh run list` and `gh run view` for `101f706` and `c8da4f0`, `gh api` of pull
+request #7's review comments, reviews and comments and of the repository's branches, and
+`gh repo view` for its visibility. It posted nothing and sent nothing to the production site.
+Findings continue the numbering.
+
+### Findings
+
+| # | Severity | Document | Issue | Resolution |
+|---|---|---|---|---|
+| 54 | MEDIUM | `docs/BUGS.md` (BUG-013) | **Flagged by the bug owner.** BUG-013's follow-up still read "open item for the next session": the probe account `guard-check@example.com` and "Guard check's organisation" "must be deleted by a platform admin in Settings → Team & access". The owner deleted both on 2026-09-19, as T-1 records in the roadmap, the handoff, `CLAUDE.md` and the changelog | **Fixed:** the follow-up is marked done on 2026-09-19, the owner having deleted both (T-1) |
+| 55 | LOW | `docs/HANDOFF.md` (Next session → Must not miss, S2), `docs/ROADMAP.md` (B-16) | **`MAX_ORGANISATIONS_PER_USER` named outside history**, as rename notes beside the new proposal: "(renamed from `MAX_ORGANISATIONS_PER_USER`)" and "renamed from `MAX_ORGANISATIONS_PER_USER` when the count moved from organisations owned to organisations created". The changelog's 1.2.1 entry records the rename, which is where a history belongs | **Fixed:** both notes removed, so the current sections name only `MAX_ORGANISATIONS_CREATED_PER_USER`. The old name stays in the changelog's 1.2.0 and 1.2.1 entries |
+| 56 | LOW | `docs/HANDOFF.md` (What this session delivered; Key locations) | "documentation 1.1.2 to 1.2.1, with the third to sixth audits", and the Key locations row's "the sixth audit". 1.2.1 has an audit of its own, this one, as the changelog's 1.2.1 row and Documentation section say | **Fixed:** the third to seventh audits; the Key locations row names the seventh (1.2.1's) and the sixth (the handoff's) |
+| 57 | LOW | `docs/HANDOFF.md` (Where the project stands) | "Production serves `199121c`'s build". Every push to `main` deploys, so since `c8da4f0`'s push production has served that commit's build, with the same application code and, at 16:32:19Z, the same bundle (`index-P8sStBDZ.js`). `CLAUDE.md`'s Status line and the facts file say application code | **Fixed:** "serves `199121c`'s application code". The records of the checks as they were made — the roadmap's T-10 row and BUG-032 — were left: both say when each check was made, and the T-10 row notes that `main` had moved on to `c8da4f0` |
+| 58 | LOW | `CLAUDE.md` (the `ADMIN_EMAIL` row), `docs/ROADMAP.md` (T-2), the plan (Next) | **Finding 24, now in a public repository** (`gh repo view`: `PUBLIC`). The platform admin's email address is published in three documents, beside the note that open registration stays on — the pairing finding 24 said deserves a deliberate choice. An email address is not a secret, and gitleaks does not flag one | **Left for the owner.** No change made: taking the address out of the documents would not take it out of the history, and whether to is the owner's call |
+| 59 | LOW | all seven managed documents | Stamps. All seven `last-audit` read the sixth audit's 16:06:00Z, and this log was still at 1.2.0. `CLAUDE.md`'s `last-updated` (17:05:33Z) predates its owner's last save (17:06:07Z): finding 53's pattern again | **Fixed:** all seven `last-audit` set to this entry's timestamp; this log set to 1.2.1; `last-updated` set to the time of this reconciler's edits on the four managed documents it edited — `docs/BUGS.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md` and this log — and `CLAUDE.md`'s to its owner's last save, 17:06:07Z, because only its `last-audit` changed here. `docs/TESTING.md`'s and `docs/CHANGELOG.md`'s match their owners' last saves and stand |
+
+**Totals:** 6 findings — 0 critical, 0 high, 1 medium, 5 low.
+**Auto-fixed by this reconciler: 5** (54 to 57, and 59): 6 passages in three documents —
+`docs/HANDOFF.md` 4, `docs/BUGS.md` 1 and `docs/ROADMAP.md` 1 — plus the frontmatter stamps.
+**Left for the owner: 1** (58).
+
+### Verified — what holds against the repository and GitHub
+
+- **Versions.** All seven managed documents are at 1.2.1 — six by their owners, this log by this
+  entry — and `CLAUDE.md`'s in-body literals (the changelog row, "Doc version") match.
+- **Pull request #7 and CI, from GitHub.** MERGED at 2026-09-19T16:27:03Z as `c8da4f0`, head
+  `101f706`: a true merge commit (parents `199121c` and `101f706`) that touches documents only. CI
+  on `101f706` (run 35454726333) was green by 16:26:33Z, before the merge; on `c8da4f0`'s push
+  (run 35454992066) the secret scan finished at 16:27:16Z, the backend at 16:28:20Z and the
+  frontend at 16:32:03Z, so `docs/TESTING.md`'s "green by 16:32:04" holds. CodeRabbit left only its
+  summary comment, its review still pending. Codex's review (16:25:39Z, on `101f706`) has two P2
+  comments, on `docs/SHARING_PLAN.md` lines 75 and 163, with no reply.
+- **Branches.** `git ls-remote --heads origin` and GitHub's branch list show `main` alone, at
+  `c8da4f0`. The seven deleted branches are pull requests #1 to #7's heads, each MERGED, and no
+  pull request is open. Locally there are `main` and this update's branch. Every branch name left
+  in the documents sits in a record of where work was done.
+- **The owner's tasks.** T-10 and T-1 done and T-4 standing read alike in `CLAUDE.md`, the roadmap,
+  `docs/BUGS.md`, `docs/TESTING.md`, the changelog, the handoff and the plan, each recorded as the
+  owner's report. Nothing outside history says T-10's check or T-1 is owed, and nothing says a
+  merged branch still exists.
+- **S2 and the guest context, across the documents.** `MAX_ORGANISATIONS_CREATED_PER_USER`,
+  default 3, counted from a `created_by` column on `organisations`, platform admins exempt, with
+  its reason — an Owner can promote another member to Owner and leave — reads alike in
+  `CLAUDE.md`, the roadmap's B-16, the handoff, the changelog and the brief, and so does the guest
+  organisation context. `organisations` has no `created_by` column today: `0003` creates it with an
+  id, a name and timestamps, and `0007` adds only `monthly_ai_budget_usd`.
+- **The coordinator's additions to the brief, against the code at `c8da4f0`**, whose code is
+  `199121c`'s: `organisations.py:120-163` is `change_member_role` (120–140), with which an Owner
+  can make a member an Owner (`MemberRoleUpdate.role` is `Role`, owner included), and
+  `remove_member` (143–163), which lets a member leave unless they are the last Owner (409,
+  `LAST_OWNER`); `auth.py:336-339` is `GET /api/auth/me`, which returns `_public_user`, whose
+  organisations are `access.memberships_of()` (line 118); and `AuthProvider` chooses the
+  organisation from `user.organisations` (`choosableOrganisation`, lines 40–44, and lines 129 and
+  154) and stores it for the `X-Org-Id` header (`client.ts:124-125`). With no membership,
+  `access._resolve` answers 403, and 404 for an organisation the user isn't in. All hold.
+- **No local paths under the account.** Neither `c8da4f0` nor the working tree has a `C:\Users\`,
+  `C:/Users/`, `/c/Users/` or `AppData` path in any document; the cluster commands use
+  `$LOCALAPPDATA`, which resolves to the cluster's directory in Git Bash here.
+- **Everything 1.2.0 recorded and 1.2.1 leaves alone** is unchanged in every document, as the
+  facts file says: no figure, bug count, limitation, gap or cluster detail moved.
+- **Nothing secret, no probe.** None of the 201 lines the batch adds carries a token, key prefix or
+  UUID, and every mention of registering on the live site forbids it or records the probe behind
+  T-1.
+- **Carried, not re-checked:** the live-site check at 16:32:19Z, the owner's signed-in check and
+  token rotation (both the owner's reports), and the branch deletions' pre-checks (merged,
+  unprotected, unused) — all from the facts file.
+
+### Concurrency
+
+**None.** Every owner's last save predates the audit's opening at 17:07:20Z; the last was
+`docs/HANDOFF.md`, at 17:06:34Z. At 17:18:24Z, immediately before this reconciler's first edit,
+all thirteen documents still matched the hash snapshot taken at the opening.
+
+### The previous entry's follow-ups — closed
+
+| # | Item | State |
+|---|---|---|
+| 1 | The owner — T-10's signed-in check, T-4 and T-1 | **Done:** T-10's check and T-1 on 2026-09-19; T-4 rotated at the end of that session, and standing |
+| 2 | **Standing:** the handoff's commit, push and pull request | **Happened:** pull request #7, `101f706` |
+| 3 | **Standing:** that pull request's merge | **Happened**, as `c8da4f0`. The sentences it would have falsified had been reworded before it (the 16:18Z note at the end of the sixth entry), and 1.2.1 records the merge |
+| 4 | **Standing:** the owner settling B-16 | **Open:** none of S1–S15 is decided |
+
+### Left open
+
+1. **The owner:** finding 58; T-4, at the end of every session; and Codex's two comments on pull
+   request #7, answered in the plan but not on GitHub, where posting waits for the owner's
+   go-ahead.
+2. **Standing — two coming events will each falsify a known set of sentences; re-check that set as
+   each lands.**
+   - **This update's merge.** `CLAUDE.md`'s footer ("`main` is at `c8da4f0` … plus this 1.2.1
+     update once it lands") and the handoff's first next step already allow for it, and its branch
+     is then deleted like the others (facts, section 4).
+   - **The owner settling B-16**, as the sixth entry says.
 
 ---
 
