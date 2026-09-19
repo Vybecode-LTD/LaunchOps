@@ -1,6 +1,6 @@
 # SOURCE_MAP.md — Where Things Live
 
-Last updated 2026-09-17 (Phase 1: foundation). For how to run, see `CLAUDE.md`; for tests, `docs/TESTING.md`;
+Last updated 2026-09-19 (after pull request #6). For how to run, see `CLAUDE.md`; for tests, `docs/TESTING.md`;
 for the design system, `docs/DESIGN_SYSTEM.md`; for tasks and milestones, `docs/ROADMAP.md`; for findings and the
 phased plan, `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`.
 
@@ -16,7 +16,7 @@ phased plan, `docs/ASSESSMENT_AND_DEVELOPMENT_PLAN.md`.
 | `.gitleaksignore` | Reviewed gitleaks findings that aren't secrets, by exact fingerprint (commit, file, rule, line). |
 | `package.json` | Tauri CLI only (`npm run tauri:dev` / `tauri:build`). |
 | `src-tauri/` | Desktop shell: a webview onto `https://launchops.run`. |
-| `docs/` | Managed documents: `ROADMAP.md`, `BUGS.md`, `TESTING.md`, `HANDOFF.md`, `CHANGELOG.md`, `AUDIT-LOG.md`; plus the assessment and development plan, `PHASE1_DESIGN.md` and the design system. |
+| `docs/` | Managed documents: `ROADMAP.md`, `BUGS.md`, `TESTING.md`, `HANDOFF.md`, `CHANGELOG.md`, `AUDIT-LOG.md`; plus the assessment and development plan, `PHASE1_DESIGN.md`, `SHARING_PLAN.md` (the sharing brief) and the design system. |
 
 ## Backend (`backend/`) — FastAPI, asyncpg, PostgreSQL
 
